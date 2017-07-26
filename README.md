@@ -206,7 +206,7 @@ it does) but it's a huge oversight for libraries that provide core types.
 
 As a user, you might not realize that the "matrix * vector" products you use
 everywhere with library X take twice as many instructions as they should.  
-Yes, You won't see the difference in "most cases", but do define "most cases"!  
+Yes, you won't see the difference in "most cases", but do define "most cases"!  
 In my experience, "most cases" is "moderately ambitious games running on 
 x86-64 CPUs", which is why there's no noticeable slowdown, but that shouldn't
 get in the way of "potentially ambitious games running on PC, consoles and 
