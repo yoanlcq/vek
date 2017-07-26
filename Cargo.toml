@@ -1,0 +1,6 @@
+[package]
+name = "vek"
+version = "0.1.0"
+authors = ["Yoan Lecoq <yoanlecoq.io@gmail.com>"]
+
+[dependencies]
