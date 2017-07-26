@@ -2,9 +2,6 @@
 //!
 //! DO NOT USE (yet). This is very much a work-in progress, breaking changes happen all the time on a whim.
 //!
-//! Useful, efficient and colorful vector and matrix types for use in computer graphics, with focus
-//! on intent, performance, and reality of the target hardware.
-//!
 //! The efficiency claim is based on the fact that implementations are specialized according
 //! to the target hardware, and the generated assembly is checked to ensure it is optimal.  
 //! As you would expect, SSE-enabled x86 CPUs do benefit from this.
