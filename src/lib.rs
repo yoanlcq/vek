@@ -98,6 +98,9 @@
 
 #[cfg(all(nightly,test))]
 extern crate test;
+#[cfg(feature="serde_derive")]
+#[macro_use]
+extern crate serde_derive;
 #[cfg(feature="serde")]
 #[macro_use]
 extern crate serde;

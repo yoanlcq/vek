@@ -3,8 +3,6 @@
 [![Documentation](https://docs.rs/vek/badge.svg)](https://docs.rs/vek)
 [![Version](https://img.shields.io/crates/v/vek.svg)](https://crates.io/crates/vek)
 ![MIT/Apache-2.0](https://img.shields.io/github/license/yoanlcq/vek.svg)]
-// ![Apache License](https://img.shields.io/crates/l/vek.svg)](https://github.com/yoanlcq/vek/blob/master/LICENSE-APACHE)
-// ![MIT License](https://img.shields.io/crates/l/vek.svg)](https://github.com/yoanlcq/vek/blob/master/LICENSE-MIT)
 [![Downloads](https://img.shields.io/crates/d/vek.svg)](https://crates.io/crates/vek)
 
 # vek
