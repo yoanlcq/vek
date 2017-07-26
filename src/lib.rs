@@ -9,7 +9,7 @@
 //! to the target hardware, and the generated assembly is checked to ensure it is optimal.  
 //! As you would expect, SSE-enabled x86 CPUs do benefit from this.
 //!
-//! See the FAQ in the README and the [the roadmap to 1.0](https://github.com/yoanlcq/vek/issues#1) for more info.
+//! See the FAQ in the README and the [the roadmap to 1.0](https://github.com/yoanlcq/vek/issues/1) for more info.
 //!
 //!
 //! # Overview
@@ -62,16 +62,28 @@
 //! # Cargo features
 //!
 //! - `serde` makes vectors and matrices derive `Serialize` and `Deserialize`.
+//!
+//! ***
+//!
 //! - `repr_simd` allows Rust's `repr_simd` and `simd_ffi` features, which require Nightly, but
 //! help a lot to generate high-quality code.
 //! - `repr_align` allows Rust's `repr_align` features, which require Nightly. It's always safe to
 //!   leave disabled, but does increase code quality a bit when enabled.
+//! - `x86intrin` enables x86 intrinsics through the `x86intrin` crate. `vek` doesn't diretcly
+//!   depend on it because it won't compile on Stable and there's no way (as of this writing)
+//!   to selectively depend on a crate based on the `rustc` version, not even via build scripts.
+//!
+//! ***
+//!
 //! - `f32`, `f64`, `i8`, `u8`, `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `isize`, `usize`
 //!   implement vectors and matrices for each of these types. Select only those that you need in
 //!   order to reduce build times.
 //! - `itypes` is a shorthand for `i8`, `i16`, `i32` and `i64` (but neither `i128` nor `isize`).
 //! - `utypes` is a shorthand for `u8`, `u16`, `u32` and `u64` (but neither `u128` nor `usize`).
 //! - `ftypes` is a shorthand for `f32` and `f64`.
+//!
+//! ***
+//!
 //! - `fix` implements vectors and matrices of fixed-point numbers from the `fix` crate.
 //! - `fpa` implements vectors and matrices of fixed-point numbers from the `fpa` crate.
 //! - `num-bigint` implements vectors and matrices of big integers from the `num-bigint` crate.
