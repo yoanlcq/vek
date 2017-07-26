@@ -1,6 +1,41 @@
 [package]
-name = "vek"
-version = "0.1.0"
 authors = ["Yoan Lecoq <yoanlecoq.io@gmail.com>"]
+description = "Generic but efficient SIMD vector+matrix library for game engines, with focus on intent and the small bits that make you happier as a user."
+documentation = "https://docs.rs/vek"
+keywords = ["vector", "matrix", "simd"]
+categories = [ "algorithms", "data-structures", "no-std", "science" ]
+license = "MIT/Apache-2.0"
+repository = "https://github.com/yoanlcq/vek"
+name = "vek"
+version = "0.1.0" # remember to update html_root_url in src/lib.rs
+
+[features]
+default = ["repr_simd", "repr_align", "serde", "f32", "u8"]
+repr_align = []
+repr_simd = ["x86intrin"]
+f32 = []
+f64 = []
+i8 = []
+u8 = []
+i16 = []
+u16 = []
+i32 = []
+u32 = []
+i64 = []
+u64 = []
+i128 = []
+u128 = []
+isize = []
+usize = []
+itypes = [ "i8", "i16", "i32", "i64" ]
+utypes = [ "u8", "u16", "u32", "u64" ]
+ftypes = [ "f32", "f64" ]
 
 [dependencies]
+serde = { version = "1.0.10", optional = true, features = ["derive"] }
+fix = { version = "0.1.0", optional = true }
+fpa = { version = "0.1.0", optional = true }
+num-bigint = { version = "0.1.40", optional = true }
+
+[target.'cfg(any(target_arch = "x86", target_arch = "x86_64"))'.dependencies]
+x86intrin = { version = "0.4.2", optional = true }
