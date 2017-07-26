@@ -43,8 +43,8 @@ systems, animation systems, and many others... All of them need and
 process such types all the time. When they are fast, a lot of dependent
 systems greatly benefit from it.
 
-It is quite a commitment to choose a vector/matrix library for a project
-- any game, engine or library that uses it is implictly tied to its decisions regarding
+It is quite a commitment to choose a vector/matrix library for a project - any 
+game, engine or library that uses it is implictly tied to its decisions regarding
 performance and functionality. When none of these libraries are suitable for the
 task, one ends up being written in-house, with a variable quality criteria.
 
