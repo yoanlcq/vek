@@ -364,6 +364,8 @@ Indexing on Quaternions. Convert them to a `Xyzw` first instead.
 Non-square matrices. It's a bit like [EBCDIC](https://en.wikipedia.org/wiki/EBCDIC), in that,
 it exists, but darn, who actually uses it ? (don't you raise your hand).
 
+[See also this StackOverflow question ??](https://stackoverflow.com/q/36994741)
+
 The functionality can be emulated by using higher-order square matrix types and setting
 appropriate members to zero.  
 
