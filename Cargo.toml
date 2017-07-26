@@ -41,7 +41,7 @@ ftypes = [ "f32", "f64" ]
 rustc_version = "0.2.1"
 
 [dependencies]
-clippy = { version = "*", optional = true }
+clippy = { version = "0.0.145", optional = true }
 #num-traits = "0.1.39"
 #num-integer = "0.1.34"
 num-bigint = { version = "0.1.40", optional = true }
