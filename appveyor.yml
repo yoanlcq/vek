@@ -38,11 +38,14 @@ install:
 # TODO This is the "test phase", tweak it as you see fit
 test_script:
   # we don't run the "test phase" when doing deploys
+  # NOTE(yoanlcq): Adding --lib to avoid running doc tests, 
+  # because for some reason they always fail to compile on out AppVeyor builds.
+  # Related issue: https://github.com/rust-lang/cargo/issues/4224.
   - if [%APPVEYOR_REPO_TAG%]==[false] (
       cargo build --target %TARGET% &&
       cargo build --target %TARGET% --release &&
-      cargo test --target %TARGET% &&
-      cargo test --target %TARGET% --release
+      cargo test --lib --no-fail-fast --target %TARGET% &&
+      cargo test --lib --no-fail-fast --target %TARGET% --release
     )
 
 cache:

@@ -11,8 +11,8 @@ main() {
         return
     fi
 
-    cross test --target $TARGET
-    cross test --target $TARGET --release
+	cross test $(if [ $AVOID_DOC_TESTS ]; then echo --lib; fi) --no-fail-fast --target $TARGET
+    cross test $(if [ $AVOID_DOC_TESTS ]; then echo --lib; fi) --no-fail-fast --target $TARGET --release
 
     #cross run --target $TARGET
     #cross run --target $TARGET --release

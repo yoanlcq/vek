@@ -17,8 +17,11 @@ matrix:
     - env: TARGET=i686-unknown-linux-gnu
       rust: nightly
     #- env: TARGET=i686-unknown-linux-musl
-    - env: TARGET=x86_64-unknown-linux-gnu
-    - env: TARGET=x86_64-unknown-linux-gnu
+    # NOTE(yoanlcq): AVOID_DOC_TESTS is a hack to work around
+    # an existing issue (https://github.com/rust-lang/cargo/issues/4224)
+    # related to serde_derive and prevents tests from compiling.
+    - env: TARGET=x86_64-unknown-linux-gnu AVOID_DOC_TESTS=1
+    - env: TARGET=x86_64-unknown-linux-gnu AVOID_DOC_TESTS=1
       rust: nightly
     #- env: TARGET=x86_64-unknown-linux-musl
 
