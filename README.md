@@ -1,4 +1,11 @@
-TODO shields here
+[![Travis CI Build Status](https://travis-ci.org/yoanlcq/vek.svg?branch=master)](https://travis-ci.org/yoanlcq/vek)
+[![Appveyor Build status](https://ci.appveyor.com/api/projects/status/ir0d4pkpkfwv643q/branch/master?svg=true)](https://ci.appveyor.com/project/yoanlcq/vek/branch/master)
+[![Documentation](https://docs.rs/vek/badge.svg)](https://docs.rs/vek)
+[![Version](https://img.shields.io/crates/v/vek.svg)](https://crates.io/crates/vek)
+![MIT/Apache-2.0](https://img.shields.io/github/license/yoanlcq/vek.svg)]
+// ![Apache License](https://img.shields.io/crates/l/vek.svg)](https://github.com/yoanlcq/vek/blob/master/LICENSE-APACHE)
+// ![MIT License](https://img.shields.io/crates/l/vek.svg)](https://github.com/yoanlcq/vek/blob/master/LICENSE-MIT)
+[![Downloads](https://img.shields.io/crates/d/vek.svg)](https://crates.io/crates/vek)
 
 # vek
 
@@ -15,7 +22,7 @@ As you would expect, SSE-enabled x86 CPUs do benefit from this.
 
 # Useful links
 
-- [The top-level documentation](https://docs.rs/vek/0.1.0);
+- [The top-level documentation](https://docs.rs/vek);
 - [The FAQ](#faq);
 - [Roadmap to 1.0](https://github.com/yoanlcq/vek/issues/1);
 - [The list of "features" that are purposefully not implemented](#wont-implement).

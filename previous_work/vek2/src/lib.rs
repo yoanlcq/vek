@@ -1,7 +1,3 @@
-//! Generic but efficient SIMD vector+matrix library for game engines, with focus on intent and the small bits that make you happier as a user.
-//!
-//! DO NOT USE (yet). This is very much a work-in progress, breaking changes happen all the time on a whim.
-//!
 //! Useful, efficient and colorful vector and matrix types for use in computer graphics, with focus
 //! on intent, performance, and reality of the target hardware.
 //!
@@ -9,8 +5,7 @@
 //! to the target hardware, and the generated assembly is checked to ensure it is optimal.  
 //! As you would expect, SSE-enabled x86 CPUs do benefit from this.
 //!
-//! See the FAQ in the README and the [the roadmap to 1.0](https://github.com/yoanlcq/vek/issues#1) for more info.
-//!
+//! See [the FAQ](faq/index.html) and the [todo list](todo/index.html).
 //!
 //! # Overview
 //!
@@ -28,7 +23,7 @@
 //! - Square matrices: `Mat2<T>`, `Mat3<T>`, `Mat4<T>`.
 //!
 //! Matrices can be row-major or column-major at your option, because there are use cases for both
-//! layouts, even though column-major is often better performance-wise.
+//! layouts.
 //!
 //! Types share functionality whenever relevant.  
 //! Also, there are several (concise) ways to convert from one vector type to another:
@@ -52,12 +47,10 @@
 //! let new_position = model * position;
 //! ```
 //!
-//! You can use straight tuple types for convenience, however since their
+//! Notice that you can use straight tuple types for convenience, however since their
 //! memory layout is undefined, the compiler can't generate optimal code. `vek`'s vector
 //! types are just as convenient (if not more so), but marked `#[repr(simd)]` when enabled.
 //!
-//! Matrix elements are written as `mij`, where i is the row index and j is the column index, independently of storage order.
-//! This convention has been chosen because it is the *de facto* standard.
 //!
 //! # Cargo features
 //!
@@ -78,50 +71,15 @@
 //!
 //! # `#![no_std]`
 //! This crate is `#![no_std]`.
+//!
 
-#![no_std]
-#![doc(
-    test(attr(deny(warnings))),
-    html_root_url = "https://docs.rs/vek/0.2.0",
-    //html_logo_url = "https://yoanlcq.github.io/vek/logo.png",
-    //html_favicon_url = "https://yoanlcq.github.io/vek/favicon.ico",
-)]
-#![deny(missing_docs)]
-#![cfg_attr(all(nightly, feature="clippy"), feature(plugin))]
-#![cfg_attr(all(nightly, feature="clippy"), plugin(clippy))]
-#![cfg_attr(all(nightly, feature="repr_simd" ), feature(cfg_target_feature))]
-#![cfg_attr(all(nightly, feature="repr_simd" ), feature(repr_simd, simd_ffi))]
-#![cfg_attr(all(nightly, feature="repr_align"), feature(repr_align, attr_literals))]
-//#![cfg_attr(feature="repr_simd", allow(improper_ctypes)]
-//#![cfg_attr(feature="repr_simd", feature(link_llvm_intrinsics)]
-#![cfg_attr(all(nightly,test), feature(test))]
 
-#[cfg(all(nightly,test))]
-extern crate test;
-#[cfg(feature="serde")]
-#[macro_use]
-extern crate serde;
-#[cfg(feature="fix")]
-extern crate fix;
-#[cfg(feature="fpa")]
-extern crate fpa;
-#[cfg(feature="num_bigint")]
-extern crate num_bigint;
+pub mod faq;
+pub mod todo;
 
-#[cfg(feature="x86intrin")]
-extern crate x86intrin;
+pub mod vec;
+pub mod mat;
 
-/// This type is a placeholder.
-#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Vec4<T>(pub T, pub T, pub T, pub T);
-
-// extern crate num_traits;
-// extern crate num_integer;
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-    }
-}
+pub mod x86;
+pub mod arm;
+pub mod gen;
