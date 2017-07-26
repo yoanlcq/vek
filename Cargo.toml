@@ -10,6 +10,12 @@ repository = "https://github.com/yoanlcq/vek"
 name = "vek"
 version = "0.2.0" # remember to update html_root_url in src/lib.rs
 build = "build.rs"
+exclude = [
+    "previous_work/*",
+    "ci/*",
+    "appveyor.yml",
+    ".travis.yml",
+]
 
 [badges]
 travis-ci = { repository = "yoanlcq/vek" }
