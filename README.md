@@ -196,7 +196,7 @@ It probably looks a bit ridiculous to provide so much rationale in this section,
 but seeing how many crates I could have used out there instead of writing my own, 
 I do feel this need to explain.
 
-In my opinion:
+In my (hopefully humble) opinion:
 
 ***
 Little to no attention is paid to the quality of the actual assembly output.
