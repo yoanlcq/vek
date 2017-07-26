@@ -322,7 +322,7 @@ If one still wants dynamic indexing, they can write `m.rows[i][j]` or
 
 ***
 
-Divide matrix by matrix, because it is too confusing (and not always possible).
+Matrix division by matrix, because it is too confusing (and not always possible).  
 Explicitly mutiply by the inverse (if possible) instead.
 
 ***
@@ -332,7 +332,7 @@ directly, bypassing bounds checking.
 
 ***
 
-`as_ptr()` or `as_mut_ptr()`, because it's important to be explicit about
+`as_ptr()` or `as_mut_ptr()` for matrices, because it's important to be explicit about
 giving an array of rows or columns. Explicitly turn the public member
 into a pointer instead.  
 `as_gl_uniform_params()` is the only exception.
@@ -344,11 +344,16 @@ It's better to explicitly call `transpose()` to invert a matrix that is known to
 
 ***
 
-`Rad` or `Deg` newtypes. It's unhandy and worthless - what do you want to check
-for ? 
+`Rad` or `Deg` newtypes. It's unhandy and worthless, in that they add no value.
+How would correctness be enforced using one or the other ?  
+
+Per `vek`'s mantra (i.e stay true to reality), all angles are assumed to be in
+radians, because this is the unit that's **actually** used for calculations.  
+Degrees are only good for displaying in GUIs, and as such, are none of my concern.
+
 Also floating-point types already have `to_radians()` and `to_degrees()` in Rust.
-Radians are used because they are the only sane angular unit. If you want to support 
-degrees so bad, then write your own wrappers.
+If you want to support degrees so bad, then I dunno, write your own wrappers or 
+properly handle conversions yourself.
 
 ***
 
@@ -356,9 +361,11 @@ Indexing on Quaternions. Convert them to a `Xyzw` first instead.
 
 ***
 
-Non-square matrices. It's a bit like EBCDIC, it exists but nobody actually uses it
-(in the context `vek` would be used, at least).
+Non-square matrices. It's a bit like [EBCDIC](https://en.wikipedia.org/wiki/EBCDIC), in that,
+it exists, but darn, who actually uses it ? (don't you raise your hand).
+
 The functionality can be emulated by using higher-order square matrix types and setting
-appropriate members to zero.
+appropriate members to zero.  
+
 If you're concerned about the space it takes in memory, don't forget that you can simply
-store vectors of vectors and convert them on-the-fly to square matrices, as needed.
+store appropriate vectors of vectors and convert them on-the-fly to square matrices, as needed.
