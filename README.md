@@ -364,9 +364,10 @@ Indexing on Quaternions. Convert them to a `Xyzw` first instead.
 Non-square matrices. It's a bit like [EBCDIC](https://en.wikipedia.org/wiki/EBCDIC), in that,
 it exists, but darn, who actually uses it ? (don't you raise your hand).
 
-[See also this StackOverflow question ??](https://stackoverflow.com/q/36994741)
+In GLSL ES, there are only square matrix types (only the `NV_non_square_matrice` brings them back).  
+Even in desktop GL, non-square matrices are seldom used ([See this StackOverflow question](https://stackoverflow.com/q/36994741)).
 
-The functionality can be emulated by using higher-order square matrix types and setting
+The functionality can **still** be emulated by using higher-order square matrix types and setting
 appropriate members to zero.  
 
 If you're concerned about the space it takes in memory, don't forget that you can simply
