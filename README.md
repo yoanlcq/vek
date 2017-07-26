@@ -283,6 +283,10 @@ that I feel like I need some kind of definite, feature-complete,
 
 # Won't implement
 
+*What follows is a list of features that are purposefully not implemented.*
+
+***
+
 Any iterator over matrices. Iterate over the public member instead.  
 Transpose the matrix if needed.
 
