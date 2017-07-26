@@ -18,7 +18,7 @@ As you would expect, SSE-enabled x86 CPUs do benefit from this.
 - [The top-level documentation](https://docs.rs/vek/0.1.0);
 - [The FAQ](#faq);
 - [Roadmap to 1.0](https://github.com/yoanlcq/vek/issues/1);
-- [The list of "features" that are purposefully not implemented](#won-t-implement).
+- [The list of "features" that are purposefully not implemented](#wont-implement).
 
 
 
