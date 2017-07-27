@@ -34,6 +34,8 @@ matrix:
       rust: nightly
     #- env: TARGET=x86_64-unknown-linux-musl
 
+    # Avoiding Mac machines because builds on them are sloooooow
+    # Besides i686 and x86_64 are already tested on Linux and Windows.
     # OSX
     #- env: TARGET=i686-apple-darwin
     #  os: osx
