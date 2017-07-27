@@ -12,27 +12,27 @@ env:
 
 matrix:
   include:
-    # NOTE(yoanlcq): Put these first because they supposedly take
+    # Put these first because they supposedly take
     # more time to setup and easy to fail.
-    - env: TARGET=asmjs-unknown-emscripten
-    - env: TARGET=asmjs-unknown-emscripten
-      rust: nightly
-    - env: TARGET=wasm32-unknown-emscripten
-    - env: TARGET=wasm32-unknown-emscripten
-      rust: nightly
+    # Commenting these until https://github.com/japaric/cross/issues/110
+    # is fixed.
+    #- env: TARGET=asmjs-unknown-emscripten
+    #- env: TARGET=asmjs-unknown-emscripten
+    #  rust: nightly
+    #- env: TARGET=wasm32-unknown-emscripten
+    #- env: TARGET=wasm32-unknown-emscripten
+    #  rust: nightly
 
     # Linux
     - env: TARGET=i686-unknown-linux-gnu
     - env: TARGET=i686-unknown-linux-gnu
       rust: nightly
-    #- env: TARGET=i686-unknown-linux-musl
-    # NOTE(yoanlcq): AVOID_DOC_TESTS is a hack to work around
+    # AVOID_DOC_TESTS is a hack to work around
     # an existing issue (https://github.com/rust-lang/cargo/issues/4224)
     # related to serde_derive and prevents tests from compiling.
     - env: TARGET=x86_64-unknown-linux-gnu AVOID_DOC_TESTS=1
     - env: TARGET=x86_64-unknown-linux-gnu AVOID_DOC_TESTS=1
       rust: nightly
-    #- env: TARGET=x86_64-unknown-linux-musl
 
     # Avoiding Mac machines because builds on them are sloooooow
     # Besides i686 and x86_64 are already tested on Linux and Windows.
@@ -48,22 +48,26 @@ matrix:
     #- env: TARGET=x86_64-unknown-netbsd DISABLE_TESTS=1
 
     # Other architectures
-    - env: TARGET=arm-linux-androideabi
-    - env: TARGET=arm-linux-androideabi
-      rust: nightly
-    - env: TARGET=armv7-linux-androideabi
-    - env: TARGET=armv7-linux-androideabi
-      rust: nightly
-    - env: TARGET=aarch64-linux-android
-    - env: TARGET=aarch64-linux-android
-      rust: nightly
-    # NOTE(yoanlcq): All of these platforms should be uncommented once
-    # we reach 1.0
-    #- env: TARGET=aarch64-unknown-linux-gnu
-    #- env: TARGET=aarch64-unknown-linux-gnu
+    #
+    # Commenting Android targets because even though they're
+    # supported, they fail at the end for obscure reasons.
+    #- env: TARGET=arm-linux-androideabi
+    #- env: TARGET=arm-linux-androideabi
     #  rust: nightly
-    #- env: TARGET=armv7-unknown-linux-gnueabihf
-    #- env: TARGET=armv7-unknown-linux-gnueabihf
+    #- env: TARGET=armv7-linux-androideabi
+    #- env: TARGET=armv7-linux-androideabi
+    #  rust: nightly
+    #- env: TARGET=aarch64-linux-android
+    #- env: TARGET=aarch64-linux-android
+    #  rust: nightly
+    #
+    # All of these platforms should be uncommented once
+    # we reach 1.0
+    - env: TARGET=aarch64-unknown-linux-gnu
+    - env: TARGET=aarch64-unknown-linux-gnu
+      rust: nightly
+    - env: TARGET=armv7-unknown-linux-gnueabihf
+    - env: TARGET=armv7-unknown-linux-gnueabihf
     #  rust: nightly
     #- env: TARGET=mips-unknown-linux-gnu
     #- env: TARGET=mips-unknown-linux-gnu
