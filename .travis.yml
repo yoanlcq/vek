@@ -18,7 +18,7 @@ matrix:
     - env: TARGET=asmjs-unknown-emscripten
       rust: nightly
     - env: TARGET=wasm32-unknown-emscripten
-    - env: TARGET=wasm32-unknown-emscripte
+    - env: TARGET=wasm32-unknown-emscripten
       rust: nightly
 
     # Linux
