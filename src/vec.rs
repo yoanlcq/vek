@@ -3,14 +3,14 @@
 use core::fmt::{self, Display, Formatter};
 
 macro_rules! vec_declare_types {
-    (#[$attrs:meta]) => {
+    ($(#[$attrs:meta])+) => {
         /// A two-components generic vector type.
         ///
         /// - If you intend to use it as spatial coordinates, consider using [Xy](struct.Xy.html) instead.
         /// - If you intend to use it as texture coordinates, consider using [Uv](struct.Uv.html) instead.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        #[$attrs]
+        $(#[$attrs])+
         pub struct Vec2<T>(pub T, pub T);
         /// A three-components generic vector type.
         ///
@@ -19,7 +19,7 @@ macro_rules! vec_declare_types {
         /// - If you intend to use it as texture coordinates, consider using [Uvw](struct.Uvw.html) instead.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        #[$attrs]
+        $(#[$attrs])+
         pub struct Vec3<T>(pub T, pub T, pub T);
         /// A four-components generic vector type.
         ///
@@ -27,7 +27,7 @@ macro_rules! vec_declare_types {
         /// - If you intend to use it as RGBA color data, consider using [Rgba](struct.Rgba.html) instead.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        #[$attrs]
+        $(#[$attrs])+
         pub struct Vec4<T>(pub T, pub T, pub T, pub T);
 
         /// An eight-components generic vector type.
@@ -37,7 +37,7 @@ macro_rules! vec_declare_types {
         /// Otherwise, LLVM lowers it to a fixed-sized array of whichever "best" SIMD vector type is available.  
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        #[$attrs]
+        $(#[$attrs])+
         pub struct Vec8<T>(pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T);
 
         /// A sixteen-components generic vector type.
@@ -47,7 +47,7 @@ macro_rules! vec_declare_types {
         /// Otherwise, LLVM lowers it to a fixed-sized array of whichever "best" SIMD vector type is available.  
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        #[$attrs]
+        $(#[$attrs])+
         pub struct Vec16<T>(pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T);
 
         /// A thirty-two-components generic vector type.
@@ -57,7 +57,7 @@ macro_rules! vec_declare_types {
         /// Otherwise, LLVM lowers it to a fixed-sized array of whichever "best" SIMD vector type is available.  
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        #[$attrs]
+        $(#[$attrs])+
         pub struct Vec32<T>(pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T);
 
         /// A sixty-four-components generic vector type.
@@ -67,7 +67,7 @@ macro_rules! vec_declare_types {
         /// Otherwise, LLVM is able to process it as a fixed-sized array of whichever "best" SIMD vector type available.  
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        #[$attrs]
+        $(#[$attrs])+
         pub struct Vec64<T>(pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T);
 
 
@@ -75,19 +75,19 @@ macro_rules! vec_declare_types {
         #[allow(missing_docs)]
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        #[$attrs]
+        $(#[$attrs])+
         pub struct Xyzw<T> { pub x:T, pub y:T, pub z:T, pub w:T }
         /// Vector type suited for 3D spatial coordinates.
         #[allow(missing_docs)]
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        #[$attrs]
+        $(#[$attrs])+
         pub struct Xyz<T> { pub x:T, pub y:T, pub z:T }
         /// Vector type suited for 2D spatial coordinates.
         #[allow(missing_docs)]
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        #[$attrs]
+        $(#[$attrs])+
         pub struct Xy<T> { pub x:T, pub y:T }
 
         /// Vector type suited for 3D extents (width, height and depth).
@@ -101,7 +101,7 @@ macro_rules! vec_declare_types {
         #[allow(missing_docs)]
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        #[$attrs]
+        $(#[$attrs])+
         pub struct Extent3<T> { pub w:T, pub h:T, pub d:T }
         /// Vector type suited for 2D extents (width and height).
         ///
@@ -114,7 +114,7 @@ macro_rules! vec_declare_types {
         #[allow(missing_docs)]
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        #[$attrs]
+        $(#[$attrs])+
         pub struct Extent2<T> { pub w:T, pub h:T }
 
 
@@ -125,7 +125,7 @@ macro_rules! vec_declare_types {
         #[allow(missing_docs)]
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        #[$attrs]
+        $(#[$attrs])+
         pub struct Rgba<T> { pub r:T, pub g:T, pub b:T, pub a:T }
         /// Vector type suited for RGB color data.
         ///
@@ -134,20 +134,20 @@ macro_rules! vec_declare_types {
         #[allow(missing_docs)]
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        #[$attrs]
+        $(#[$attrs])+
         pub struct Rgb<T> { pub r:T, pub g:T, pub b:T }
 
         /// Vector type suited for 3D texture coordinates.
         #[allow(missing_docs)]
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        #[$attrs]
+        $(#[$attrs])+
         pub struct Uvw<T> { pub u:T, pub v:T, pub w:T }
         /// Vector type suited for 2D texture coordinates.
         #[allow(missing_docs)]
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        #[$attrs]
+        $(#[$attrs])+
         pub struct Uv<T> { pub u:T, pub v:T }
 
         /// Displays an `Rgba` value as `rgba(r,g,b,a)`.
@@ -213,7 +213,10 @@ pub mod repr_c {
     //! Vector types which are marked `#[repr(packed, C)]`.
 
     use super::*;
-    vec_declare_types!{#[repr(packed, C)]}
+    vec_declare_types!{
+        #[repr(packed, C)]
+        #[cfg_attr(all(nightly, feature="repr_align"), repr(align(16)))]
+    }
 }
 
 #[cfg(all(nightly, feature="repr_simd"))]
