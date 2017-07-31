@@ -96,6 +96,7 @@
     //html_favicon_url = "https://yoanlcq.github.io/vek/favicon.ico",
 )]
 #![deny(missing_docs)]
+#![deny(warnings)]
 #![cfg_attr(all(nightly, feature="clippy"), feature(plugin))]
 #![cfg_attr(all(nightly, feature="clippy"), plugin(clippy))]
 #![cfg_attr(all(nightly, feature="repr_simd" ), feature(cfg_target_feature))]
@@ -125,13 +126,123 @@ extern crate num_bigint;
 #[cfg(feature="x86intrin")]
 extern crate x86intrin;
 
-/// This type is a placeholder.
-#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Vec4<T>(pub T, pub T, pub T, pub T);
-
 // extern crate num_traits;
 // extern crate num_integer;
+
+pub mod vec {
+    //! Vector types.
+
+    pub mod repr_c {
+        //! Vector types which are marked `#[repr(packed, C)]`.
+
+        /// This type is a placeholder.
+        #[repr(packed, C)]
+        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+        pub struct Vec4<T>(pub T, pub T, pub T, pub T);
+    }
+    #[cfg(all(nightly, feature="repr_simd"))]
+    pub mod repr_simd {
+        //! Vector types which are marked `#[repr(packed, simd)]`.
+
+        /// This type is a placeholder.
+        #[repr(packed, simd)]
+        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+        pub struct Vec4<T>(pub T, pub T, pub T, pub T);
+    }
+
+    /*
+    #[cfg(all(nightly, feature="repr_simd"))]
+    pub use self::repr_simd::*;
+    #[cfg(not(all(nightly, feature="repr_simd")))]
+    pub use self::repr_c::*;
+    */
+}
+
+
+pub mod mat {
+    //! Matrix types.
+
+    use super::vec;
+
+    pub mod repr_c {
+        //! Matrix types which use `#[repr(packed, C)]` vectors exclusively.
+
+        use super::vec;
+
+        pub mod column_major {
+            //! Column-major matrices.
+
+            use super::vec::repr_c::Vec4;
+            use super::vec::repr_c::Vec4 as CVec4;
+
+            /// This type is a placeholder.
+            pub struct Mat4<T> {
+                /// The matrix's columns.
+                pub cols: CVec4<Vec4<T>>,
+            }
+        }
+        pub mod row_major {
+            //! Row-major matrices.
+
+            use super::vec::repr_c::Vec4;
+            use super::vec::repr_c::Vec4 as CVec4;
+
+            /// This type is a placeholder.
+            pub struct Mat4<T> {
+                /// The matrix's rows.
+                pub rows: CVec4<Vec4<T>>,
+            }
+        }
+    }
+
+    #[cfg(all(nightly, feature="repr_simd"))]
+    pub mod repr_simd {
+        //! Matrix types which use a `#[repr(packed, C)]` vector of `#[repr(packed, simd)]` vectors.
+
+        use super::vec;
+
+        pub mod column_major {
+            //! Column-major matrices.
+
+            use super::vec::repr_simd::Vec4;
+            use super::vec::repr_c::Vec4 as CVec4;
+
+            /// This type is a placeholder.
+            pub struct Mat4<T> {
+                /// The matrix's columns.
+                pub cols: CVec4<Vec4<T>>,
+            }
+        }
+        pub mod row_major {
+            //! Row-major matrices.
+
+            use super::vec::repr_simd::Vec4;
+            use super::vec::repr_c::Vec4 as CVec4;
+
+            /// This type is a placeholder.
+            pub struct Mat4<T> {
+                /// The matrix's rows.
+                pub rows: CVec4<Vec4<T>>,
+            }
+        }
+    }
+
+    /*
+    #[cfg(all(nightly, feature="repr_simd"))]
+    pub use self::repr_simd::*;
+    #[cfg(not(all(nightly, feature="repr_simd")))]
+    pub use self::repr_c::*;
+    */
+}
+
+
+/*
+pub use vec::*;
+pub use mat::*;
+*/
+
 
 #[cfg(test)]
 mod tests {
