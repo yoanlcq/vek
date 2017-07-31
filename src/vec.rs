@@ -207,7 +207,7 @@ macro_rules! vec_declare_types {
     }
 }
 
-macro_rules! vec_impl_vec {
+macro_rules! vec_impl_tuplevec {
     ($Vec:ident ($fmt:expr) ($($get:tt)+) ($($namedget:tt)+) $Tuple:ty) => {
         #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
         #[allow(missing_docs)]
@@ -238,7 +238,7 @@ macro_rules! vec_impl_vec {
 }
 
 
-macro_rules! vec_impl_all_vecs {
+macro_rules! vec_impl_all_tuplevecs {
     () => {
         vec_impl_vec!(Vec2  ("({}, {})") (0 1) (x y) (T,T));
         vec_impl_vec!(Vec3  ("({}, {}, {})") (0 1 2) (x y z) (T,T,T));
@@ -250,9 +250,12 @@ macro_rules! vec_impl_all_vecs {
     }
 }
 
-/*
-macro_rules! vec_impl_zero {
-    () => {
+macro_rules! vec_impl {
+    (impl $Vec:ident<$T:ty> {
+        get: $($get:tt)+,
+        zero: $zero:expr,
+        one: $one:expr,
+    }) => {
         impl $Vec<$T> {
             pub fn zero() -> Self {
                 let out: Self = unsafe { mem::uninitialized() };
@@ -264,10 +267,32 @@ macro_rules! vec_impl_zero {
                 $(out.$get = $one;)+
                 out
             }
+            pub fn is_zero(&self) -> bool { self == Self::zero() }
+            pub fn is_one (&self) -> bool { self == Self::one () }
         }
     }
 }
-*/
+
+macro_rules! vec_many_impl {
+    (($($Vec:ident $($get:tt)+),+) ($($T:ty { zero: $zero:expr, one: $one:expr, }),+)) => {
+        $($(
+            vec_impl!(impl $Vec<$T> {
+                get: $($get)+,
+                zero: $zero,
+                one: $one,
+            })
+        )+)+
+    }
+}
+
+macro_rules! vec_all_impl {
+    () => {
+        vec_many_impl!{
+            (Vec2 0 1, Vec3 0 1 2, /*Vec4 Vec8 Vec16 Vec32 Vec64 Xyzw Xyz Xy Rgba Rgb Uvw Uv Extent3 Extent2*/)
+            (f32 { zero: 0f32, one: 1f32, }, i32 { zero: 0, one: 1,})
+        }
+    }
+}
 
 
 
@@ -276,10 +301,12 @@ pub mod repr_c {
 
     use super::*;
     vec_declare_types!{
-        #[repr(packed, C)]
+        #[repr(C)]
         #[cfg_attr(all(nightly, feature="repr_align"), repr(align(16)))]
+        // TODO assert the packing of vecs
     }
-    vec_impl_all_vecs!{}
+    vec_impl_all_tuplevecs!{}
+    vec_all_impl!{}
 }
 
 #[cfg(all(nightly, feature="repr_simd"))]
@@ -288,7 +315,8 @@ pub mod repr_simd {
 
     use super::*;
     vec_declare_types!{#[repr(packed, simd)]}
-    vec_impl_all_vecs!{}
+    vec_impl_all_tuplevecs!{}
+    //vec_all_impl!{}
 }
 
 #[cfg(all(nightly, feature="repr_simd"))]
