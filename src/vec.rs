@@ -207,6 +207,68 @@ macro_rules! vec_declare_types {
     }
 }
 
+macro_rules! vec_impl_vec {
+    ($Vec:ident ($fmt:expr) ($($get:tt)+) ($($namedget:tt)+) $Tuple:ty) => {
+        #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
+        #[allow(missing_docs)]
+        impl<T> $Vec<T> {
+            #[cfg_attr(feature = "cargo-clippy", allow(too_many_arguments))]
+            pub fn new($($namedget:T),+) -> Self {
+                $Vec($($namedget),+)
+            }
+            pub fn into_tuple(self) -> $Tuple {
+                ($(self.$get),+)
+            }
+            pub fn to_tuple(&self) -> $Tuple where T: Clone {
+                ($(self.$get.clone()),+)
+            }
+        }
+        #[cfg_attr(feature = "cargo-clippy", allow(type_complexity))]
+        impl<T> From<$Tuple> for $Vec<T> {
+            fn from(t: $Tuple) -> Self {
+                $Vec($(t.$get),+)
+            }
+        }
+        impl<T: Display> Display for $Vec<T> {
+            fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+                write!(f, $fmt, $(self.$get),+)
+            }
+        }
+    }
+}
+
+
+macro_rules! vec_impl_all_vecs {
+    () => {
+        vec_impl_vec!(Vec2  ("({}, {})") (0 1) (x y) (T,T));
+        vec_impl_vec!(Vec3  ("({}, {}, {})") (0 1 2) (x y z) (T,T,T));
+        vec_impl_vec!(Vec4  ("({}, {}, {}, {})") (0 1 2 3) (x y z w) (T,T,T,T));
+        vec_impl_vec!(Vec8  ("({}, {}, {}, {}, {}, {}, {}, {})") (0 1 2 3 4 5 6 7) (m0 m1 m2 m3 m4 m5 m6 m7) (T,T,T,T,T,T,T,T));
+        vec_impl_vec!(Vec16 ("({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})") (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15) (m0 m1 m2 m3 m4 m5 m6 m7 m8 m9 m10 m11 m12 m13 m14 m15) (T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T));
+        vec_impl_vec!(Vec32 ("({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})") (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31) (m0 m1 m2 m3 m4 m5 m6 m7 m8 m9 m10 m11 m12 m13 m14 m15 m16 m17 m18 m19 m20 m21 m22 m23 m24 m25 m26 m27 m28 m29 m30 m31) (T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T));
+        vec_impl_vec!(Vec64 ("({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})") (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63) (m0 m1 m2 m3 m4 m5 m6 m7 m8 m9 m10 m11 m12 m13 m14 m15 m16 m17 m18 m19 m20 m21 m22 m23 m24 m25 m26 m27 m28 m29 m30 m31 m32 m33 m34 m35 m36 m37 m38 m39 m40 m41 m42 m43 m44 m45 m46 m47 m48 m49 m50 m51 m52 m53 m54 m55 m56 m57 m58 m59 m60 m61 m62 m63) (T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T));
+    }
+}
+
+/*
+macro_rules! vec_impl_zero {
+    () => {
+        impl $Vec<$T> {
+            pub fn zero() -> Self {
+                let out: Self = unsafe { mem::uninitialized() };
+                $(out.$get = $zero;)+
+                out
+            }
+            pub fn one() -> Self {
+                let out: Self = unsafe { mem::uninitialized() };
+                $(out.$get = $one;)+
+                out
+            }
+        }
+    }
+}
+*/
+
 
 
 pub mod repr_c {
@@ -217,6 +279,7 @@ pub mod repr_c {
         #[repr(packed, C)]
         #[cfg_attr(all(nightly, feature="repr_align"), repr(align(16)))]
     }
+    vec_impl_all_vecs!{}
 }
 
 #[cfg(all(nightly, feature="repr_simd"))]
@@ -225,6 +288,7 @@ pub mod repr_simd {
 
     use super::*;
     vec_declare_types!{#[repr(packed, simd)]}
+    vec_impl_all_vecs!{}
 }
 
 #[cfg(all(nightly, feature="repr_simd"))]

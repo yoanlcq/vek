@@ -1,5 +1,6 @@
 //! Matrix types.
 
+//use core::mem;
 use vec;
 
 macro_rules! mat_declare_types {
@@ -25,8 +26,36 @@ macro_rules! mat_declare_types {
             #[allow(missing_docs)]
             pub $lines: CVec2<Vec2<T>>,
         }
+
+        // TODO impl Display
     }
 }
+
+/*
+macro_rules! mat_impl_identity {
+    (impl $Mat:ident<$T:ty> { lines: $lines:ident, }) => {
+        /*
+        impl Default for $Mat<$T> {
+            fn default() -> Self {
+                Self::identity()
+            }
+        }
+        impl $Mat<$T> {
+            pub fn identity() -> Self {
+                let out = Self::zero();
+                $($(out.$lines.$get)+ .$get = $one;)+)+
+                out
+            }
+        }
+        */
+        impl $Mat<$T> {
+            pub fn zero() -> Self {
+                Self { $lines: $CVec::zero() }
+            }
+        }
+    }
+}
+*/
 
 macro_rules! mat_declare_modules {
     () => {
@@ -42,6 +71,7 @@ macro_rules! mat_declare_modules {
             use super::*;
             mat_declare_types!{rows}
         }
+        pub use column_major::*;
     }
 }
 
