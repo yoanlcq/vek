@@ -1,0 +1,15 @@
+[package]
+name = "inspect-asm"
+version = "0.1.0"
+authors = ["Yoan Lecoq <yoanlecoq.io@gmail.com>"]
+
+[dependencies]
+vek = { path = "../../", default-features=false, features = ["repr_simd", "repr_align"] }
+
+[profile.release]
+opt-level = 3
+debug = false
+lto = true
+debug-assertions = false
+codegen-units = 1
+panic = 'unwind'

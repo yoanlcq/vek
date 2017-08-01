@@ -8,7 +8,7 @@ license = "MIT/Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/yoanlcq/vek"
 name = "vek"
-version = "0.2.0" # remember to update html_root_url in src/lib.rs
+version = "0.2.1" # remember to update html_root_url in src/lib.rs
 build = "build.rs"
 exclude = [
     "previous_work/*",
@@ -22,34 +22,17 @@ travis-ci = { repository = "yoanlcq/vek" }
 appveyor  = { repository = "yoanlcq/vek" }
 
 [features]
-default = ["repr_simd", "repr_align", "serde", "f32", "u8"]
+default = ["repr_simd", "repr_align", "serde"]
 repr_align = []
 repr_simd = []
-f32 = []
-f64 = []
-i8 = []
-u8 = []
-i16 = []
-u16 = []
-i32 = []
-u32 = []
-i64 = []
-u64 = []
-i128 = []
-u128 = []
-isize = []
-usize = []
-itypes = [ "i8", "i16", "i32", "i64" ]
-utypes = [ "u8", "u16", "u32", "u64" ]
-ftypes = [ "f32", "f64" ]
 
 [build-dependencies]
 rustc_version = "0.2.1"
 
 [dependencies]
-clippy = { version = "0.0.145", optional = true }
-#num-traits = "0.1.39"
-#num-integer = "0.1.34"
+clippy = { version = "0.0.148", optional = true }
+num-traits = "0.1.39"
+num-integer = "0.1.34"
 num-bigint = { version = "0.1.40", optional = true }
 serde = { version = "1.0.10", optional = true, features = ["derive"] }
 fix = { version = "0.1.0", optional = true }

@@ -72,15 +72,6 @@
 //!
 //! ***
 //!
-//! - `f32`, `f64`, `i8`, `u8`, `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `i128`, `u128`, `isize`, `usize`
-//!   implement vectors and matrices for each of these types. Select only those that you need in
-//!   order to reduce build times.
-//! - `itypes` is a shorthand for `i8`, `i16`, `i32` and `i64` (but neither `i128` nor `isize`).
-//! - `utypes` is a shorthand for `u8`, `u16`, `u32` and `u64` (but neither `u128` nor `usize`).
-//! - `ftypes` is a shorthand for `f32` and `f64`.
-//!
-//! ***
-//!
 //! - `fix` implements vectors and matrices of fixed-point numbers from the `fix` crate.
 //! - `fpa` implements vectors and matrices of fixed-point numbers from the `fpa` crate.
 //! - `num-bigint` implements vectors and matrices of big integers from the `num-bigint` crate.
@@ -91,12 +82,12 @@
 #![no_std]
 #![doc(
     test(attr(deny(warnings))),
-    html_root_url = "https://docs.rs/vek/0.2.0",
+    html_root_url = "https://docs.rs/vek/0.2.1",
     //html_logo_url = "https://yoanlcq.github.io/vek/logo.png",
     //html_favicon_url = "https://yoanlcq.github.io/vek/favicon.ico",
 )]
-#![deny(missing_docs)]
-#![deny(warnings)]
+#![warn(missing_docs)]
+//#![deny(warnings)]
 #![cfg_attr(all(nightly, feature="clippy"), feature(plugin))]
 #![cfg_attr(all(nightly, feature="clippy"), plugin(clippy))]
 #![cfg_attr(all(nightly, feature="repr_simd" ), feature(cfg_target_feature))]
@@ -126,8 +117,8 @@ extern crate num_bigint;
 #[cfg(feature="x86intrin")]
 extern crate x86intrin;
 
-// extern crate num_traits;
-// extern crate num_integer;
+extern crate num_traits;
+extern crate num_integer;
 
 pub mod mat;
 pub use mat::*;
