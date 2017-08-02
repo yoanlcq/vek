@@ -34,6 +34,7 @@ macro_rules! mat_declare_types {
 macro_rules! mat_impl_mat {
     (row_major $Mat:ident ($($get:tt)+)) => {
         /// Displays this matrix as: (`i` being the number of rows and `j` the number of columns)
+        ///
         /// ```text
         /// ( m00 ... m0j
         ///   ... ... ...
@@ -58,6 +59,7 @@ macro_rules! mat_impl_mat {
     };
     (column_major $Mat:ident ($($get:tt)+)) => {
         /// Displays this matrix as: (`i` being the number of rows and `j` the number of columns)
+        ///
         /// ```text
         /// ( m00 ... m0j
         ///   ... ... ...
