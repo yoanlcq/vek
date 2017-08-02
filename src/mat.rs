@@ -73,7 +73,8 @@ macro_rules! mat_impl_mat {
         /// This format doesn't depend on the matrix's storage layout.
         impl<T: Display> Display for $Mat<T> {
             fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-                write!(f, "{}", self.transposed())
+                //write!(f, "{}", self.transposed())
+                unimplemented!()
             }
         }
         mat_impl_mat!{common cols $Mat $CVec $Vec ($($get)+)}
