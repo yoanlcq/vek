@@ -76,6 +76,26 @@ However please avoid filing a PR before discussing the matter in an issue.
 Sorry for that - it's caused by extensive use of macros and generics. Also, it appears that incremental compilation doesn't help much here.  
 Try to disable default features, then selectively enable the ones you need. In particular, disabling the `repr_simd` feature should approximately divide build times by two.
 
+## How do I shuffle a vector ?
+
+With the ergonomic, idiomatic way to shuffle any struct in Rust!  
+You want **destructuring**:
+
+```rust
+let Xyzw { x, y, .. } = xyzw;
+let wzyx = Xyzw { x: w, y: z, z: y, w: x };
+let xyxx = Xyzw { x, y, z: x, w: x };
+```
+
+But don't take my word for it - let the (release mode) assembly speak for itself!  
+On x86 with SSE, it lowers to `shufps` as wanted.
+
+If you're only interested in a single element you can use `broadcast`:
+
+```rust
+let Xyzw { x, .. } = xyzw;
+let xxxx = Xyzw::broadcast(x);
+```
 
 ## Why can't I index a matrix directly (e.g write `m[1][3]`) ?
 
@@ -108,7 +128,7 @@ If you're using OpenGL, check out the `as_gl_uniform_params()` method which is i
 At first, when writing generics with `#[repr(simd)]`, it might appear possible 
 to write this :
 
-```ignore
+```rust
 #[repr(packed,simd)]
 pub struct Vec4<T>(pub T, pub T, pub T, pub T);
 pub struct Mat4<T> { pub rows: Vec4<Vec4<T>> }
@@ -121,7 +141,7 @@ compiler errors because `#[repr(simd)]` can only work on vectors of
 
 So this means we _have_ to end up with either this:
 
-```ignore
+```rust
 #[repr(packed,simd)]
 pub struct Vec4<T>(pub T, pub T, pub T, pub T);
 pub struct Mat4<T> { pub rows: [Vec4<T> ; 4] }
@@ -129,7 +149,7 @@ pub struct Mat4<T> { pub rows: [Vec4<T> ; 4] }
 
 or this :
 
-```ignore
+```rust
 #[repr(packed,simd)]
 pub struct Vec4<T>(pub T, pub T, pub T, pub T);
 #[repr(packed,C,align(16))]
