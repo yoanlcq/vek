@@ -102,7 +102,7 @@ macro_rules! mat_impl_mat {
             }
             /// The matrix with all elements set to zero.
             pub fn zero() -> Self where T: Zero {
-                Self { $lines: $Cvec::zero() }
+                Self { $lines: $CVec::zero() }
             }
             /// The matrix's transpose.
             pub fn transposed(self) -> Self {
