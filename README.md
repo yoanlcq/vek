@@ -2,7 +2,7 @@
 [![Appveyor Build status](https://ci.appveyor.com/api/projects/status/ir0d4pkpkfwv643q/branch/master?svg=true)](https://ci.appveyor.com/project/yoanlcq/vek/branch/master)
 [![Documentation](https://docs.rs/vek/badge.svg)](https://docs.rs/vek)
 [![Version](https://img.shields.io/crates/v/vek.svg)](https://crates.io/crates/vek)
-![MIT/Apache-2.0](https://img.shields.io/github/license/yoanlcq/vek.svg)
+![MIT/Apache-2.0](https://img.shields.io/badge/License-MIT%2FApache--2.0-blue.svg)
 [![Downloads](https://img.shields.io/crates/d/vek.svg)](https://crates.io/crates/vek)
 
 # vek
@@ -73,7 +73,8 @@ However please avoid filing a PR before discussing the matter in an issue.
 
 ## This crate is so slow to compile!
 
-Try to disable default features, then selectively enable the ones you need.
+Sorry for that - it's caused by extensive use of macros and generics. Also, it appears that incremental compilation doesn't help much here.  
+Try to disable default features, then selectively enable the ones you need. In particular, disabling the `repr_simd` feature should approximately divide build times by two.
 
 
 ## Why can't I index a matrix directly (e.g write `m[1][3]`) ?
@@ -162,23 +163,17 @@ is written once but over-generalized, such that the compiler can't always
 
 `#[repr(simd)]` is good, but not a magic wand. It **will** lower basic vector
 operations into shuffles, packed arithmetic operations, etc.  
+
 However, it won't be able to guess when what you've just written is actually
 the "unpcklps" instruction (and there, the generated assembly is an awful
 bunch of "shufps" instead).  
+
 It happens that sometimes we **do** want
 to use the intrinsics directly, but we still want to be generic!
 
 In most other languages, this would be unthinkable, but in
 Rust, with modules, macros, and plenty of other ergonomics, this is actually
-achievable, in a way not far from professionnal.
-
-
-## Why provide free functions in the public API ?
-
-Having public target-dependant free frunctions allows users to use them
-with run-time feature detection (rather than compile time).
-
-In addition, it does simplify this crate's architecture a bit.
+achievable.
 
 
 ## Why don't I get pretty assembly on debug builds ?
@@ -190,7 +185,7 @@ e.g your pretty `Vec4<i32>` addition won't be lowered to `paddd` on
 SSE2-enabled CPUs.
 
 
-## Why not [insert related crates here] ?
+## Why not [insert related crate here] ?
 
 It probably looks a bit ridiculous to provide so much rationale in this section,
 but seeing how many crates I could have used out there instead of writing my own, 
@@ -361,14 +356,16 @@ Indexing on Quaternions. Convert them to a `Xyzw` first instead.
 
 ***
 
-Non-square matrices. It's a bit like [EBCDIC](https://en.wikipedia.org/wiki/EBCDIC), in that,
-it exists, but darn, who actually uses it ? (don't you raise your hand).
+Non-square matrices. They're a bit like [EBCDIC](https://en.wikipedia.org/wiki/EBCDIC), in that,
+they exist, but darn, who actually uses them ? (don't you raise your hand).
 
-In GLSL ES, there are only square matrix types (only the `NV_non_square_matrice` brings them back).  
+In GLSL ES, there are only square matrix types (only the `NV_non_square_matrices` GLSL extension brings them back).  
 Even in desktop GL, non-square matrices are seldom used ([See this StackOverflow question](https://stackoverflow.com/q/36994741)).
 
 The functionality can **still** be emulated by using higher-order square matrix types and setting
 appropriate members to zero.  
 
 If you're concerned about the space it takes in memory, don't forget that you can simply
-store appropriate vectors of vectors and convert them on-the-fly to square matrices, as needed.
+store appropriate vectors of vectors (or even more compact structures) and convert them on-the-fly to square matrices, as needed.
+
+Also non-square matrices are too much of a pain to deal with when generating code via macros for what it's actually worth.
