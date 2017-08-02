@@ -536,6 +536,7 @@ macro_rules! vec_impl_vec {
             pub fn rsqrt(self) -> Self { unimplemented!() }
             /// Returns a new vector which elements are the respective reciprocal 
             /// of this vector's elements.
+            ///
             /// ```
             /// let v = Vec4(1f32, 0.5f32, 0.25f32, 0.125f32),
             /// let s = Vec4(1f32, 2f32, 4f32, 8f32),
@@ -543,70 +544,79 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(s, v.reciprocal());
             /// ```
             pub fn reciprocal(self) -> Self { unimplemented!() }
-            /// Horizontally add adjacent pairs of elements in `a` and `b` into a new vector.
+            /// Horizontally adds adjacent pairs of elements in `self` and `rhs` into a new vector.
             ///
             /// ```
             /// let a = Vec4(0, 1, 2, 3);
             /// let b = Vec4(4, 5, 6, 7);
             /// let h = Vec4(0+1, 2+3, 4+5, 5+7);
-            /// assert_eq!(h, Vec4::hadd(a, b));
+            /// assert_eq!(h, a.hadd(b));
             /// ```
-            pub fn hadd(_a: Self, _b: Self) -> Self { unimplemented!() }
+            pub fn hadd(self, _rhs: Self) -> Self { unimplemented!() }
             /// Returns a new vector which elements are rounded to the nearest greater integer.
+            ///
             /// ```
             /// let v = Vec4(0_f32, 1_f32, 1.8_f32, 3.14_f32);
             /// assert_eq!(v.ceil(), Vec4(0f32, 1f32, 2f32, 4f32));
             /// ```
             pub fn ceil(self) -> Self { unimplemented!() }
             /// Returns a new vector which elements are rounded down to the nearest lower integer.
+            ///
             /// ```
             /// let v = Vec4(0_f32, 1_f32, 1.8_f32, 3.14_f32);
             /// assert_eq!(v.floor(), Vec4(0f32, 1f32, 1f32, 3f32));
             /// ```
             pub fn floor(self) -> Self { unimplemented!() }
             /// Returns a new vector which elements are rounded to the nearest integer.
+            ///
             /// ```
             /// let v = Vec4(0_f32, 1_f32, 1.8_f32, 3.14_f32);
             /// assert_eq!(v.round(), Vec4(0f32, 1f32, 2f32, 3f32));
             /// ```
             pub fn round(self) -> Self { unimplemented!() }
 
-            /// Compare each element of two vectors with the equality test, returning a boolean vector.
+            /// Compares each element of two vectors with the equality test, returning a boolean vector.
+            ///
             /// ```
             /// let u = Vec4(0,2,2,6);
             /// let v = Vec4(0,1,2,3);
             /// assert_eq!(u.cmpeq(v), Vec4(true, false, true, false));
             /// ```
             pub fn cmpeq(&self, _rhs: &Self) -> $Vec<bool> { unimplemented!() }
-            /// Compare each element of two vectors with the not-equal test, returning a boolean vector.
+            /// Compares each element of two vectors with the not-equal test, returning a boolean vector.
+            ///
             /// ```
             /// let u = Vec4(0,2,2,6);
             /// let v = Vec4(0,1,2,3);
             /// assert_eq!(u.cmpeq(v), Vec4(true, false, true, false));
             /// ```
             pub fn cmpne(&self, _rhs: &Self) -> $Vec<bool> { unimplemented!() }
-            /// Compare each element of two vectors with the greater-or-equal test, returning a boolean vector.
+            /// Compares each element of two vectors with the greater-or-equal test, returning a boolean vector.
+            ///
             /// ```
             /// let u = Vec4(0,2,2,6);
             /// let v = Vec4(0,1,2,3);
             /// assert_eq!(u.cmpeq(v), Vec4(true, false, true, false));
             /// ```
             pub fn cmpge(&self, _rhs: &Self) -> $Vec<bool> { unimplemented!() }
-            /// Compare each element of two vectors with the greater-than test, returning a boolean vector.
+            /// Compares each element of two vectors with the greater-than test, returning a boolean vector.
+            ///
             /// ```
             /// let u = Vec4(0,2,2,6);
             /// let v = Vec4(0,1,2,3);
             /// assert_eq!(u.cmpeq(v), Vec4(true, false, true, false));
             /// ```
             pub fn cmpgt(&self, _rhs: &Self) -> $Vec<bool> { unimplemented!() }
-            /// Compare each element of two vectors with the less-or-equal test, returning a boolean vector.
+            /// Compares each element of two vectors with the less-or-equal test, returning a boolean vector.
+            ///
             /// ```
             /// let u = Vec4(0,2,2,6);
             /// let v = Vec4(0,1,2,3);
             /// assert_eq!(u.cmpeq(v), Vec4(true, false, true, false));
             /// ```
             pub fn cmple(&self, _rhs: &Self) -> $Vec<bool> { unimplemented!() }
-            /// Compare each element of two vectors with the less-than test, returning a boolean vector.
+            /// Compares each element of two vectors with the less-than test, returning a boolean vector.
+            ///
             /// ```
             /// let u = Vec4(0,2,2,6);
             /// let v = Vec4(0,1,2,3);
