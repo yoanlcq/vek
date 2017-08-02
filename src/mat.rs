@@ -109,8 +109,7 @@ macro_rules! mat_impl_mat {
             }
             /// The matrix's transpose.
             pub fn transposed(self) -> Self {
-                self.transpose();
-                self
+                unimplemented!()
             }
             /// Transpose this matrix.
             pub fn transpose(&mut self) {
