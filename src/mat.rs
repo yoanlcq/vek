@@ -1,6 +1,6 @@
 //! Matrix types.
 
-//use core::mem;
+use core::mem;
 use core::fmt::{self, Display, Formatter};
 use num_traits::{Zero, One};
 use vec;
