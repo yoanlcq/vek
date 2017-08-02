@@ -32,8 +32,10 @@ macro_rules! mat_declare_types {
 }
 
 macro_rules! mat_impl_mat {
-    (row_major $Mat:ident ($($get:tt)+)) => {
-        /// Displays this matrix as: (`i` being the number of rows and `j` the number of columns)
+    (row_major $Mat:ident $CVec:ident ($($get:tt)+)) => {
+        /// Displays this matrix using the following format:  
+        ///
+        /// (`i` being the number of rows and `j` the number of columns)
         ///
         /// ```text
         /// ( m00 ... m0j
@@ -55,10 +57,12 @@ macro_rules! mat_impl_mat {
                 write!(f, " )")
             }
         }
-        mat_impl_mat!{common rows $Mat ($($get)+)}
+        mat_impl_mat!{common rows $Mat $CVec ($($get)+)}
     };
-    (column_major $Mat:ident ($($get:tt)+)) => {
-        /// Displays this matrix as: (`i` being the number of rows and `j` the number of columns)
+    (column_major $Mat:ident $CVec:ident ($($get:tt)+)) => {
+        /// Displays this matrix using the following format:  
+        ///
+        /// (`i` being the number of rows and `j` the number of columns)
         ///
         /// ```text
         /// ( m00 ... m0j
@@ -72,32 +76,41 @@ macro_rules! mat_impl_mat {
                 write!(f, "{}", self.transposed())
             }
         }
-        mat_impl_mat!{common cols $Mat ($($get)+)}
+        mat_impl_mat!{common cols $Mat $CVec ($($get)+)}
     };
-    (common $lines:ident $Mat:ident ($($get:tt)+)) => {
+    (common $lines:ident $Mat:ident $CVec:ident ($($get:tt)+)) => {
         /// The default value for a square matrix is the identity.
         ///
         /// ```
-        /// assert_eq!(Mat4::default(), Mat4::identity());
+        /// assert_eq!(Mat4::<f32>::default(), Mat4::<f32>::identity());
         /// ```
-        impl<T: Zero + One + PartialEq> Default for $Mat<T> {
+        impl<T: Zero + One> Default for $Mat<T> {
             fn default() -> Self {
                 Self::identity()
             }
         }
         impl<T> $Mat<T> {
-            /// The identity matrix.
-            pub fn identity() -> Self where T: Zero + One + PartialEq {
+            /// The identity matrix, which is also the default value for square matrices.
+            ///
+            /// ```
+            /// assert_eq!(Mat4::<f32>::default(), Mat4::<f32>::identity());
+            /// ```
+            pub fn identity() -> Self where T: Zero + One {
                 let mut out = Self::zero();
                 $(out.$lines.$get.$get = T::one();)+
                 out
             }
             /// The matrix with all elements set to zero.
-            pub fn zero() -> Self where T: Zero + PartialEq {
-                Self { $lines: Zero::zero() }
+            pub fn zero() -> Self where T: Zero {
+                Self { $lines: $Cvec::zero() }
             }
             /// The matrix's transpose.
-            pub fn transposed(&self) -> Self {
+            pub fn transposed(self) -> Self {
+                self.transpose();
+                self
+            }
+            /// Transpose this matrix.
+            pub fn transpose(&mut self) {
                 unimplemented!()
             }
         }
@@ -106,23 +119,35 @@ macro_rules! mat_impl_mat {
 
 macro_rules! mat_impl_all_mats {
     ($layout:ident) => {
-        mat_impl_mat!{$layout Mat2 (0 1)}
-        mat_impl_mat!{$layout Mat3 (0 1 2)}
-        mat_impl_mat!{$layout Mat4 (0 1 2 3)}
+        mat_impl_mat!{$layout Mat2 CVec2 (0 1)}
+        mat_impl_mat!{$layout Mat3 CVec3 (0 1 2)}
+        mat_impl_mat!{$layout Mat4 CVec4 (0 1 2 3)}
     }
 }
 
 macro_rules! mat_declare_modules {
     () => {
         pub mod column_major {
-            //! Matrices stored in column-major order.
+            //! Matrices stored in column-major layout.
+            //!
+            //! Multiplying a column-major matrix by one or more column vectors is fast
+            //! due to the way it is implemented in SIMD 
+            //! (a `matrix * vector` mutliply is four broadcasts, one SIMD product and three fused-multiply-adds).  
+            //!
+            //! Because `matrix * matrix` and `matrix * vector` products are fastest with this layout,
+            //! it's the preferred one for most computer graphics libraries and application.
 
             use super::*;
             mat_declare_types!{cols}
             mat_impl_all_mats!{column_major}
         }
         pub mod row_major {
-            //! Matrices stored in row-major order.
+            //! Matrices stored in row-major layout.
+            //!
+            //! Unlike the column-major layout, row-major matrices are good at being the
+            //! right-hand-side of a product with one or more row vectors.
+            //!
+            //! Also, their indexing order matches the existing mathematical conventions.
 
             use super::*;
             mat_declare_types!{rows}
@@ -134,6 +159,11 @@ macro_rules! mat_declare_modules {
 
 pub mod repr_c {
     //! Matrix types which use `#[repr(packed, C)]` vectors exclusively.
+    //! 
+    //! See also the `repr_simd` neighbour module, which is available on Nightly
+    //! with the `repr_simd` feature enabled.
+    //!
+    //! You can instantiate any matrix type from this module with any type T.
 
     use super::*;
     use super::vec::repr_c::{Vec2, Vec3, Vec4};
@@ -145,7 +175,12 @@ pub mod repr_c {
 #[cfg(all(nightly, feature="repr_simd"))]
 pub mod repr_simd {
     //! Matrix types which use a `#[repr(packed, C)]` vector of `#[repr(packed, simd)]` vectors.
-
+    //!
+    //! You can instantiate any matrix type from this module with any type T if
+    //! and only if T is one of the "machine types".  
+    //! These include `f32` and `i32`, but not `isize` or
+    //! newtypes (normally, unless they're `#[repr(transparent)]`, but this hasn't been tested).
+    
     use super::*;
     use super::vec::repr_simd::{Vec2, Vec3, Vec4};
     use super::vec::repr_c::{Vec2 as CVec2, Vec3 as CVec3, Vec4 as CVec4};
@@ -155,5 +190,6 @@ pub mod repr_simd {
 
 #[cfg(all(nightly, feature="repr_simd"))]
 pub use self::repr_simd::*;
+/// If you're on Nightly with the `repr_simd` feature enabled, this exports `self::repr_simd::*` instead.
 #[cfg(not(all(nightly, feature="repr_simd")))]
 pub use self::repr_c::*;
