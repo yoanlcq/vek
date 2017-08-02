@@ -32,7 +32,7 @@ macro_rules! mat_declare_types {
 }
 
 macro_rules! mat_impl_mat {
-    (row_major $Mat:ident $CVec:ident ($($get:tt)+)) => {
+    (row_major $Mat:ident $CVec:ident $Vec:ident ($($get:tt)+)) => {
         /// Displays this matrix using the following format:  
         ///
         /// (`i` being the number of rows and `j` the number of columns)
@@ -57,9 +57,9 @@ macro_rules! mat_impl_mat {
                 write!(f, " )")
             }
         }
-        mat_impl_mat!{common rows $Mat $CVec ($($get)+)}
+        mat_impl_mat!{common rows $Mat $CVec $Vec ($($get)+)}
     };
-    (column_major $Mat:ident $CVec:ident ($($get:tt)+)) => {
+    (column_major $Mat:ident $CVec:ident $Vec:ident ($($get:tt)+)) => {
         /// Displays this matrix using the following format:  
         ///
         /// (`i` being the number of rows and `j` the number of columns)
@@ -76,9 +76,9 @@ macro_rules! mat_impl_mat {
                 write!(f, "{}", self.transposed())
             }
         }
-        mat_impl_mat!{common cols $Mat $CVec ($($get)+)}
+        mat_impl_mat!{common cols $Mat $CVec $Vec ($($get)+)}
     };
-    (common $lines:ident $Mat:ident $CVec:ident ($($get:tt)+)) => {
+    (common $lines:ident $Mat:ident $CVec:ident $Vec:ident ($($get:tt)+)) => {
         /// The default value for a square matrix is the identity.
         ///
         /// ```
@@ -102,7 +102,9 @@ macro_rules! mat_impl_mat {
             }
             /// The matrix with all elements set to zero.
             pub fn zero() -> Self where T: Zero {
-                Self { $lines: $CVec::zero() }
+                let mut $lines: $CVec<T> = unsafe { mem::uninitialized() };
+                $($lines.$get = $Vec::zero();)+
+                Self { $lines }
             }
             /// The matrix's transpose.
             pub fn transposed(self) -> Self {
@@ -119,9 +121,9 @@ macro_rules! mat_impl_mat {
 
 macro_rules! mat_impl_all_mats {
     ($layout:ident) => {
-        mat_impl_mat!{$layout Mat2 CVec2 (0 1)}
-        mat_impl_mat!{$layout Mat3 CVec3 (0 1 2)}
-        mat_impl_mat!{$layout Mat4 CVec4 (0 1 2 3)}
+        mat_impl_mat!{$layout Mat2 CVec2 Vec2 (0 1)}
+        mat_impl_mat!{$layout Mat3 CVec3 Vec3 (0 1 2)}
+        mat_impl_mat!{$layout Mat4 CVec4 Vec4 (0 1 2 3)}
     }
 }
 
