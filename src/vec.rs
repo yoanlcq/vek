@@ -362,11 +362,6 @@ macro_rules! vec_impl_vec {
             pub fn into_tuple(self) -> $Tuple {
                 ($(self.$get),+)
             }
-            /// Converts this into a tuple with the same number of elements by cloning.
-            #[cfg_attr(feature = "clippy", allow(type_complexity))]
-            pub fn to_tuple(&self) -> $Tuple where T: Clone {
-                ($(self.$get.clone()),+)
-            }
 
             /// Converts this into a raw pointer of read-only data.
             pub fn as_ptr(&self) -> *const T {
@@ -429,6 +424,12 @@ macro_rules! vec_impl_vec {
                 out
             }
             /// Returns a memberwise-converted copy of this vector, using `NumCast`.
+            ///
+            /// ```
+            /// let v = Vec4(0_f32, 1_f32, 2_f32, 3_f32);
+            /// let i: Vec4<i32> = v.cast().unwrap();
+            /// assert_eq!(i, Vec4(0, 1, 2, 3));
+            /// ```
             pub fn cast<D>(self) -> Option<$Vec<D>> where T: NumCast, D: NumCast {
                 let mut out: $Vec<D> = unsafe { mem::uninitialized() };
                 $(
@@ -440,7 +441,7 @@ macro_rules! vec_impl_vec {
                 )+
                 Some(out)
             }
-            /// Converts this vector into an array.
+            /// Converts this vector into a fixed-size array.
             pub fn into_array(self) -> [T; $dim] {
                 [$(self.$get, )+]
             }
@@ -762,11 +763,15 @@ macro_rules! vec_impl_all_vecs {
 
 pub mod repr_c {
     //! Vector types which are marked `#[repr(packed, C)]`.
-
+    //!
+    //! You can instantiate any vector type of this module with any type `T`.
+    
     use super::*;
     vec_declare_types!{
         #[repr(C)]
-        #[cfg_attr(all(nightly, feature="repr_align"), repr(align(16)))]
+        #[cfg_attr(all(nightly, feature="repr_align", any(target_arch="x86", target_arch="x86_64")), repr(align(16)))]
+        #[cfg_attr(all(nightly, feature="repr_align", target_arch="arm"), repr(align(64)))]
+        // XXX ^^^^ Not sure about the alignment on ARM ??
         // TODO assert the packing of vecs
     }
     vec_impl_all_vecs!{}
@@ -775,7 +780,11 @@ pub mod repr_c {
 #[cfg(all(nightly, feature="repr_simd"))]
 pub mod repr_simd {
     //! Vector types which are marked `#[repr(packed, simd)]`.
-
+    //!
+    //! You can instantiate any vector type of this module with any type as long as
+    //! it is a "machine type", like `f32` and `i32`, but not `isize` or newtypes
+    //! (normally, unless they're marked `#[repr(transparent)]`, but that hasn't been tested yet).
+    
     use super::*;
     vec_declare_types!{#[repr(packed, simd)]}
     vec_impl_all_vecs!{}
@@ -783,5 +792,6 @@ pub mod repr_simd {
 
 #[cfg(all(nightly, feature="repr_simd"))]
 pub use self::repr_simd::*;
+/// If you're on Nightly with the `repr_simd` feature enabled, this exports `self::repr_simd::*` instead.
 #[cfg(not(all(nightly, feature="repr_simd")))]
 pub use self::repr_c::*;
