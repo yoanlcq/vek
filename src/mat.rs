@@ -102,9 +102,9 @@ macro_rules! mat_impl_mat {
             }
             /// The matrix with all elements set to zero.
             pub fn zero() -> Self where T: Zero {
-                let mut $lines: $CVec<T> = unsafe { mem::uninitialized() };
-                $($lines.$get = $Vec::zero();)+
-                Self { $lines }
+                let mut out: Self = unsafe { mem::uninitialized() };
+                $(out.$lines.$get = $Vec::zero();)+
+                out
             }
             /// The matrix's transpose.
             pub fn transposed(self) -> Self {
