@@ -13,6 +13,7 @@ macro_rules! vec_declare_types {
         /// A two-components generic vector type.
         ///
         /// - If you intend to use it as spatial coordinates, consider using [Xy](struct.Xy.html) instead.
+        /// - If you intend to use it as a spatial extent, consider using [Extent2](struct.Extent2.html) instead.
         /// - If you intend to use it as texture coordinates, consider using [Uv](struct.Uv.html) instead.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
@@ -21,6 +22,7 @@ macro_rules! vec_declare_types {
         /// A three-components generic vector type.
         ///
         /// - If you intend to use it as spatial coordinates, consider using [Xyz](struct.Xyz.html) instead.
+        /// - If you intend to use it as a spatial extent, consider using [Extent3](struct.Extent3.html) instead.
         /// - If you intend to use it as RGB color data, consider using [Rgb](struct.Rgb.html) instead.
         /// - If you intend to use it as texture coordinates, consider using [Uvw](struct.Uvw.html) instead.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
@@ -41,6 +43,9 @@ macro_rules! vec_declare_types {
         /// This type exists mostly for crunching arrays of values.  
         /// For instance, on AVX2-enabled x86 CPUs, a `Vec8<i32>` makes sense.  
         /// Otherwise, LLVM lowers it to a fixed-sized array of whichever "best" SIMD vector type is available.  
+        ///
+        /// There's a lot of related intrinsics that are not provided as associated functions.
+        /// If you find yourself needing them, use other crates such as `llvmint` or `x86intrin`.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         $(#[$attrs])+
@@ -51,6 +56,9 @@ macro_rules! vec_declare_types {
         /// This type exists mostly for crunching arrays of values.  
         /// For instance, on AVX2-enabled x86 CPUs, a `Vec16<i16>` makes sense.  
         /// Otherwise, LLVM lowers it to a fixed-sized array of whichever "best" SIMD vector type is available.  
+        ///
+        /// There's a lot of related intrinsics that are not provided as associated functions.
+        /// If you find yourself needing them, use other crates such as `llvmint` or `x86intrin`.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         $(#[$attrs])+
@@ -61,6 +69,9 @@ macro_rules! vec_declare_types {
         /// This type exists mostly for crunching arrays of values.  
         /// For instance, on AVX512-enabled x86 CPUs, a `Vec32<i16>` makes sense.  
         /// Otherwise, LLVM lowers it to a fixed-sized array of whichever "best" SIMD vector type is available.  
+        ///
+        /// There's a lot of related intrinsics that are not provided as associated functions.
+        /// If you find yourself needing them, use other crates such as `llvmint` or `x86intrin`.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         $(#[$attrs])+
@@ -71,6 +82,9 @@ macro_rules! vec_declare_types {
         /// This type exists mostly for crunching arrays of values.  
         /// For instance, on AVX512-enabled x86 CPUs, a `Vec64<i8>` makes sense.  
         /// Otherwise, LLVM is able to process it as a fixed-sized array of whichever "best" SIMD vector type available.  
+        ///
+        /// There's a lot of related intrinsics that are not provided as associated functions.
+        /// If you find yourself needing them, use other crates such as `llvmint` or `x86intrin`.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         $(#[$attrs])+
