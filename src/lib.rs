@@ -124,6 +124,9 @@ pub mod mat;
 pub use mat::*;
 pub mod vec;
 pub use vec::*;
+pub mod ops;
+pub use ops::*;
+
 
 
 #[cfg(test)]

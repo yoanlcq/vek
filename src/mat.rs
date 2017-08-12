@@ -72,7 +72,7 @@ macro_rules! mat_impl_mat {
         ///
         /// This format doesn't depend on the matrix's storage layout.
         impl<T: Display> Display for $Mat<T> {
-            fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+            fn fmt(&self, _f: &mut Formatter) -> fmt::Result {
                 //write!(f, "{}", self.transposed())
                 unimplemented!()
             }
@@ -122,8 +122,9 @@ macro_rules! mat_impl_mat {
 macro_rules! mat_impl_all_mats {
     ($layout:ident) => {
         mat_impl_mat!{$layout Mat2 CVec2 Vec2 (0 1)}
-        mat_impl_mat!{$layout Mat3 CVec3 Vec3 (0 1 2)}
-        mat_impl_mat!{$layout Mat4 CVec4 Vec4 (0 1 2 3)}
+        // TODO uncomment stuff below when I'm done with implementations
+        // mat_impl_mat!{$layout Mat3 CVec3 Vec3 (0 1 2)}
+        // mat_impl_mat!{$layout Mat4 CVec4 Vec4 (0 1 2 3)}
     }
 }
 
