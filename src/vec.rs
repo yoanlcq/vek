@@ -1,10 +1,16 @@
 //! Vector types.
+//!
+//! They do NOT derive `PartialOrd` and `Ord`, because it makes no sense for them, 
+//! and functions such as `partial_min` and `partial_max` may give surprising results
+//! because of this.  
+//! They do have element-wise comparison functions though.
 
 use core::borrow::{Borrow, BorrowMut};
 use core::fmt::{self, Display, Formatter};
 use core::iter::{FromIterator, Product, Sum};
 use core::mem;
 use core::ptr;
+use core::cmp;
 use core::ops::*;
 use core::slice::{self, /*SliceIndex*/}; // NOTE: Will want to use SliceIndex once it's stabilized
 use num_traits::{Zero, One, NumCast, Signed, Float};
@@ -477,6 +483,62 @@ macro_rules! vec_impl_vec {
                 !self.is_any_negative()
             }
 
+	    /// Compares elements of `a` and `b`, and returns the minimum values into a new
+	    /// vector, using total ordering.
+	    ///
+	    /// ```
+	    /// let a = Vec4(0,1,2,3);
+	    /// let b = Vec4(3,2,1,0);
+	    /// let m = Vec4(0,1,1,0);
+	    /// assert_eq!(m, Vec4::min(a, b));
+	    /// ```
+	    pub fn min(a: Self, b: Self) -> Self where T: Ord {
+		let mut out: Self = unsafe { mem::uninitialized() };
+		$(out.$get = cmp::min(a.$get, b.$get);)+
+		out
+	    }
+	    /// Compares elements of `a` and `b`, and returns the maximum values into a new
+	    /// vector, using total ordering.
+	    ///
+	    /// ```
+	    /// let a = Vec4(0,1,2,3);
+	    /// let b = Vec4(3,2,1,0);
+	    /// let m = Vec4(3,2,2,3);
+	    /// assert_eq!(m, Vec4::max(a, b));
+	    /// ```
+	    pub fn max(a: Self, b: Self) -> Self where T: Ord {
+		let mut out: Self = unsafe { mem::uninitialized() };
+		$(out.$get = cmp::max(a.$get, b.$get);)+
+		out
+	    }
+	    /// Compares elements of `a` and `b`, and returns the minimum values into a new
+	    /// vector, using partial ordering.
+	    ///
+	    /// ```
+	    /// let a = Vec4(0,1,2,3);
+	    /// let b = Vec4(3,2,1,0);
+	    /// let m = Vec4(0,1,1,0);
+	    /// assert_eq!(m, Vec4::partial_min(a, b));
+	    /// ```
+	    pub fn partial_min(a: Self, b: Self) -> Self where T: PartialOrd {
+		let mut out: Self = unsafe { mem::uninitialized() };
+		$(out.$get = partial_min(a.$get, b.$get);)+
+		out
+	    }
+	    /// Compares elements of `a` and `b`, and returns the minimum values into a new
+	    /// vector, using partial ordering.
+	    ///
+	    /// ```
+	    /// let a = Vec4(0,1,2,3);
+	    /// let b = Vec4(3,2,1,0);
+	    /// let m = Vec4(3,2,2,3);
+	    /// assert_eq!(m, Vec4::partial_max(a, b));
+	    /// ```
+	    pub fn partial_max(a: Self, b: Self) -> Self where T: PartialOrd  {
+	    	let mut out: Self = unsafe { mem::uninitialized() };
+		$(out.$get = partial_max(a.$get, b.$get);)+
+		out
+	    }
             /// Returns the element which has the lowest value in this vector, using partial
             /// ordering.
             ///
@@ -925,7 +987,7 @@ macro_rules! vec_impl_all_vecs {
             /// - If you intend to use it as spatial coordinates, consider using [Xy](struct.Xy.html) instead.
             /// - If you intend to use it as a spatial extent, consider using [Extent2](struct.Extent2.html) instead.
             /// - If you intend to use it as texture coordinates, consider using [Uv](struct.Uv.html) instead.
-            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
             $(#[$attrs])+
             pub struct Vec2<T>(pub T, pub T);
@@ -944,7 +1006,7 @@ macro_rules! vec_impl_all_vecs {
             /// - If you intend to use it as a spatial extent, consider using [Extent3](struct.Extent3.html) instead.
             /// - If you intend to use it as RGB color data, consider using [Rgb](struct.Rgb.html) instead.
             /// - If you intend to use it as texture coordinates, consider using [Uvw](struct.Uvw.html) instead.
-            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
             $(#[$attrs])+
             pub struct Vec3<T>(pub T, pub T, pub T);
@@ -959,7 +1021,7 @@ macro_rules! vec_impl_all_vecs {
             ///
             /// - If you intend to use it as homogeneous spatial coordinates, consider using [Xyzw](struct.Xyzw.html) instead.
             /// - If you intend to use it as RGBA color data, consider using [Rgba](struct.Rgba.html) instead.
-            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
             $(#[$attrs])+
             pub struct Vec4<T>(pub T, pub T, pub T, pub T);
@@ -980,7 +1042,7 @@ macro_rules! vec_impl_all_vecs {
             ///
             /// There's a lot of related intrinsics that are not provided as associated functions.
             /// If you find yourself needing them, use other crates such as `llvmint` or `x86intrin`.
-            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
             $(#[$attrs])+
             pub struct Vec8<T>(pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T);
@@ -999,7 +1061,7 @@ macro_rules! vec_impl_all_vecs {
             ///
             /// There's a lot of related intrinsics that are not provided as associated functions.
             /// If you find yourself needing them, use other crates such as `llvmint` or `x86intrin`.
-            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
             $(#[$attrs])+
             pub struct Vec16<T>(pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T);
@@ -1018,7 +1080,7 @@ macro_rules! vec_impl_all_vecs {
             ///
             /// There's a lot of related intrinsics that are not provided as associated functions.
             /// If you find yourself needing them, use other crates such as `llvmint` or `x86intrin`.
-            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
             $(#[$attrs])+
             pub struct Vec32<T>(pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T);
@@ -1038,7 +1100,7 @@ macro_rules! vec_impl_all_vecs {
             ///
             /// There's a lot of related intrinsics that are not provided as associated functions.
             /// If you find yourself needing them, use other crates such as `llvmint` or `x86intrin`.
-            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
             $(#[$attrs])+
             pub struct Vec64<T>(pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T);
@@ -1052,7 +1114,7 @@ macro_rules! vec_impl_all_vecs {
             use super::*;
             /// Vector type suited for homogeneous 3D spatial coordinates.
             #[allow(missing_docs)]
-            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
             $(#[$attrs])+
             pub struct Xyzw<T> { pub x:T, pub y:T, pub z:T, pub w:T }
@@ -1065,7 +1127,7 @@ macro_rules! vec_impl_all_vecs {
             use super::*;
             /// Vector type suited for 3D spatial coordinates.
             #[allow(missing_docs)]
-            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
             $(#[$attrs])+
             pub struct Xyz<T> { pub x:T, pub y:T, pub z:T }
@@ -1078,7 +1140,7 @@ macro_rules! vec_impl_all_vecs {
             use super::*;
             /// Vector type suited for 2D spatial coordinates.
             #[allow(missing_docs)]
-            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
             $(#[$attrs])+
             pub struct Xy<T> { pub x:T, pub y:T }
@@ -1098,7 +1160,7 @@ macro_rules! vec_impl_all_vecs {
             /// If you want to assert unsignedness at runtime, you can use the
             /// `is_all_positive()` or `is_any_negative()` methods.
             #[allow(missing_docs)]
-            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
             $(#[$attrs])+
             pub struct Extent3<T> { pub w:T, pub h:T, pub d:T }
@@ -1118,7 +1180,7 @@ macro_rules! vec_impl_all_vecs {
             /// If you want to assert unsignedness at runtime, you can use the
             /// `is_all_positive()` or `is_any_negative()` methods.
             #[allow(missing_docs)]
-            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
             $(#[$attrs])+
             pub struct Extent2<T> { pub w:T, pub h:T }
@@ -1134,7 +1196,7 @@ macro_rules! vec_impl_all_vecs {
             /// There is no trait bound on `ColorComponent`, but if `T` doesn't implement it, you'll
             /// miss some goodies.
             #[allow(missing_docs)]
-            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
             $(#[$attrs])+
             pub struct Rgba<T> { pub r:T, pub g:T, pub b:T, pub a:T }
@@ -1150,7 +1212,7 @@ macro_rules! vec_impl_all_vecs {
             /// There is no trait bound on `ColorComponent`, but if `T` doesn't implement it, you'll
             /// miss some goodies.
             #[allow(missing_docs)]
-            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
             $(#[$attrs])+
             pub struct Rgb<T> { pub r:T, pub g:T, pub b:T }
@@ -1163,7 +1225,7 @@ macro_rules! vec_impl_all_vecs {
             use super::*;
             /// Vector type suited for 3D texture coordinates.
             #[allow(missing_docs)]
-            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
             $(#[$attrs])+
             pub struct Uvw<T> { pub u:T, pub v:T, pub w:T }
@@ -1176,7 +1238,7 @@ macro_rules! vec_impl_all_vecs {
             use super::*;
             /// Vector type suited for 2D texture coordinates.
             #[allow(missing_docs)]
-            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
             $(#[$attrs])+
             pub struct Uv<T> { pub u:T, pub v:T }

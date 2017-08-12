@@ -8,21 +8,21 @@ use vec;
 macro_rules! mat_declare_types {
     ($lines:ident) => {
         /// 4x4 matrix.
-        #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+        #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq/* , Ord, PartialOrd */)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Mat4<T> {
             #[allow(missing_docs)]
             pub $lines: CVec4<Vec4<T>>,
         }
         /// 3x3 matrix.
-        #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+        #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq/* , Ord, PartialOrd */)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Mat3<T> {
             #[allow(missing_docs)]
             pub $lines: CVec3<Vec3<T>>,
         }
         /// 2x2 matrix.
-        #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+        #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq/* , Ord, PartialOrd */)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Mat2<T> {
             #[allow(missing_docs)]
