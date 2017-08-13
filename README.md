@@ -260,7 +260,7 @@ some of which are :
 - Alignment requirements (most load/store instructions);
 - Precision of floating-point operations (e.g `_mm_rsqrt_ps()`);
 - Handling of integer overflow (e.g `_mm_add_epi32()`);
-- Expectations from the user (e.g `_mm_cmpeq_ps()` use `0xffffffff` in the output vector as the value for `true`);
+- Expectations from the user (e.g `_mm_cmpeq_ps()` uses `0xffffffff` in the output vector as the value for `true`);
 
 The point is, hardware-specific intrinsics are, well, hardware-specific, which
 is why it's up to you to opt-in explicitly.  
@@ -269,7 +269,7 @@ The generic implementations may not be as efficient, but won't backstab you eith
 
 ## Why don't I get pretty assembly on debug builds ?
 
-You don't actually care in this situations. It's release builds you're after.
+You don't actually care in this situation. It's release builds you're after.
 
 Also keep in mind that Rust checks for integer overflows on debug builds, so
 e.g your pretty `Vec4<i32>` addition won't be lowered to `paddd` on
@@ -297,7 +297,8 @@ As a user, you might not realize that the "matrix * vector" products you use
 everywhere take twice as many instructions as they should.  
 Yes, you won't see the difference in "most cases", but in my (limited) 
 experience, "most cases" is "moderately ambitious games running on 
-x86-64 CPUs", which is why there's no noticeable slowdown, but that shouldn't
+x86-64 CPUs", which is why there's no noticeable slowdown (they're very forgiving
+compared to those of previous generation consoles), but that shouldn't
 get in the way of "potentially ambitious games running on PC, consoles and 
 mobile devices".
 
@@ -343,7 +344,7 @@ as `Rgba<u8>` of `Rgba<f32>`.
 
 "Reality of the hardware" rather than "pretty pink pony mathematical reality".  
 
-I don't want more abstraction. I want compression of information.
+I don't want more abstraction. I want [compression of information](https://mollyrocket.com/casey/stream_0019.html).
 
 I don't want a pretty-looking mathematical model. I want to have access to the
 basic building blocks that don't actively try to hide what's actually happening.  
