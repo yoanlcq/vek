@@ -60,21 +60,20 @@ Let's have our cake and eat it too !
 
 ## Can I use it on Stable ?
 
-Yes ! Disable the `repr_simd` and `repr_aligned` features, but don't expect
-miracles to happen with regards to perf.
-
-
-## This crate misses one or more optimized operations for my target platform (or, some parts could be improved) !
-
-I care about this. Whether you actually need them or not, file an issue on the 
-Github repo and let's see what we can do.  
-However please avoid filing a PR before discussing the matter in an issue.
+Yes! You only have to disable the `repr_simd` and `repr_aligned` features.
 
 
 ## This crate is so slow to compile!
 
-Sorry for that - it's caused by extensive use of macros and generics. Also, it appears that incremental compilation doesn't help much here.  
-Try to disable default features, then selectively enable the ones you need. In particular, disabling the `repr_simd` feature should approximately divide build times by two.
+Disable default features, then selectively enable the ones you need.  
+It's unlikely that you need absolutely all of `vek`'s types, so pick the few
+that you'll actually use.  
+
+On my machine, restricting features to only include the `Mat4` and `Vec4` types
+made build times go from 24 seconds to 3 seconds!
+
+Also, disabling the `repr_simd` feature should approximately divide build times by two.
+
 
 ## How do I shuffle a vector ?
 
@@ -90,14 +89,30 @@ let xyxx = Xyzw { x, y, z: x, w: x };
 But don't take my word for it - let the (release mode) assembly speak for itself!  
 On x86 with SSE, it lowers to `shufps` as wanted.
 
-If you're only interested in a single element you can use `broadcast`:
+If you're only interested in a single element you can use `broadcast` (or even `from`):
 
 ```rust
 let Xyzw { x, .. } = xyzw;
 let xxxx = Xyzw::broadcast(x);
+let xxxx = Xyzw::from(x);
 ```
 
-## Why can't I index a matrix directly (e.g write `m[1][3]`) ?
+
+# Why do element-wise comparison functions return `SomeVec<u8>` and not `SomeVec<bool>` ?
+
+Because `bool` is not a "machine type", SIMD `bool` vector types can't be monomorphized,
+and it's a pain to try to handle this case.
+If you really want a vector of `bool`s for some reason, you can use `convert()`:
+
+```rust
+let v = Vec4(0,1,0,1);
+let b = v.convert(|x| x != 0);
+```
+
+This will only work for vectors which are not `#[repr(simd)]`.
+
+
+## Why can't I index a matrix directly (i.e write `m[1][3]`) ?
 
 Because the actual meaning changes depending on the matrix's storage layout.  
 What you describe will probably do what you expect on row-major matrices,
@@ -110,18 +125,47 @@ would behave as expected anymore, and there's no way the compiler could catch th
 
 For these reasons, in `vek`, it is almost always required that you explicitly
 use the matrix's public member instead, which conveys the intent and enforces correctness.  
-Here's how you index matrices this way (assuming, for instance, that `i=1` and `j=3`):
+Here's how you index matrices in `vek` (assuming, for instance, that `i=1` and `j=3`):
 
 - Row-major, static indexing: `(m.rows.1).3`;
 - Row-major, dynamic indexing: `m.rows[i][j]`;
 - Column-major, static indexing: `(m.cols.3).1`;
 - Column-major, dynamic indexing: `m.cols[j][i]`;
+- Any layout, dynamic indexing: `m[(i, j)]` (or `m[Vec2(i, j)]`).
 
 In the same way, if you want to get a pointer to the matrix's data, for e.g transferring it
 to a graphics API, get the address of the public member explictly instead, which makes clear
 whether you're sending an array of rows or an array of columns.  
 If you're using OpenGL, check out the `as_gl_uniform_params()` method which is implemented on
 `f32` matrices.
+
+
+## What the heck is a `Xy<T>`? Is spelling out `Vector2` too much for you?
+
+There are two issues: first the rationale behind `Xy<T>`, and second, naming conventions.
+
+For the former:
+- `Xy<T>` is a struct that has `x` and `y` members. It has uses as spatial coordinates.
+- `Vec2<T>` is a pair of values that have the same type. It's more general-purpose than `Xy<T>`.
+
+For the latter, renaming imports to the rescue!
+
+```rust
+use vek::vec::Xy as Vector2;
+use vek::mat::Mat4 as Matrix4x4;
+
+let v = Vector2 { x: 13, y: 42 };
+// ....
+```
+
+Also, I believe the names match Rust's general terseness level.  
+Dynamic growable arrays are named `Vec`, not `Vector`, because they're
+so widely used that typing more than three characters becomes annoying.  
+
+It's the same reasoning behind names of shell commands such as `ls`.
+
+Also, people accustomed to GLSL are familiar with `mat4` and `vec4`.
+
 
 ## What's the deal with these `repr_simd` and `repr_c` modules ?
 
@@ -164,15 +208,30 @@ Yes, this does duplicate functionality, and no, it's not likely to be a problem
 except for compile times.
 
 
+## This crate misses one or more optimized operations for my target platform (or, some parts could be improved) !
+
+I care about this. Whether you actually need them or not, file an issue on the 
+Github repo and let's see what we can do.  
+However please avoid filing a PR before discussing the matter in an issue.
+
+
 ## Why generics?
+
+**TL:DR;**  
+First, the historical problem with generics in C++ is the increase in build times,
+and possibly insanely long and confusing error message, but none of these apply to Rust.  
+Second, we _can_ be generic and still generate efficient code.
+
 
 As much as 32-bit floating-point happens to be the most common case, the
 algorithms are universal, and there's no reason
 we wouldn't suddenly switch to, say, fixed-point numbers or bignums.
 
-Fixed-point numbers provide a lot of goodies (e.g consistency of results across 
-platforms and compiler options, useful for lockstep networking models) 
-and I want to be able to switch to using them painlessly.  
+Fixed-point numbers do provide some goodies: 
+- Consistency of results across platforms and compiler options, useful for lockstep networking models;
+- They are the only option for representing real numbers on some esoteric platforms such as the Nintendo DS.
+So I want to be able to switch to using them painlessly.  
+
 Bignums also come
 up as an interesting target, even though we might wonder in which cases we
 need more than 64-bit worth of integer values.
@@ -182,23 +241,35 @@ is written once but over-generalized, such that the compiler can't always
 "see" what the actual optimal code for the target hardware is.
 
 `#[repr(simd)]` is good, but not a magic wand. It **will** lower basic vector
-operations into shuffles, packed arithmetic operations, etc.  
-
-However, it won't be able to guess when what you've just written is actually
+operations into shuffles, packed arithmetic operations, etc, but it won't be
+able to "guess" when what you just wrote is actually
 the "unpcklps" instruction (and there, the generated assembly is an awful
 bunch of "shufps" instead).  
 
 It happens that sometimes we **do** want
-to use the intrinsics directly, but we still want to be generic!
+to use the intrinsics directly, but we still want to be generic!  
+So both are provided - that is, you get reasonably efficient code by default,
+but still have access to specialized functions under certain assumptions
+(for instance, `Mat4<f32>` provides `transposed_sse()` on SSE-enabled x86 CPUs).
 
-In most other languages, this would be unthinkable, but in
-Rust, with modules, macros, and plenty of other ergonomics, this is actually
-achievable.
+
+## Why aren't "efficient" implementations the default ?
+
+Because most hardware-specific intrinsics have semantics that bypass some of Rust's assumptions,
+some of which are :
+- Alignment requirements (most load/store instructions);
+- Precision of floating-point operations (e.g `_mm_rsqrt_ps()`);
+- Handling of integer overflow (e.g `_mm_add_epi32()`);
+- Expectations from the user (e.g `_mm_cmpeq_ps()` use `0xffffffff` in the output vector as the value for `true`);
+
+The point is, hardware-specific intrinsics are, well, hardware-specific, which
+is why it's up to you to opt-in explicitly.  
+The generic implementations may not be as efficient, but won't backstab you either.
 
 
 ## Why don't I get pretty assembly on debug builds ?
 
-Debug builds are what they are.
+You don't actually care in this situations. It's release builds you're after.
 
 Also keep in mind that Rust checks for integer overflows on debug builds, so
 e.g your pretty `Vec4<i32>` addition won't be lowered to `paddd` on
@@ -207,98 +278,102 @@ SSE2-enabled CPUs.
 
 ## Why not [insert related crate here] ?
 
-It probably looks a bit ridiculous to provide so much rationale in this section,
-but seeing how many crates I could have used out there instead of writing my own, 
-I do feel this need to explain.
+As some have discussed, the "quality" of a vector/matrix library is often
+a matter of personal preference.  
+I think it is normal and healthy that there are
+so many choices available. It's as healthy as having so many different game engines,
+operating systems, Web browsers, countries, and cultures.
 
-**In my (hopefully humble) opinion...**
+So instead of trying to convince you why, for some reason, you shouldn't use one of the
+well-written libraries out there such as `cgmath`, `nalgebra` and `vecmath`, I'll try
+my best at explaining the problems I want to solve with `vek`.
 
-***
-Little to no attention is paid to the quality of the actual assembly output.
+### 1. I don't want to worry anymore about my vectors and matrices being less efficient than they ought to be.
 
 It's common to assume that the compiler can optimize everything (and often,
 it does) but it's a huge oversight for libraries that provide core types.
 
 As a user, you might not realize that the "matrix * vector" products you use
-everywhere with library X take twice as many instructions as they should.  
-Yes, you won't see the difference in "most cases", but do define "most cases"!  
-In my experience, "most cases" is "moderately ambitious games running on 
+everywhere take twice as many instructions as they should.  
+Yes, you won't see the difference in "most cases", but in my (limited) 
+experience, "most cases" is "moderately ambitious games running on 
 x86-64 CPUs", which is why there's no noticeable slowdown, but that shouldn't
 get in the way of "potentially ambitious games running on PC, consoles and 
 mobile devices".
-***
-Most libraries only ever provide one storage layout for matrices.
 
-They're not to blame, since GLM does it too (even though it's a global setting
-that can be toggled).  
-However I think it's evil (and lazy) to just assume that there's only one
-layout users could be interested in.
+SSE and SSE2 have been around since 1999 and 2001 respectively. All x86-64 CPUs
+have them, and nearly every PC today is powered by such CPUs.  
+According to the [Steam Hardware Survey](http://store.steampowered.com/hwsurvey/),
+100% of PCs have SSE2.
+
+So obviously, on such targets, if my `Vec4<f32>` addition doesn't lower to the `addps`
+instruction, I'll get very upset.
+
+### 2. I want to be able to choose freely between row-major and column-major.
 
 Row-major matrices have their uses just as well
-as column-major ones. One should be allowed to pick the correct one for the
+as column-major ones. Let's end this debate, please.  
+One should be allowed to pick the correct one for the
 job at any time and place.  
-For instance, column-major matrices are good at multiplying themselves by
+
+It _happens_ that column-major matrices are good at multiplying themselves by
 a column vector, which is the most common case in computer graphics
 (because it's how we transform vertices), but this doesn't mean this is
 somehow the One True Layout.  
+
 Row-major matrices are good at being the right-hand side of a product with
 a row vector. Also, one might just prefer them because of the indexing order.
-This all boils down to giving more control to the user.
-***
-Related to the above two, libraries don't clearly state which targets they
-were optimized for (and which operations are optimized).
 
-I hope I'm making it clear that even though `vek` focuses on x86, there are
-efforts to make it able to reason about, say, ARM and others.
-***
-Such libraries provide the ubiquitous `Vector` types (which members are
-`x`, `y`, `z` and `w`), but no `Rgb`, `Rgba`, `Extent` or `Uv` types, which
-really are the same, but represent different intents.
+This all boils down to giving more control to the user. Who am I to decide
+on your behalf ?
 
-A lack of such types is likely to make people use `Vector2`s for unsuited data
-such as a
-viewport/window size where an `Extent2` (with `w` and `h` members) would
-better convey the intent (and even, in this case, guarantee correctness 
-by being unsigned).
-***
-Some libraries, on the other hand, go crazy with new types (it's not bad, but 
-it's essentially more and more abstraction).
+### 3. Writing `Extent2`, `Rgba` and `Rgb` types from scratch every time gets old fast.
 
-I'm thinking about `nalgebra`, which remains a high-quality library, albeit 
-a bit too high in abstraction space for 3D game engines.
+Back when I was using SFML, I would write stuff such as `window.size.x` but
+_obviously_ it feels slightly odd.  
+The Vulkan API was wise enough to
+define `vkExtent2d` and `vkExtent3d` types for representing _spatial extents_, so I
+want these types too. What are they ? Plain old vectors. But their members are
+named such that it is clear that we're dealing with widths, heights and depths.
 
-When in doubt, `vek` favors explicitness and the _reality_ (as in, "reality 
-of the hardware" rather than "pretty pink pony mathematical reality").  
-This implies there's no `AffineMat3` type or the likes - there are only
-matrices. If you want such a type, you're free to build it yourself by
-wrapping some functionality, but at the end of the day, you'll probably
-convert it to a matrix anyway.
-***
-Some libraries assume that their element types implement some kind 
-of `BaseFloat` trait, which is good design, but now 
-they're stuck to only floating-point numbers. 
+The others that come back all too often are `Rgb` and `Rgba`. I need these _all the time_, either
+as `Rgba<u8>` of `Rgba<f32>`.
 
-Welp, no fixed-point or bignums for you!
-***
-Some libraries provide their functionalities mostly through traits.  
-Again, this is good design. By providing a `prelude` module, they allow users
-to concisely import functionality without spelling out every trait every time.
+### 4. I want a library that is close to the reality.
 
-It's a matter of personal taste, but I dislike having to do this.  
+"Reality of the hardware" rather than "pretty pink pony mathematical reality".  
+
+I don't want more abstraction. I want compression of information.
+
+I don't want a pretty-looking mathematical model. I want to have access to the
+basic building blocks that don't actively try to hide what's actually happening.  
+There's no such type as `OrthogonalMat4`, `AffineMat4` or the like. It's a damn `Mat4`, 
+because it's what the hardware deals with.  
+
+### 5. I want to be able to have vectors/matrices of fixed-points and bignums.
+
+i.e I don't want to be stuck on floating-point numbers.
+
+### 6. I don't want to have to import a trait for every piece of functionality.
+
+And I don't want a `prelude` either.
+
 Fundamentally, if I'm given an `Rgba` type, I don't want to have to import
 some `ColorVector` trait (or some prelude) to be able to call `red()` on it.
 The same goes for dot products, identity matrices, and whatever.
-***
-One (`vecmath`) _only_ provides free functions (i.e no methods).
 
-This is how it's done in C, but we can do much better in Rust.  
-I do prefer writing `m * v` instead of `col_mat4_transform(m, v)`!  
-However, it completely clicks with `vecmath`'s stated goals. Also anyone
-could use these free functions as foundations to their own library.
+However, _of course_ it's practical to make them implement relevant traits.
 
-It happens that I've needed (and written) vector and matrix types so much
-that I feel like I need some kind of definite, feature-complete, 
-"end-all" solution.
+### 7. I want fully-fledged types with exhaustive abilities.
+
+Not **only** free functions. That's how I used to do it in C (Even back then I used GNU M4 to generate poor-man's generics).  
+Now, hopefully, there's Rust, and I certainly prefer writing `m * v` instead of `col_mat4_transform(m, v)`!  
+
+I mean, if there's no easy way in my codebase to talk about a `Mat4` ASAP, I'm in for a serious
+productivity (and sanity) loss. I don't want to pollute
+my mental cache by asking myself if I have to use fixed-size arrays, tuples,
+structs, or tuple structs for my vectors or matrices.  
+I want them readily available for use and never have to go back to, or question, their implementation.
 
 
 # Won't implement
@@ -316,7 +391,7 @@ Transpose the matrix if needed.
 
 ***
 
-Indexing matrices directly.  
+Indexing matrices directly, as in `m[i][j]`.  
 Rationale :
 
 Most people are tempted to write `m[i][j]` when `i` and `j` are
@@ -333,7 +408,9 @@ therefore the meaning of indexing is flipped and requires attention.
 We wouldn't have this "correctness check" if writing `m[i][j]` was allowed.
 
 If one still wants dynamic indexing, they can write `m.rows[i][j]` or
-`m.cols[j][i]`.
+`m.cols[j][i]`.  
+They can also write `m[(i, j)]` or `m[Vec2(i, j)]`, which has the same semantics
+regardless of the storage layout.
 
 ***
 
@@ -359,12 +436,17 @@ It's better to explicitly call `transpose()` to invert a matrix that is known to
 
 ***
 
-`Rad` or `Deg` newtypes. It's unhandy and worthless, in that they add no value.
-How would correctness be enforced using one or the other ?  
+`Rad` or `Deg` newtypes. They have no way to enforce correctness, and get annoying to use quickly.
 
 Per `vek`'s mantra (i.e stay true to reality), all angles are assumed to be in
 radians, because this is the unit that's **actually** used for calculations.  
-Degrees are only good for displaying in GUIs, and as such, are none of my concern.
+Degrees are only good for displaying in GUIs, and as such, are none of my concern.  
+
+Unity does this, but it's a **bad decision**, because :
+1. It hides the reality;
+2. It confuses those who know what they're doing;
+3. The actual problem they want to solve is convenience in the inspector, which
+   would be better solved in the first place by providing dedicated "angle editor" widgets.
 
 Also floating-point types already have `to_radians()` and `to_degrees()` in Rust.
 If you want to support degrees so bad, then I dunno, write your own wrappers or 
