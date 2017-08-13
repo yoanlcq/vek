@@ -8,7 +8,7 @@ license = "MIT/Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/yoanlcq/vek"
 name = "vek"
-version = "0.2.1" # remember to update html_root_url in src/lib.rs
+version = "0.2.2" # remember to update html_root_url in src/lib.rs
 build = "build.rs"
 exclude = [
     "previous_work/*",
@@ -22,9 +22,30 @@ travis-ci = { repository = "yoanlcq/vek" }
 appveyor  = { repository = "yoanlcq/vek" }
 
 [features]
-default = ["repr_simd", "repr_align", "serde"]
+# default = ["serde", "repr_simd", "repr_align", "vec2", "vec3", "vec4", "vec8", "vec16", "vec32", "vec64", "xyzw", "xyz", "xy", "rgba", "rgb", "extent3", "extent2", "uvw", "uv", "mat2", "mat3", "mat4"]
+# TODO limited features only to decrease compile times
+default = ["serde", "repr_simd", "repr_align", "vec4", "mat4"]
 repr_align = []
 repr_simd = []
+vec2 = []
+vec3 = []
+vec4 = []
+vec8 = []
+vec16 = []
+vec32 = []
+vec64 = []
+xyzw = []
+xyz = []
+xy = []
+rgba = []
+rgb = []
+extent3 = []
+extent2 = []
+uvw = []
+uv = []
+mat2 = ["vec2"]
+mat3 = ["vec3"]
+mat4 = ["vec4"]
 
 [build-dependencies]
 rustc_version = "0.2.1"

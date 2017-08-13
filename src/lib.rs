@@ -25,7 +25,8 @@
 //! - Square matrices: `Mat2<T>`, `Mat3<T>`, `Mat4<T>`.
 //!
 //! Matrices can be row-major or column-major at your option, because there are use cases for both
-//! layouts, even though column-major is often better performance-wise.
+//! layouts, even though column-major is often better performance-wise, for most use case in
+//! computer graphics.
 //!
 //! Types share functionality whenever relevant.  
 //! Also, there are several (concise) ways to convert from one vector type to another:
@@ -54,11 +55,17 @@
 //! types are just as convenient (if not more so), but marked `#[repr(simd)]` when enabled.
 //!
 //! Matrix elements are written as `mij`, where i is the row index and j is the column index, independently of storage order.
-//! This convention has been chosen because it is the *de facto* standard.
+//! This convention has been chosen because it is the mathematical standard.
 //!
 //! # Cargo features
 //!
 //! - `serde` makes vectors and matrices derive `Serialize` and `Deserialize`.
+//!
+//! ***
+//!
+//! - `vec2`, `vec3`, `vec4`, `vec8`, `vec16`, `vec32`, `vec64`, `xyzw`, `xyz`, `xy`, `rgba`, `rgb`, `extent3`, `extent2`, `uvw`, `uv`, `mat2`, `mat3`, `mat4`  
+//!   Select which types you want. Restricting your selection drastically decreases compile times.  
+//!   They are all enabled by default so that they appear in the documentation (and that doc-tests work).
 //!
 //! ***
 //!
@@ -81,10 +88,10 @@
 
 #![no_std]
 #![doc(
-    test(attr(deny(warnings))),
-    html_root_url = "https://docs.rs/vek/0.2.1",
-    //html_logo_url = "https://yoanlcq.github.io/vek/logo.png",
-    //html_favicon_url = "https://yoanlcq.github.io/vek/favicon.ico",
+	test(attr(deny(warnings))),
+	html_root_url = "https://docs.rs/vek/0.2.2",
+	//html_logo_url = "https://yoanlcq.github.io/vek/logo.png",
+	//html_favicon_url = "https://yoanlcq.github.io/vek/favicon.ico",
 )]
 #![warn(missing_docs)]
 //#![deny(warnings)]
@@ -127,11 +134,3 @@ pub use vec::*;
 pub mod ops;
 pub use ops::*;
 
-
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-    }
-}
