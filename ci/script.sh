@@ -2,7 +2,6 @@
 
 set -ex
 
-# TODO This is the "test phase", tweak it as you see fit
 main() {
     cross build --target $TARGET
     cross build --target $TARGET --release
@@ -11,8 +10,13 @@ main() {
         return
     fi
 
-	cross test $(if [ $AVOID_DOC_TESTS ]; then echo --lib; fi) --no-fail-fast --target $TARGET
-    cross test $(if [ $AVOID_DOC_TESTS ]; then echo --lib; fi) --no-fail-fast --target $TARGET --release
+    if [ ! $AVOID_DOC_TESTS ]; then
+        cross test --doc --no-default-features --no-fail-fast --target $TARGET
+        cross test --doc --no-default-features --no-fail-fast --target $TARGET --release
+    fi
+
+    cross test --lib --no-fail-fast --target $TARGET
+    cross test --lib --no-fail-fast --target $TARGET --release
 
     #cross run --target $TARGET
     #cross run --target $TARGET --release

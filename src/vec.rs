@@ -1074,7 +1074,7 @@ macro_rules! vec_impl_all_vecs {
 	#[cfg(feature="vec3")]
 		pub use self::vec3::Vec3;
 
-	#[cfg(feature="vec4")]
+	// #[cfg(feature="vec4")]
 		/// A four-components generic vector type.
 		pub mod vec4 {
 			use super::*;
@@ -1088,7 +1088,7 @@ macro_rules! vec_impl_all_vecs {
 			pub struct Vec4<T>(pub T, pub T, pub T, pub T);
 			vec_impl_vec!(tuple Vec4	 vec4	(4) ("({}, {}, {}, {})") (0 1 2 3) (x y z w) (0 1 2 3) (T,T,T,T));
 		}
-	#[cfg(feature="vec4")]
+	// #[cfg(feature="vec4")]
 		pub use self::vec4::Vec4;
 
 	#[cfg(feature="vec8")]
@@ -1186,7 +1186,16 @@ macro_rules! vec_impl_all_vecs {
 			#[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
 			#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
 			$(#[$attrs])+
-			pub struct Xyzw<T> { pub x:T, pub y:T, pub z:T, pub w:T }
+			pub struct Xyzw<T> {
+				pub x:T, pub y:T, pub z:T,
+				/// In homogeneous 3D-space coordinates, `w` is often set to 
+				/// `1` for points, and `0` for directions.  
+				///
+				/// The reason behind this: with floating-point numbers,
+				/// division by zero gives infinity (a direction is then
+				/// a point stretching infinitely towards another).
+				pub w: T
+			}
 			vec_impl_vec!(struct Xyzw	xyzw	(4) ("({}, {}, {}, {})") (x y z w) (x y z w) (0 1 2 3) (T,T,T,T));
 		}
 	#[cfg(feature="xyzw")]

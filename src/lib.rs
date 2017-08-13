@@ -63,9 +63,10 @@
 //!
 //! ***
 //!
-//! - `vec2`, `vec3`, `vec4`, `vec8`, `vec16`, `vec32`, `vec64`, `xyzw`, `xyz`, `xy`, `rgba`, `rgb`, `extent3`, `extent2`, `uvw`, `uv`, `mat2`, `mat3`, `mat4`  
+//! - `vec2`, `vec3`, `vec8`, `vec16`, `vec32`, `vec64`, `xyzw`, `xyz`, `xy`, `rgba`, `rgb`, `extent3`, `extent2`, `uvw`, `uv`, `mat2`, `mat3`
 //!   Select which types you want. Restricting your selection drastically decreases compile times.  
-//!   They are all enabled by default so that they appear in the documentation (and that doc-tests work).
+//!   They are all enabled by default so that they appear in the documentation (and that doc-tests work).  
+//!   There is no `vec4` or `mat4` feature, because they are required by examples in documentation.
 //!
 //! ***
 //!

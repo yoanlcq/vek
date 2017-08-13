@@ -35,7 +35,6 @@ install:
   - rustc -Vv
   - cargo -V
 
-# TODO This is the "test phase", tweak it as you see fit
 test_script:
   # we don't run the "test phase" when doing deploys
   # NOTE(yoanlcq): Adding --lib to avoid running doc tests, 
