@@ -60,7 +60,7 @@ Let's have our cake and eat it too !
 
 ## Can I use it on Stable ?
 
-Yes! You only have to disable the `repr_simd` and `repr_aligned` features.
+Yes! You only have to disable the `repr_simd` and `repr_align` features.
 
 
 ## This crate is so slow to compile!

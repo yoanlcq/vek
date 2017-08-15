@@ -594,7 +594,7 @@ macro_rules! vec_impl_vec {
 			/// ```
 			pub fn reduce_partial_min(self) -> T where T: PartialOrd {
 				let first = unsafe { ptr::read(self.get_unchecked(0)) };
-				self.into_iter().skip(1).fold(first, |acc, x| partial_min(acc, x))
+				self.into_iter().skip(1).fold(first, partial_min)
 			}
 			/// Returns the element which has the highest value in this vector, using partial
 			/// ordering.
@@ -605,7 +605,7 @@ macro_rules! vec_impl_vec {
 			/// ```
 			pub fn reduce_partial_max(self) -> T where T: PartialOrd {
 				let first = unsafe { ptr::read(self.get_unchecked(0)) };
-				self.into_iter().skip(1).fold(first, |acc, x| partial_max(acc, x))
+				self.into_iter().skip(1).fold(first, partial_max)
 			}
 
 			/// Returns the product of each of this vector's elements.
@@ -1032,7 +1032,7 @@ macro_rules! vec_impl_vec {
 }
 
 
-/// Calls vec_impl_vec!() on each appropriate vector type.
+/// Calls `vec_impl_vec!{}` on each appropriate vector type.
 macro_rules! vec_impl_all_vecs {
 	($(#[$attrs:meta])+) => {
 	#[cfg(feature="vec2")]
