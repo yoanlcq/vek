@@ -151,8 +151,8 @@ For the former:
 For the latter, renaming imports to the rescue!
 
 ```rust
-use vek::vec::Xy as Vector2;
-use vek::mat::Mat4 as Matrix4x4;
+use vek::Xy as Vector2;
+use vek::Mat4 as Matrix4x4;
 
 let v = Vector2 { x: 13, y: 42 };
 // ....
