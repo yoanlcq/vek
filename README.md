@@ -1,3 +1,5 @@
+*Development is on hold because of other projects.*
+
 [![Travis CI Build Status](https://travis-ci.org/yoanlcq/vek.svg?branch=master)](https://travis-ci.org/yoanlcq/vek)
 [![Appveyor Build status](https://ci.appveyor.com/api/projects/status/ir0d4pkpkfwv643q/branch/master?svg=true)](https://ci.appveyor.com/project/yoanlcq/vek/branch/master)
 [![Documentation](https://docs.rs/vek/badge.svg)](https://docs.rs/vek)
