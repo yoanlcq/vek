@@ -1104,6 +1104,40 @@ macro_rules! vec_impl_spatial {
     };
 }
 
+
+macro_rules! vec_impl_spatial_2d {
+    ($Vec:ident) => {
+        impl<T> $Vec<T> {
+            /// A signed value which tells in which half-space of segment `ab` this point lies.
+            ///
+            /// Returns:
+            ///
+            /// - ` < 0`: This point lies in the half-space right of segment `ab`.
+            /// - `== 0`: This point lies in the infinite line along segment `ab`.
+            /// - ` > 0`: This point lies in the half-space left of segment `ab`.
+            pub fn determine_side(self, a: Self, b: Self) -> T 
+                where T: Copy + Sub<Output=T> + Mul<Output=T>
+            {
+                let (cx, cy) = self.into_tuple();
+                let (ax, ay) = a.into_tuple();
+                let (bx, by) = b.into_tuple();
+                let d1 = (bx - ax.clone()) * (cy - ay.clone());
+                let d2 = (by - ay) * (cx - ax);
+                d1 - d2
+            }
+            /// The signed area of the triangle (a, b, c).
+            pub fn signed_triangle_area(a: Self, b: Self, c: Self) -> T where T: Float {
+                let two = T::one() + T::one();
+                c.determine_side(a, b)/two
+            }
+            /// The area of the triangle (a, b, c).
+            pub fn triangle_area(a: Self, b: Self, c: Self) -> T where T: Float {
+                Self::signed_triangle_area(a, b, c).abs()
+            }
+        }
+    };
+}
+
 macro_rules! vec_impl_cross {
     ($($Vec:ident)+) => {
         $(
@@ -1176,6 +1210,7 @@ macro_rules! vec_impl_all_vecs {
 
 			vec_impl_vec!(tuple Vec2	 vec2	(2) ("({}, {})") (0 1) (x y) (0 1) (T,T));
             vec_impl_spatial!(Vec2);
+            vec_impl_spatial_2d!(Vec2);
 		}
 	#[cfg(feature="vec2")]
 		pub use self::vec2::Vec2;
@@ -1365,6 +1400,7 @@ macro_rules! vec_impl_all_vecs {
 			pub struct Xy<T> { pub x:T, pub y:T }
 			vec_impl_vec!(struct Xy	  xy	  (2) ("({}, {})") (x y) (x y) (0 1) (T,T));
             vec_impl_spatial!(Xy);
+            vec_impl_spatial_2d!(Xy);
 		}
 	#[cfg(feature="xy")]
 		pub use self::xy::Xy;
