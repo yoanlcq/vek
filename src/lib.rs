@@ -135,3 +135,12 @@ pub use vec::*;
 pub mod ops;
 pub use ops::*;
 
+#[allow(missing_docs)]
+pub mod quaternion;
+pub use quaternion::*;
+#[allow(missing_docs)]
+pub mod bezier;
+pub use bezier::*;
+#[allow(missing_docs)]
+pub mod geom;
+pub use geom::*;

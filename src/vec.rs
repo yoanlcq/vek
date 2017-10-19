@@ -1031,6 +1031,130 @@ macro_rules! vec_impl_vec {
 	};
 }
 
+macro_rules! vec_impl_spatial {
+    ($Vec:ident) => {
+        impl<T> $Vec<T> {
+            /// Dot product.
+            pub fn dot(self, v: Self) -> T where T: Sum + Mul<Output=T> {
+                (self * v).sum()
+            }
+            /// The squared magnitude of a vector is its length multiplied by itself.
+            pub fn magnitude_squared(self) -> T where T: Clone + Sum + Mul<Output=T> {
+                let v = self.clone();
+                self.dot(v)
+            }
+            /// The magnitude of a vector is its length.
+            pub fn magnitude(self) -> T where T: Sum + Float + Mul<Output=T> {
+                self.magnitude_squared().sqrt()
+            }
+            /// Squared distance between two point vectors.
+            pub fn distance_squared(self, v: Self) -> T where T: Clone + Sum + Sub<Output=T> + Mul<Output=T> {
+                (self - v).magnitude_squared()
+            }
+            /// Distance between two point vectors.
+            pub fn distance(self, v: Self) -> T where T: Sum + Float + Mul<Output=T> + Sub<Output=T> {
+                (self - v).magnitude()
+            }
+            /// Get a copy of this direction vector such that its length equals 1.
+            pub fn normalized(self) -> Self where T: Sum + Float + Mul<Output=T> + Div<T, Output=T> {
+                self / self.magnitude()
+            }
+            /// Divide this vector's components such that its length equals 1.
+            pub fn normalize(&mut self) where T: Sum + Float + Mul<Output=T> + Div<T, Output=T> {
+                *self = self.clone().normalized();
+            }
+            /// The reflection direction for this vector on a surface which normal is given.
+            pub fn reflect(self, surface_normal: Self) -> Self 
+                where T: Clone + Sum + Mul<Output=T> + Sub<Output=T> + Add<Output=T>
+            {
+                let dot = self.clone().dot(surface_normal.clone());
+                let p = dot.clone() + dot.clone();
+                let mut out: Self = unsafe { mem::uninitialized() };
+                for ((out_e, v), s) in out.iter_mut().zip(self.into_iter()).zip(surface_normal.into_iter()) {
+                    *out_e = v - s * p.clone();
+                }
+                out
+            }
+            /// The refraction vector for this incident vector, a surface normal and a ratio of
+            /// indices of refraction (`eta`).
+            pub fn refract(self, surface_normal: Self, eta: T) -> Self
+                where T: Float + Sum + Mul<Output=T>
+            {
+                let n = surface_normal;
+                let i = self;
+                let n_dot_i = n.clone().dot(i.clone());
+                let k = T::one() - eta * eta * (T::one() - n_dot_i * n_dot_i);
+                if k < T::zero() {
+                    Self::zero()
+                } else {
+                    i * eta - n * (eta * n_dot_i + k.sqrt())
+                }
+            }
+            /// Orients a vector to point away from a surface as defined by its normal.
+            pub fn face_forward(self, incident: Self, reference: Self) -> Self
+                where T: Sum + Mul<Output=T> + Zero + PartialOrd + Neg<Output=T>
+            {
+                if reference.dot(incident) <= T::zero() {
+                    self
+                } else {
+                    -self
+                }
+            }
+        }
+    };
+}
+
+macro_rules! vec_impl_cross {
+    ($($Vec:ident)+) => {
+        $(
+            impl<T> $Vec<T> {
+                /// The cross-product of this vector with another.
+                pub fn cross(self, v: Self) 
+                    -> Self where T: Clone + Mul<Output=T> + Sub<Output=T>
+                {
+                    let s = self.into_tuple();
+                    let v = v.into_tuple();
+                    let ss = s.clone();
+                    let vv = v.clone();
+                    Self::new(
+                        s.1*v.2 - ss.2*vv.1,
+                        s.2*v.0 - ss.0*vv.2,
+                        s.0*v.1 - ss.1*vv.0
+                    )
+                }
+            }
+        )+
+    }
+}
+
+macro_rules! vec_impl_point_or_direction {
+    ($($Vec:ident)+) => {
+        $(
+            impl<T> $Vec<T> {
+                /// Creates a point vector in homogeneous coordinates (sets the last coordinate to 1).
+                pub fn new_point(x: T, y: T, z: T) -> Self where T: One {
+                    Self::new(x, y, z, T::one())
+                }
+                /// Creates a direction vector in homogeneous coordinates (sets the last coordinate to 0).
+                pub fn new_direction(x: T, y: T, z: T) -> Self where T: Zero {
+                    Self::new(x, y, z, T::zero())
+                }
+                /// Turns a vector into a point vector in homogeneous coordinates (sets the last coordinate to 1).
+                pub fn point<V: Into<Xyz<T>>>(v: V) -> Self where T: One {
+                    let Xyz { x, y, z } = v.into();
+                    Self::new_point(x, y, z)
+                }
+                /// Turns a vector into a direction vector in homogeneous coordinates (sets the last coordinate to 0).
+                pub fn direction<V: Into<Xyz<T>>>(v: V) -> Self where T: Zero {
+                    let Xyz { x, y, z } = v.into();
+                    Self::new_direction(x, y, z)
+                }
+            }
+        )+
+    }
+}
+
+
 
 /// Calls `vec_impl_vec!{}` on each appropriate vector type.
 macro_rules! vec_impl_all_vecs {
@@ -1051,6 +1175,7 @@ macro_rules! vec_impl_all_vecs {
 			pub struct Vec2<T>(pub T, pub T);
 
 			vec_impl_vec!(tuple Vec2	 vec2	(2) ("({}, {})") (0 1) (x y) (0 1) (T,T));
+            vec_impl_spatial!(Vec2);
 		}
 	#[cfg(feature="vec2")]
 		pub use self::vec2::Vec2;
@@ -1070,6 +1195,8 @@ macro_rules! vec_impl_all_vecs {
 			$(#[$attrs])+
 			pub struct Vec3<T>(pub T, pub T, pub T);
 			vec_impl_vec!(tuple Vec3	 vec3	(3) ("({}, {}, {})") (0 1 2) (x y z) (0 1 2) (T,T,T));
+            vec_impl_spatial!(Vec3);
+            vec_impl_cross!(Vec3);
 		}
 	#[cfg(feature="vec3")]
 		pub use self::vec3::Vec3;
@@ -1087,6 +1214,8 @@ macro_rules! vec_impl_all_vecs {
 			$(#[$attrs])+
 			pub struct Vec4<T>(pub T, pub T, pub T, pub T);
 			vec_impl_vec!(tuple Vec4	 vec4	(4) ("({}, {}, {}, {})") (0 1 2 3) (x y z w) (0 1 2 3) (T,T,T,T));
+            vec_impl_spatial!(Vec4);
+            vec_impl_point_or_direction!(Vec4);
 		}
 	// #[cfg(feature="vec4")]
 		pub use self::vec4::Vec4;
@@ -1108,6 +1237,7 @@ macro_rules! vec_impl_all_vecs {
 			$(#[$attrs])+
 			pub struct Vec8<T>(pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T);
 			vec_impl_vec!(tuple Vec8	 vec8	(8) ("({}, {}, {}, {}, {}, {}, {}, {})") (0 1 2 3 4 5 6 7) (m0 m1 m2 m3 m4 m5 m6 m7) (0 1 2 3 4 5 6 7) (T,T,T,T,T,T,T,T));
+            vec_impl_spatial!(Vec8);
 		}
 	#[cfg(feature="vec8")]
 		pub use self::vec8::Vec8;
@@ -1129,6 +1259,7 @@ macro_rules! vec_impl_all_vecs {
 			$(#[$attrs])+
 			pub struct Vec16<T>(pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T);
 			vec_impl_vec!(tuple Vec16	vec16   (16) ("({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})") (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15) (m0 m1 m2 m3 m4 m5 m6 m7 m8 m9 m10 m11 m12 m13 m14 m15) (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15) (T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T));
+            vec_impl_spatial!(Vec16);
 		}
 	#[cfg(feature="vec16")]
 		pub use self::vec16::Vec16;
@@ -1150,6 +1281,7 @@ macro_rules! vec_impl_all_vecs {
 			$(#[$attrs])+
 			pub struct Vec32<T>(pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T);
 			vec_impl_vec!(tuple Vec32	vec32   (32) ("({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})") (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31) (m0 m1 m2 m3 m4 m5 m6 m7 m8 m9 m10 m11 m12 m13 m14 m15 m16 m17 m18 m19 m20 m21 m22 m23 m24 m25 m26 m27 m28 m29 m30 m31) (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31) (T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T));
+            vec_impl_spatial!(Vec32);
 		}
 	#[cfg(feature="vec32")]
 		pub use self::vec32::Vec32;
@@ -1172,6 +1304,7 @@ macro_rules! vec_impl_all_vecs {
 			$(#[$attrs])+
 			pub struct Vec64<T>(pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T);
 			vec_impl_vec!(tuple Vec64	vec64   (64) ("({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})") (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63) (m0 m1 m2 m3 m4 m5 m6 m7 m8 m9 m10 m11 m12 m13 m14 m15 m16 m17 m18 m19 m20 m21 m22 m23 m24 m25 m26 m27 m28 m29 m30 m31 m32 m33 m34 m35 m36 m37 m38 m39 m40 m41 m42 m43 m44 m45 m46 m47 m48 m49 m50 m51 m52 m53 m54 m55 m56 m57 m58 m59 m60 m61 m62 m63) (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63) (T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T));
+            vec_impl_spatial!(Vec64);
 		}
 	#[cfg(feature="vec64")]
 		pub use self::vec64::Vec64;
@@ -1197,6 +1330,8 @@ macro_rules! vec_impl_all_vecs {
 				pub w: T
 			}
 			vec_impl_vec!(struct Xyzw	xyzw	(4) ("({}, {}, {}, {})") (x y z w) (x y z w) (0 1 2 3) (T,T,T,T));
+            vec_impl_spatial!(Xyzw);
+            vec_impl_point_or_direction!(Xyzw);
 		}
 	#[cfg(feature="xyzw")]
 		pub use self::xyzw::Xyzw;
@@ -1212,6 +1347,8 @@ macro_rules! vec_impl_all_vecs {
 			$(#[$attrs])+
 			pub struct Xyz<T> { pub x:T, pub y:T, pub z:T }
 			vec_impl_vec!(struct Xyz	 xyz	 (3) ("({}, {}, {})") (x y z) (x y z) (0 1 2) (T,T,T));
+            vec_impl_spatial!(Xyz);
+            vec_impl_cross!(Xyz);
 		}
 	#[cfg(feature="xyz")]
 		pub use self::xyz::Xyz;
@@ -1227,6 +1364,7 @@ macro_rules! vec_impl_all_vecs {
 			$(#[$attrs])+
 			pub struct Xy<T> { pub x:T, pub y:T }
 			vec_impl_vec!(struct Xy	  xy	  (2) ("({}, {})") (x y) (x y) (0 1) (T,T));
+            vec_impl_spatial!(Xy);
 		}
 	#[cfg(feature="xy")]
 		pub use self::xy::Xy;
@@ -1249,6 +1387,7 @@ macro_rules! vec_impl_all_vecs {
 			$(#[$attrs])+
 			pub struct Extent3<T> { pub w:T, pub h:T, pub d:T }
 			vec_impl_vec!(struct Extent3 extent3 (3) ("({}, {}, {})") (w h d) (w h d) (0 1 2) (T,T,T));
+            vec_impl_spatial!(Extent3);
 		}
 	#[cfg(feature="extent3")]
 		pub use self::extent3::Extent3;
@@ -1271,6 +1410,7 @@ macro_rules! vec_impl_all_vecs {
 			$(#[$attrs])+
 			pub struct Extent2<T> { pub w:T, pub h:T }
 			vec_impl_vec!(struct Extent2 extent2 (2) ("({}, {})") (w h) (w h) (0 1) (T,T));
+            vec_impl_spatial!(Extent2);
 		}
 	#[cfg(feature="extent2")]
 		pub use self::extent2::Extent2;
