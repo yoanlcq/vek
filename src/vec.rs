@@ -950,6 +950,8 @@ macro_rules! vec_impl_vec {
 
 
 		/// Consuming iterator over this module's vector type.
+		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 		pub struct IntoIter<T> {
 			vec: $Vec<T>,
 			i: usize,

@@ -20,9 +20,9 @@ macro_rules! bezier_impl_any {
             pub fn normalized_tangent(self, t: T) -> $Point<T> where T: Float + Sum {
                 self.evaluate_derivative(t).normalized()
             }
-            // WISH: better length approximation estimationsi (e.g see https://math.stackexchange.com/a/61796)
-            /// Approximates the curve's length by subdividing it into step_count+1 straight lines.
-            pub fn approx_length(self, step_count: u32) -> T
+            // WISH: better length approximation estimations (e.g see https://math.stackexchange.com/a/61796)
+            /// Approximates the curve's length by subdividing it into step_count+1 segments.
+            pub fn length_by_discretization(self, step_count: u32) -> T
                 where T: Float + AddAssign + Sum
             {
 	            let mut length = T::zero();
@@ -44,6 +44,7 @@ macro_rules! bezier_impl_quadratic {
     ($QuadraticBezier:ident $Point:ident $Line:ident) => {
         
         #[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, /*PartialOrd, Ord*/)]
+		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct $QuadraticBezier<T>(pub $Point<T>, pub $Point<T>, pub $Point<T>);
         
         impl<T: Float> $QuadraticBezier<T> {
@@ -115,6 +116,7 @@ macro_rules! bezier_impl_cubic {
     ($CubicBezier:ident $Point:ident $Line:ident) => {
         
         #[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, /*PartialOrd, Ord*/)]
+		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct $CubicBezier<T>(pub $Point<T>, pub $Point<T>, pub $Point<T>, pub $Point<T>);
 
         impl<T: Float> $CubicBezier<T> {
@@ -190,6 +192,7 @@ macro_rules! bezier_impl_cubic {
     }
 }
 
+#[cfg(all(nightly, feature="repr_simd"))]
 pub mod repr_simd {
     use super::*;
     use vec::repr_simd::{Vec3, Vec4, Xy, Xyz};
@@ -211,4 +214,7 @@ pub mod repr_c {
     bezier_impl_cubic!(CubicBezier3 Xyz Line3);
 }
 
+#[cfg(all(nightly, feature="repr_simd"))]
 pub use self::repr_simd::*;
+#[cfg(not(all(nightly, feature="repr_simd")))]
+pub use self::repr_c::*;

@@ -14,6 +14,7 @@ macro_rules! geom_complete_mod {
         use vec::$mod::*;
 
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
+		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Rect<P, E> {
             /// X position of the top-left corner.
             pub x: P,
@@ -33,6 +34,7 @@ macro_rules! geom_complete_mod {
         /// Rect3 is only useful when using extra precise integer coordinates where `Aabb` would only
         /// allow for representing half the possible values for the extent. 
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
+		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Rect3<P,E> {
             /// X position of the top-left-near corner.
             pub x: P,
@@ -48,6 +50,7 @@ macro_rules! geom_complete_mod {
             pub depth: E,
         }
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
+		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Aabb<P,E> {
             pub center: Xyz<P>,
             pub half_extent: Extent3<E>,
@@ -66,6 +69,7 @@ macro_rules! geom_complete_mod {
         // put on top (see composition over inheritance, etc).
 
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
+		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Disk<P,E> {
             pub center: Xy<P>,
             pub radius: E,
@@ -112,6 +116,7 @@ macro_rules! geom_complete_mod {
         }
 
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
+		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Sphere<P,E> {
             pub center: Xyz<P>,
             pub radius: E,
@@ -138,23 +143,27 @@ macro_rules! geom_complete_mod {
         }
 
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
+		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Ellipsis<P,E> {
             pub center: Xy<P>,
             pub radius: Extent2<E>,
         }
         /// Nobody can possibly use this ???
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
+		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Potato<P,E> {
             pub center: Xyz<P>,
             pub radius: Extent3<E>,
         }
 
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
+		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Line2<T> {
             pub a: Xy<T>,
             pub b: Xy<T>,
         }
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
+		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Line3<T> {
             pub a: Xyz<T>,
             pub b: Xyz<T>,
@@ -211,6 +220,7 @@ macro_rules! geom_complete_mod {
 
         // NOTE: Don't implement Default
         #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
+		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct FrustumPlanes<T> {
             pub left: T,
             pub right: T,
@@ -222,6 +232,7 @@ macro_rules! geom_complete_mod {
     }
 }
 
+#[cfg(all(nightly, feature="repr_simd"))]
 pub mod repr_simd {
     use super::*;
     geom_complete_mod!(repr_simd);
@@ -232,4 +243,7 @@ pub mod repr_c {
     geom_complete_mod!(repr_c);
 }
 
+#[cfg(all(nightly, feature="repr_simd"))]
 pub use self::repr_simd::*;
+#[cfg(not(all(nightly, feature="repr_simd")))]
+pub use self::repr_c::*;

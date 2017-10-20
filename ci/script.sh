@@ -11,8 +11,8 @@ main() {
     fi
 
     if [ ! $AVOID_DOC_TESTS ]; then
-        cross test --doc --no-default-features --no-fail-fast --target $TARGET
-        cross test --doc --no-default-features --no-fail-fast --target $TARGET --release
+        cross test --doc --no-fail-fast --target $TARGET
+        cross test --doc --no-fail-fast --target $TARGET --release
     fi
 
     cross test --lib --no-fail-fast --target $TARGET

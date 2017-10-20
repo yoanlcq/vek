@@ -256,6 +256,7 @@ macro_rules! quaternion_complete_mod {
         */
     }
 }
+#[cfg(all(nightly, feature="repr_simd"))]
 pub mod repr_simd {
     use super::*;
     quaternion_complete_mod!(repr_simd #[repr(packed,simd)] Vec3 Xyz);
@@ -264,3 +265,7 @@ pub mod repr_c {
     use super::*;
     quaternion_complete_mod!(repr_c #[repr(packed,C)] Vec3 Xyz);
 }
+#[cfg(all(nightly, feature="repr_simd"))]
+pub use self::repr_simd::*;
+#[cfg(not(all(nightly, feature="repr_simd")))]
+pub use self::repr_c::*;

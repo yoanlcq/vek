@@ -90,7 +90,7 @@
 #![no_std]
 #![doc(
 	test(attr(deny(warnings))),
-	html_root_url = "https://docs.rs/vek/0.2.2",
+	html_root_url = "https://docs.rs/vek/0.2.3",
 	//html_logo_url = "https://yoanlcq.github.io/vek/logo.png",
 	//html_favicon_url = "https://yoanlcq.github.io/vek/favicon.ico",
 )]
@@ -136,11 +136,19 @@ pub mod ops;
 pub use ops::*;
 
 #[allow(missing_docs)]
+#[cfg(feature="quaternion")]
 pub mod quaternion;
+#[cfg(feature="quaternion")]
 pub use quaternion::*;
+
 #[allow(missing_docs)]
+#[cfg(feature="bezier")]
 pub mod bezier;
+#[cfg(feature="bezier")]
 pub use bezier::*;
+
 #[allow(missing_docs)]
+#[cfg(feature="geom")]
 pub mod geom;
+#[cfg(feature="geom")]
 pub use geom::*;
