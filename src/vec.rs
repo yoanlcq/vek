@@ -287,7 +287,7 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// assert_eq!(Vec4::broadcast(5), Vec4(5,5,5,5));
+            /// assert_eq!(Vec4::broadcast(5), Vec4::new(5,5,5,5));
             /// assert_eq!(Vec4::broadcast(5), Vec4::from(5));
             /// ```
             pub fn broadcast(val: T) -> Self where T: Clone {
@@ -300,7 +300,7 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// assert_eq!(Vec4::zero(), Vec4(0,0,0,0));
+            /// assert_eq!(Vec4::zero(), Vec4::new(0,0,0,0));
             /// assert_eq!(Vec4::zero(), Vec4::broadcast(0));
             /// assert_eq!(Vec4::zero(), Vec4::from(0));
             /// ```
@@ -314,7 +314,7 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// assert_eq!(Vec4::one(), Vec4(1,1,1,1));
+            /// assert_eq!(Vec4::one(), Vec4::new(1,1,1,1));
             /// assert_eq!(Vec4::one(), Vec4::broadcast(1));
             /// assert_eq!(Vec4::one(), Vec4::from(1));
             /// ```
@@ -348,7 +348,7 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// assert_eq!(Vec4::iota(), Vec4(0, 1, 2, 3));
+            /// assert_eq!(Vec4::iota(), Vec4::new(0, 1, 2, 3));
             /// ```
             pub fn iota() -> Self where T: Zero + One + AddAssign + Clone {
                 let mut out: Self = unsafe { mem::uninitialized() };
@@ -364,7 +364,7 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// let v = Vec4(0,1,2,3);
+            /// let v = Vec4::new(0,1,2,3);
             /// assert_eq!(v.elem_count(), 4);
             /// ```
             pub fn elem_count(&self) -> usize {
@@ -429,9 +429,9 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// let v = Vec4(0_f32, 1_f32, 1.8_f32, 3.14_f32);
+            /// let v = Vec4::new(0_f32, 1_f32, 1.8_f32, 3.14_f32);
             /// let i = v.convert(|x| x.round() as i32);
-            /// assert_eq!(i, Vec4(0, 1, 2, 3));
+            /// assert_eq!(i, Vec4::new(0, 1, 2, 3));
             /// ```
             pub fn convert<D,F>(self, f: F) -> $Vec<D> where F: Fn(T) -> D {
                 $Vec::new($(f(self.$get)),+)
@@ -440,9 +440,9 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// let v = Vec4(0_f32, 1_f32, 2_f32, 3_f32);
+            /// let v = Vec4::new(0_f32, 1_f32, 2_f32, 3_f32);
             /// let i: Vec4<i32> = v.numcast().unwrap();
-            /// assert_eq!(i, Vec4(0, 1, 2, 3));
+            /// assert_eq!(i, Vec4::new(0, 1, 2, 3));
             /// ```
             pub fn numcast<D>(self) -> Option<$Vec<D>> where T: NumCast, D: NumCast {
                 let mut out: $Vec<D> = unsafe { mem::uninitialized() };
@@ -472,9 +472,9 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// let a = Vec4(0,1,2,3);
-            /// let b = Vec4(4,5,6,7);
-            /// let c = Vec4(8,9,0,1);
+            /// let a = Vec4::new(0,1,2,3);
+            /// let b = Vec4::new(4,5,6,7);
+            /// let c = Vec4::new(8,9,0,1);
             /// assert_eq!(a*b+c, a.mul_add(b, c));
             /// ```
             pub fn mul_add(self, mul: Self, add: Self) -> Self 
@@ -516,9 +516,9 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// let a = Vec4(0,1,2,3);
-            /// let b = Vec4(3,2,1,0);
-            /// let m = Vec4(0,1,1,0);
+            /// let a = Vec4::new(0,1,2,3);
+            /// let b = Vec4::new(3,2,1,0);
+            /// let m = Vec4::new(0,1,1,0);
             /// assert_eq!(m, Vec4::min(a, b));
             /// ```
             pub fn min(a: Self, b: Self) -> Self where T: Ord {
@@ -529,9 +529,9 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// let a = Vec4(0,1,2,3);
-            /// let b = Vec4(3,2,1,0);
-            /// let m = Vec4(3,2,2,3);
+            /// let a = Vec4::new(0,1,2,3);
+            /// let b = Vec4::new(3,2,1,0);
+            /// let m = Vec4::new(3,2,2,3);
             /// assert_eq!(m, Vec4::max(a, b));
             /// ```
             pub fn max(a: Self, b: Self) -> Self where T: Ord {
@@ -542,9 +542,9 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// let a = Vec4(0,1,2,3);
-            /// let b = Vec4(3,2,1,0);
-            /// let m = Vec4(0,1,1,0);
+            /// let a = Vec4::new(0,1,2,3);
+            /// let b = Vec4::new(3,2,1,0);
+            /// let m = Vec4::new(0,1,1,0);
             /// assert_eq!(m, Vec4::partial_min(a, b));
             /// ```
             pub fn partial_min(a: Self, b: Self) -> Self where T: PartialOrd {
@@ -555,9 +555,9 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// let a = Vec4(0,1,2,3);
-            /// let b = Vec4(3,2,1,0);
-            /// let m = Vec4(3,2,2,3);
+            /// let a = Vec4::new(0,1,2,3);
+            /// let b = Vec4::new(3,2,1,0);
+            /// let m = Vec4::new(3,2,2,3);
             /// assert_eq!(m, Vec4::partial_max(a, b));
             /// ```
             pub fn partial_max(a: Self, b: Self) -> Self where T: PartialOrd  {
@@ -569,7 +569,7 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// assert_eq!(-5, Vec4(0, 5, -5, 8).reduce_min());
+            /// assert_eq!(-5, Vec4::new(0, 5, -5, 8).reduce_min());
             /// ```
             pub fn reduce_min(self) -> T where T: Ord {
                 self.into_iter().min().unwrap()
@@ -579,7 +579,7 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// assert_eq!(8, Vec4(0, 5, -5, 8).reduce_max());
+            /// assert_eq!(8, Vec4::new(0, 5, -5, 8).reduce_max());
             /// ```
             pub fn reduce_max(self) -> T where T: Ord {
                 self.into_iter().max().unwrap()
@@ -590,7 +590,7 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// assert_eq!(-5_f32, Vec4(0_f32, 5_f32, -5_f32, 8_f32).reduce_partial_min());
+            /// assert_eq!(-5_f32, Vec4::new(0_f32, 5_f32, -5_f32, 8_f32).reduce_partial_min());
             /// ```
             pub fn reduce_partial_min(self) -> T where T: PartialOrd {
                 let first = unsafe { ptr::read(self.get_unchecked(0)) };
@@ -601,7 +601,7 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// assert_eq!(8_f32, Vec4(0_f32, 5_f32, -5_f32, 8_f32).reduce_partial_max());
+            /// assert_eq!(8_f32, Vec4::new(0_f32, 5_f32, -5_f32, 8_f32).reduce_partial_max());
             /// ```
             pub fn reduce_partial_max(self) -> T where T: PartialOrd {
                 let first = unsafe { ptr::read(self.get_unchecked(0)) };
@@ -612,7 +612,7 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// assert_eq!(1*2*3*4, Vec4(1, 2, 3, 4).product());
+            /// assert_eq!(1*2*3*4, Vec4::new(1, 2, 3, 4).product());
             /// ```
             pub fn product(self) -> T where T: Product {
                 self.into_iter().product()
@@ -621,7 +621,7 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// assert_eq!(1+2+3+4, Vec4(1, 2, 3, 4).sum());
+            /// assert_eq!(1+2+3+4, Vec4::new(1, 2, 3, 4).sum());
             /// ```
             pub fn sum(self) -> T where T: Sum {
                 self.into_iter().sum()
@@ -630,7 +630,7 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// assert_eq!(2.5_f32, Vec4(1_f32, 2_f32, 3_f32, 4_f32).average());
+            /// assert_eq!(2.5_f32, Vec4::new(1_f32, 2_f32, 3_f32, 4_f32).average());
             /// ```
             pub fn average(self) -> T where T: Sum + Div<T, Output=T> + From<u16> {
                 self.sum() / T::from($dim)
@@ -641,8 +641,8 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// let v = Vec4(1f32, 2f32, 3f32, 4f32);
-            /// let s = Vec4(1f32, 4f32, 9f32, 16f32);
+            /// let v = Vec4::new(1f32, 2f32, 3f32, 4f32);
+            /// let s = Vec4::new(1f32, 4f32, 9f32, 16f32);
             /// assert_eq!(v, s.sqrt());
             /// ```
             pub fn sqrt(self) -> Self where T: Float {
@@ -654,8 +654,8 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// let v = Vec4(1f32, 0.5f32, 1f32/3f32, 0.25f32);
-            /// let s = Vec4(1f32, 4f32, 9f32, 16f32);
+            /// let v = Vec4::new(1f32, 0.5f32, 1f32/3f32, 0.25f32);
+            /// let s = Vec4::new(1f32, 4f32, 9f32, 16f32);
             /// assert_eq!(v, s.rsqrt());
             /// ```
             pub fn rsqrt(self) -> Self where T: Float {
@@ -666,8 +666,8 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// let v = Vec4(1f32, 0.5f32, 0.25f32, 0.125f32);
-            /// let s = Vec4(1f32, 2f32, 4f32, 8f32);
+            /// let v = Vec4::new(1f32, 0.5f32, 0.25f32, 0.125f32);
+            /// let s = Vec4::new(1f32, 2f32, 4f32, 8f32);
             /// assert_eq!(v, s.recip());
             /// assert_eq!(s, v.recip());
             /// ```
@@ -678,8 +678,8 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// let v = Vec4(0_f32, 1_f32, 1.8_f32, 3.14_f32);
-            /// assert_eq!(v.ceil(), Vec4(0f32, 1f32, 2f32, 4f32));
+            /// let v = Vec4::new(0_f32, 1_f32, 1.8_f32, 3.14_f32);
+            /// assert_eq!(v.ceil(), Vec4::new(0f32, 1f32, 2f32, 4f32));
             /// ```
             pub fn ceil(self) -> Self where T: Float {
                 Self::new($(self.$get.ceil()),+)
@@ -688,8 +688,8 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// let v = Vec4(0_f32, 1_f32, 1.8_f32, 3.14_f32);
-            /// assert_eq!(v.floor(), Vec4(0f32, 1f32, 1f32, 3f32));
+            /// let v = Vec4::new(0_f32, 1_f32, 1.8_f32, 3.14_f32);
+            /// assert_eq!(v.floor(), Vec4::new(0f32, 1f32, 1f32, 3f32));
             /// ```
             pub fn floor(self) -> Self where T: Float {
                 Self::new($(self.$get.floor()),+)
@@ -698,8 +698,8 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// let v = Vec4(0_f32, 1_f32, 1.8_f32, 3.14_f32);
-            /// assert_eq!(v.round(), Vec4(0f32, 1f32, 2f32, 3f32));
+            /// let v = Vec4::new(0_f32, 1_f32, 1.8_f32, 3.14_f32);
+            /// assert_eq!(v.round(), Vec4::new(0f32, 1f32, 2f32, 3f32));
             /// ```
             pub fn round(self) -> Self where T: Float {
                 Self::new($(self.$get.round()),+)
@@ -709,9 +709,9 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// let a = Vec4(0, 1, 2, 3);
-            /// let b = Vec4(4, 5, 6, 7);
-            /// let h = Vec4(0+1, 2+3, 4+5, 6+7);
+            /// let a = Vec4::new(0, 1, 2, 3);
+            /// let b = Vec4::new(4, 5, 6, 7);
+            /// let h = Vec4::new(0+1, 2+3, 4+5, 6+7);
             /// assert_eq!(h, a.hadd(b));
             /// ```
             pub fn hadd(self, rhs: Self) -> Self where T: Add<T, Output=T> {
@@ -730,9 +730,9 @@ macro_rules! vec_impl_vec {
                 ///
                 /// ```
                 /// # use vek::vec::Vec4;
-                /// let u = Vec4(0,2,2,6);
-                /// let v = Vec4(0,1,2,3);
-                /// assert_eq!(u.partial_cmpeq(v), Vec4(1, 0, 1, 0));
+                /// let u = Vec4::new(0,2,2,6);
+                /// let v = Vec4::new(0,1,2,3);
+                /// assert_eq!(u.partial_cmpeq(v), Vec4::new(1, 0, 1, 0));
                 /// ```
                 , $Vec, partial_cmpeq, ==, PartialEq
             }
@@ -741,9 +741,9 @@ macro_rules! vec_impl_vec {
                 ///
                 /// ```
                 /// # use vek::vec::Vec4;
-                /// let u = Vec4(0,2,2,6);
-                /// let v = Vec4(0,1,2,3);
-                /// assert_eq!(u.partial_cmpne(v), Vec4(0, 1, 0, 1));
+                /// let u = Vec4::new(0,2,2,6);
+                /// let v = Vec4::new(0,1,2,3);
+                /// assert_eq!(u.partial_cmpne(v), Vec4::new(0, 1, 0, 1));
                 /// ```
                 , $Vec, partial_cmpne, !=, PartialEq
             }
@@ -753,9 +753,9 @@ macro_rules! vec_impl_vec {
                 ///
                 /// ```
                 /// # use vek::vec::Vec4;
-                /// let u = Vec4(0,2,2,2);
-                /// let v = Vec4(0,1,2,3);
-                /// assert_eq!(u.partial_cmpge(v), Vec4(1, 1, 1, 0));
+                /// let u = Vec4::new(0,2,2,2);
+                /// let v = Vec4::new(0,1,2,3);
+                /// assert_eq!(u.partial_cmpge(v), Vec4::new(1, 1, 1, 0));
                 /// ```
                 , $Vec, partial_cmpge, >=, PartialOrd
             }
@@ -765,9 +765,9 @@ macro_rules! vec_impl_vec {
                 ///
                 /// ```
                 /// # use vek::vec::Vec4;
-                /// let u = Vec4(0,2,2,6);
-                /// let v = Vec4(0,1,2,3);
-                /// assert_eq!(u.partial_cmpgt(v), Vec4(0, 1, 0, 1));
+                /// let u = Vec4::new(0,2,2,6);
+                /// let v = Vec4::new(0,1,2,3);
+                /// assert_eq!(u.partial_cmpgt(v), Vec4::new(0, 1, 0, 1));
                 /// ```
                 , $Vec, partial_cmpgt, >, PartialOrd
             }
@@ -777,9 +777,9 @@ macro_rules! vec_impl_vec {
                 ///
                 /// ```
                 /// # use vek::vec::Vec4;
-                /// let u = Vec4(0,2,2,2);
-                /// let v = Vec4(0,1,2,3);
-                /// assert_eq!(u.partial_cmple(v), Vec4(1, 0, 1, 1));
+                /// let u = Vec4::new(0,2,2,2);
+                /// let v = Vec4::new(0,1,2,3);
+                /// assert_eq!(u.partial_cmple(v), Vec4::new(1, 0, 1, 1));
                 /// ```
                 , $Vec, partial_cmple, <=, PartialOrd
             }
@@ -789,9 +789,9 @@ macro_rules! vec_impl_vec {
                 ///
                 /// ```
                 /// # use vek::vec::Vec4;
-                /// let u = Vec4(0,2,2,2);
-                /// let v = Vec4(0,1,2,3);
-                /// assert_eq!(u.partial_cmplt(v), Vec4(0, 0, 0, 1));
+                /// let u = Vec4::new(0,2,2,2);
+                /// let v = Vec4::new(0,1,2,3);
+                /// assert_eq!(u.partial_cmplt(v), Vec4::new(0, 0, 0, 1));
                 /// ```
                 , $Vec, partial_cmplt, <, PartialOrd
             }
@@ -801,9 +801,9 @@ macro_rules! vec_impl_vec {
                 ///
                 /// ```
                 /// # use vek::vec::Vec4;
-                /// let u = Vec4(0,2,2,6);
-                /// let v = Vec4(0,1,2,3);
-                /// assert_eq!(u.cmpeq(v), Vec4(1, 0, 1, 0));
+                /// let u = Vec4::new(0,2,2,6);
+                /// let v = Vec4::new(0,1,2,3);
+                /// assert_eq!(u.cmpeq(v), Vec4::new(1, 0, 1, 0));
                 /// ```
                 , $Vec, cmpeq, ==, Eq
             }
@@ -812,9 +812,9 @@ macro_rules! vec_impl_vec {
                 ///
                 /// ```
                 /// # use vek::vec::Vec4;
-                /// let u = Vec4(0,2,2,6);
-                /// let v = Vec4(0,1,2,3);
-                /// assert_eq!(u.cmpne(v), Vec4(0, 1, 0, 1));
+                /// let u = Vec4::new(0,2,2,6);
+                /// let v = Vec4::new(0,1,2,3);
+                /// assert_eq!(u.cmpne(v), Vec4::new(0, 1, 0, 1));
                 /// ```
                 , $Vec, cmpne, !=, Eq
             }
@@ -824,9 +824,9 @@ macro_rules! vec_impl_vec {
                 ///
                 /// ```
                 /// # use vek::vec::Vec4;
-                /// let u = Vec4(0,2,2,2);
-                /// let v = Vec4(0,1,2,3);
-                /// assert_eq!(u.cmpge(v), Vec4(1, 1, 1, 0));
+                /// let u = Vec4::new(0,2,2,2);
+                /// let v = Vec4::new(0,1,2,3);
+                /// assert_eq!(u.cmpge(v), Vec4::new(1, 1, 1, 0));
                 /// ```
                 , $Vec, cmpge, >=, Ord
             }
@@ -836,9 +836,9 @@ macro_rules! vec_impl_vec {
                 ///
                 /// ```
                 /// # use vek::vec::Vec4;
-                /// let u = Vec4(0,2,2,6);
-                /// let v = Vec4(0,1,2,3);
-                /// assert_eq!(u.cmpgt(v), Vec4(0, 1, 0, 1));
+                /// let u = Vec4::new(0,2,2,6);
+                /// let v = Vec4::new(0,1,2,3);
+                /// assert_eq!(u.cmpgt(v), Vec4::new(0, 1, 0, 1));
                 /// ```
                 , $Vec, cmpgt, >, Ord
             }
@@ -848,9 +848,9 @@ macro_rules! vec_impl_vec {
                 ///
                 /// ```
                 /// # use vek::vec::Vec4;
-                /// let u = Vec4(0,2,2,2);
-                /// let v = Vec4(0,1,2,3);
-                /// assert_eq!(u.cmple(v), Vec4(1, 0, 1, 1));
+                /// let u = Vec4::new(0,2,2,2);
+                /// let v = Vec4::new(0,1,2,3);
+                /// assert_eq!(u.cmple(v), Vec4::new(1, 0, 1, 1));
                 /// ```
                 , $Vec, cmple, <=, Ord
             }
@@ -860,9 +860,9 @@ macro_rules! vec_impl_vec {
                 ///
                 /// ```
                 /// # use vek::vec::Vec4;
-                /// let u = Vec4(0,2,2,2);
-                /// let v = Vec4(0,1,2,3);
-                /// assert_eq!(u.cmplt(v), Vec4(0, 0, 0, 1));
+                /// let u = Vec4::new(0,2,2,2);
+                /// let v = Vec4::new(0,1,2,3);
+                /// assert_eq!(u.cmplt(v), Vec4::new(0, 0, 0, 1));
                 /// ```
                 , $Vec, cmplt, <, Ord
             }
@@ -1176,13 +1176,13 @@ macro_rules! vec_impl_point_or_direction {
                     Self::new(x, y, z, T::zero())
                 }
                 /// Turns a vector into a point vector in homogeneous coordinates (sets the last coordinate to 1).
-                pub fn point<V: Into<Xyz<T>>>(v: V) -> Self where T: One {
-                    let Xyz { x, y, z } = v.into();
+                pub fn point<V: Into<Vec3<T>>>(v: V) -> Self where T: One {
+                    let Vec3 { x, y, z } = v.into();
                     Self::new_point(x, y, z)
                 }
                 /// Turns a vector into a direction vector in homogeneous coordinates (sets the last coordinate to 0).
-                pub fn direction<V: Into<Xyz<T>>>(v: V) -> Self where T: Zero {
-                    let Xyz { x, y, z } = v.into();
+                pub fn direction<V: Into<Vec3<T>>>(v: V) -> Self where T: Zero {
+                    let Vec3 { x, y, z } = v.into();
                     Self::new_direction(x, y, z)
                 }
             }
@@ -1197,65 +1197,63 @@ macro_rules! vec_impl_all_vecs {
     ($(#[$attrs:meta])+) => {
 
         #[cfg(feature="vec2")]
-        /// A two-components generic vector type.
+        /// Vector type suited for 2D spatial coordinates.
         pub mod vec2 {
             use super::*;
-
-            /// A two-components generic vector type.
-            ///
-            /// - If you intend to use it as spatial coordinates, consider using [Xy](struct.Xy.html) instead.
-            /// - If you intend to use it as a spatial extent, consider using [Extent2](struct.Extent2.html) instead.
-            /// - If you intend to use it as texture coordinates, consider using [Uv](struct.Uv.html) instead.
+            /// Vector type suited for 2D spatial coordinates.
+            #[allow(missing_docs)]
             #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
             $(#[$attrs])+
-            pub struct Vec2<T>(pub T, pub T);
-
-            vec_impl_vec!(tuple Vec2     vec2   (2) ("({}, {})") (0 1) (x y) (0 1) (T,T));
+            pub struct Vec2<T> { pub x:T, pub y:T }
+            vec_impl_vec!(struct Vec2   vec2      (2) ("({}, {})") (x y) (x y) (0 1) (T,T));
             vec_impl_spatial!(Vec2);
             vec_impl_spatial_2d!(Vec2);
         }
         #[cfg(feature="vec2")]
         pub use self::vec2::Vec2;
-    
+
         #[cfg(feature="vec3")]
-        /// A three-components generic vector type.
+        /// Vector type suited for 3D spatial coordinates.
         pub mod vec3 {
             use super::*;
-            /// A three-components generic vector type.
-            ///
-            /// - If you intend to use it as spatial coordinates, consider using [Xyz](struct.Xyz.html) instead.
-            /// - If you intend to use it as a spatial extent, consider using [Extent3](struct.Extent3.html) instead.
-            /// - If you intend to use it as RGB color data, consider using [Rgb](struct.Rgb.html) instead.
-            /// - If you intend to use it as texture coordinates, consider using [Uvw](struct.Uvw.html) instead.
+            /// Vector type suited for 3D spatial coordinates.
+            #[allow(missing_docs)]
             #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
             $(#[$attrs])+
-            pub struct Vec3<T>(pub T, pub T, pub T);
-            vec_impl_vec!(tuple Vec3     vec3   (3) ("({}, {}, {})") (0 1 2) (x y z) (0 1 2) (T,T,T));
+            pub struct Vec3<T> { pub x:T, pub y:T, pub z:T }
+            vec_impl_vec!(struct Vec3     vec3     (3) ("({}, {}, {})") (x y z) (x y z) (0 1 2) (T,T,T));
             vec_impl_spatial!(Vec3);
             vec_impl_cross!(Vec3);
         }
         #[cfg(feature="vec3")]
         pub use self::vec3::Vec3;
 
-    // #[cfg(feature="vec4")]
-        /// A four-components generic vector type.
+        #[cfg(feature="vec4")]
+        /// Vector type suited for homogeneous 3D spatial coordinates.
         pub mod vec4 {
             use super::*;
-            /// A four-components generic vector type.
-            ///
-            /// - If you intend to use it as homogeneous spatial coordinates, consider using [Xyzw](struct.Xyzw.html) instead.
-            /// - If you intend to use it as RGBA color data, consider using [Rgba](struct.Rgba.html) instead.
+            /// Vector type suited for homogeneous 3D spatial coordinates.
+            #[allow(missing_docs)]
             #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
             $(#[$attrs])+
-            pub struct Vec4<T>(pub T, pub T, pub T, pub T);
-            vec_impl_vec!(tuple Vec4     vec4   (4) ("({}, {}, {}, {})") (0 1 2 3) (x y z w) (0 1 2 3) (T,T,T,T));
+            pub struct Vec4<T> {
+                pub x:T, pub y:T, pub z:T,
+                /// In homogeneous 3D-space coordinates, `w` is often set to 
+                /// `1` for points, and `0` for directions.  
+                ///
+                /// The reason behind this: with floating-point numbers,
+                /// division by zero gives infinity (a direction is then
+                /// a point stretching infinitely towards another).
+                pub w: T
+            }
+            vec_impl_vec!(struct Vec4   vec4    (4) ("({}, {}, {}, {})") (x y z w) (x y z w) (0 1 2 3) (T,T,T,T));
             vec_impl_spatial!(Vec4);
             vec_impl_point_or_direction!(Vec4);
         }
-    // #[cfg(feature="vec4")]
+        #[cfg(feature="vec4")]
         pub use self::vec4::Vec4;
 
         #[cfg(feature="vec8")]
@@ -1346,67 +1344,6 @@ macro_rules! vec_impl_all_vecs {
         }
         #[cfg(feature="vec64")]
         pub use self::vec64::Vec64;
-
-
-        #[cfg(feature="xyzw")]
-        /// Vector type suited for homogeneous 3D spatial coordinates.
-        pub mod xyzw {
-            use super::*;
-            /// Vector type suited for homogeneous 3D spatial coordinates.
-            #[allow(missing_docs)]
-            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
-            #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-            $(#[$attrs])+
-            pub struct Xyzw<T> {
-                pub x:T, pub y:T, pub z:T,
-                /// In homogeneous 3D-space coordinates, `w` is often set to 
-                /// `1` for points, and `0` for directions.  
-                ///
-                /// The reason behind this: with floating-point numbers,
-                /// division by zero gives infinity (a direction is then
-                /// a point stretching infinitely towards another).
-                pub w: T
-            }
-            vec_impl_vec!(struct Xyzw   xyzw    (4) ("({}, {}, {}, {})") (x y z w) (x y z w) (0 1 2 3) (T,T,T,T));
-            vec_impl_spatial!(Xyzw);
-            vec_impl_point_or_direction!(Xyzw);
-        }
-        #[cfg(feature="xyzw")]
-        pub use self::xyzw::Xyzw;
-
-        #[cfg(feature="xyz")]
-        /// Vector type suited for 3D spatial coordinates.
-        pub mod xyz {
-            use super::*;
-            /// Vector type suited for 3D spatial coordinates.
-            #[allow(missing_docs)]
-            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
-            #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-            $(#[$attrs])+
-            pub struct Xyz<T> { pub x:T, pub y:T, pub z:T }
-            vec_impl_vec!(struct Xyz     xyz     (3) ("({}, {}, {})") (x y z) (x y z) (0 1 2) (T,T,T));
-            vec_impl_spatial!(Xyz);
-            vec_impl_cross!(Xyz);
-        }
-        #[cfg(feature="xyz")]
-        pub use self::xyz::Xyz;
-
-        #[cfg(feature="xy")]
-        /// Vector type suited for 2D spatial coordinates.
-        pub mod xy {
-            use super::*;
-            /// Vector type suited for 2D spatial coordinates.
-            #[allow(missing_docs)]
-            #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
-            #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-            $(#[$attrs])+
-            pub struct Xy<T> { pub x:T, pub y:T }
-            vec_impl_vec!(struct Xy   xy      (2) ("({}, {})") (x y) (x y) (0 1) (T,T));
-            vec_impl_spatial!(Xy);
-            vec_impl_spatial_2d!(Xy);
-        }
-        #[cfg(feature="xy")]
-        pub use self::xy::Xy;
 
         #[cfg(feature="extent3")]
         /// Vector type suited for 3D extents (width, height and depth).

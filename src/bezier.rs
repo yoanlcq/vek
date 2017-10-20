@@ -72,9 +72,9 @@ macro_rules! bezier_impl_quadratic {
                 let two = one+one;
                 Mat3 {
                     rows: CVec3::new(
-                        Vec3( one,  zero, zero),
-                        Vec3(-two,  two, zero),
-                        Vec3( one, -two, one),
+                        Vec3::new( one,  zero, zero),
+                        Vec3::new(-two,  two, zero),
+                        Vec3::new( one, -two, one),
                     )
                 }
             }
@@ -99,12 +99,12 @@ macro_rules! bezier_impl_quadratic {
         
         impl<T> From<Vec3<$Point<T>>> for $QuadraticBezier<T> {
             fn from(v: Vec3<$Point<T>>) -> Self {
-                $QuadraticBezier(v.0, v.1, v.2)
+                $QuadraticBezier(v.x, v.y, v.z)
             }
         }
         impl<T> From<$QuadraticBezier<T>> for Vec3<$Point<T>> {
             fn from(v: $QuadraticBezier<T>) -> Self {
-                Vec3(v.0, v.1, v.2)
+                Vec3::new(v.0, v.1, v.2)
             }
         }
         
@@ -146,10 +146,10 @@ macro_rules! bezier_impl_cubic {
                 let six = three + three;
                 Mat4 {
                     rows: CVec4::new(
-                        Vec4( one,  zero,  zero, zero),
-                        Vec4(-three,  three,  zero, zero),
-                        Vec4( three, -six,  three, zero),
-                        Vec4(-one,  three, -three, one),
+                        Vec4::new( one,  zero,  zero, zero),
+                        Vec4::new(-three,  three,  zero, zero),
+                        Vec4::new( three, -six,  three, zero),
+                        Vec4::new(-one,  three, -three, one),
                     )
                 }
             }
@@ -179,12 +179,12 @@ macro_rules! bezier_impl_cubic {
         
         impl<T> From<Vec4<$Point<T>>> for $CubicBezier<T> {
             fn from(v: Vec4<$Point<T>>) -> Self {
-                $CubicBezier(v.0, v.1, v.2, v.3)
+                $CubicBezier(v.x, v.y, v.z, v.w)
             }
         }
         impl<T> From<$CubicBezier<T>> for Vec4<$Point<T>> {
             fn from(v: $CubicBezier<T>) -> Self {
-                Vec4(v.0, v.1, v.2, v.3)
+                Vec4::new(v.0, v.1, v.2, v.3)
             }
         }
         
@@ -195,23 +195,23 @@ macro_rules! bezier_impl_cubic {
 #[cfg(all(nightly, feature="repr_simd"))]
 pub mod repr_simd {
     use super::*;
-    use vec::repr_simd::{Vec3, Vec4, Xy, Xyz};
+    use vec::repr_simd::{Vec3, Vec4, Vec2};
     use mat::repr_simd::row_major::{Mat3, Mat4};
     use geom::repr_simd::{Line2, Line3};
-    bezier_impl_quadratic!(QuadraticBezier2 Xy Line2);
-    bezier_impl_quadratic!(QuadraticBezier3 Xyz Line3);
-    bezier_impl_cubic!(CubicBezier2 Xy Line2);
-    bezier_impl_cubic!(CubicBezier3 Xyz Line3);
+    bezier_impl_quadratic!(QuadraticBezier2 Vec2 Line2);
+    bezier_impl_quadratic!(QuadraticBezier3 Vec3 Line3);
+    bezier_impl_cubic!(CubicBezier2 Vec2 Line2);
+    bezier_impl_cubic!(CubicBezier3 Vec3 Line3);
 }
 pub mod repr_c {
     use super::*;
-    use  vec::repr_c::{Vec3, Vec4, Xy, Xyz};
+    use  vec::repr_c::{Vec3, Vec4, Vec2};
     use  mat::repr_c::row_major::{Mat3, Mat4};
     use geom::repr_c::{Line2, Line3};
-    bezier_impl_quadratic!(QuadraticBezier2 Xy Line2);
-    bezier_impl_quadratic!(QuadraticBezier3 Xyz Line3);
-    bezier_impl_cubic!(CubicBezier2 Xy Line2);
-    bezier_impl_cubic!(CubicBezier3 Xyz Line3);
+    bezier_impl_quadratic!(QuadraticBezier2 Vec2 Line2);
+    bezier_impl_quadratic!(QuadraticBezier3 Vec3 Line3);
+    bezier_impl_cubic!(CubicBezier2 Vec2 Line2);
+    bezier_impl_cubic!(CubicBezier3 Vec3 Line3);
 }
 
 #[cfg(all(nightly, feature="repr_simd"))]

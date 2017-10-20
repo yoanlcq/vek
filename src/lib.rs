@@ -13,11 +13,10 @@
 //!
 //! Here is what `vek` has to offer:
 //!
-//! - General-purpose vectors: `Vec2<T>`, `Vec3<T>`, `Vec4<T>`. They are tuple structs and have the
-//! same features as spatial vectors.
+//! - General-purpose vectors: `Vec2<T>`, `Vec3<T>`, `Vec4<T>`. They have uses for representing
+//! points or direction in euclidian spaces.
 //! - "Data crunching" vectors: `Vec8<T>`, `Vec16<T>`, `Vec32<T>`, `Vec64<T>`, useful for
 //! performing basic operaton on many elements in the best way allowed by CPU features.
-//! - Spatial vectors: `Xy<T>`, `Xyz<T>`, `Xyzw<T>`. They are for storing points and directions in
 //! euclidian spaces.
 //! - RGB vectors: `Rgb<T>`, `Rgba<T>`. They have extended functionality related to color.
 //! - Texture coordinate vectors: `Uv<T>`, `Uvw<T>`;
@@ -40,12 +39,11 @@
 //! ```ignore
 //! // TODO make this example work
 //! # extern crate vek;
-//! use vek::Mat4;
-//! use vek::Xyzw;
+//! use vek::{Vec4, Mat4};
 //! use std::f32::consts::PI;
 //!
-//! let position = Xyzw::new_point(1_f32, 2_f32, 3_f32);
-//! let direction = Xyzw::new_direction(1_f32, 2_f32, 3_f32);
+//! let position = Vec4::new_point(1_f32, 2_f32, 3_f32);
+//! let direction = Vec4::new_direction(1_f32, 2_f32, 3_f32);
 //! let model = Mat4::rotation_3d(PI, direction).rotated_x(PI);
 //! let new_position = model * position;
 //! ```
@@ -63,10 +61,9 @@
 //!
 //! ***
 //!
-//! - `vec2`, `vec3`, `vec8`, `vec16`, `vec32`, `vec64`, `xyzw`, `xyz`, `xy`, `rgba`, `rgb`, `extent3`, `extent2`, `uvw`, `uv`, `mat2`, `mat3`
+//! - `vec2`, `vec3`, `vec4`, `vec8`, `vec16`, `vec32`, `vec64`, `rgba`, `rgb`, `extent3`, `extent2`, `uvw`, `uv`, `mat2`, `mat3`, `mat4`
 //!   Select which types you want. Restricting your selection drastically decreases compile times.  
 //!   They are all enabled by default so that they appear in the documentation (and that doc-tests work).  
-//!   There is no `vec4` or `mat4` feature - they are implictly enforced because they are required by examples in documentation.
 //!
 //! ***
 //!
@@ -74,7 +71,7 @@
 //! help a lot to generate high-quality code.
 //! - `repr_align` enables Nightly Rust's `repr_align` features. It's always safe to
 //!   leave disabled, but does increase code quality a bit when enabled.
-//! - `x86initrin` enables x86 intrinsics through the `x86intrin` crate. `vek` doesn't directly
+//! - `x86intrin` enables x86 intrinsics through the `x86intrin` crate. `vek` doesn't directly
 //!   depend on it because it won't compile on Stable and there's no way (as of this writing)
 //!   to selectively depend on a crate based on the `rustc` version, not even via build scripts.
 //!

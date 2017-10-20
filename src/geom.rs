@@ -52,7 +52,7 @@ macro_rules! geom_complete_mod {
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Aabb<P,E> {
-            pub center: Xyz<P>,
+            pub center: Vec3<P>,
             pub half_extent: Extent3<E>,
         }
 
@@ -71,7 +71,7 @@ macro_rules! geom_complete_mod {
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Disk<P,E> {
-            pub center: Xy<P>,
+            pub center: Vec2<P>,
             pub radius: E,
         }
 
@@ -89,19 +89,19 @@ macro_rules! geom_complete_mod {
             ///
             /// A negative value indicates that both disks collide by this amount.  
             /// Otherwise, it's the distance such that they would collide.
-            pub fn disk_distance_magnitude(self, other: Self) -> Xy<P> 
+            pub fn disk_distance_magnitude(self, other: Self) -> Vec2<P> 
                 where E: Sub<Output=E>, P: Float
             {
-                Xy::distance(self.center, other.center) - self.radius - other.radius
+                Vec2::distance(self.center, other.center) - self.radius - other.radius
             }
             /// How much this disk penetrates another.
-            pub fn disk_penetration_vector(self, other: Self) -> Xy<P>
+            pub fn disk_penetration_vector(self, other: Self) -> Vec2<P>
                 where P: Clone, E: Clone + Zero
             {
                 let len = self.clone().disk_collision_magnitude(other.clone());
                 (self.center - other.center) * partial_max(E::zero(), len)
             }
-            pub fn disk_distance_vector(self, other: Self) -> Xy<P>
+            pub fn disk_distance_vector(self, other: Self) -> Vec2<P>
                 where P: Clone + Sub<Output=P>, E: Clone 
             {
                 let len = self.clone().disk_collision_magnitude(other.clone());
@@ -109,8 +109,8 @@ macro_rules! geom_complete_mod {
             }
             /// Returns the direction vector such that moving `p` by it pushes it
             /// exactly outside of the disk.
-            pub fn point_distance_magnitude(self, p: Xy<P>) -> Xy<P> {
-                Xy::distance(self.center, p) - self.radius
+            pub fn point_distance_magnitude(self, p: Vec2<P>) -> Vec2<P> {
+                Vec2::distance(self.center, p) - self.radius
             }
             */
         }
@@ -118,7 +118,7 @@ macro_rules! geom_complete_mod {
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Sphere<P,E> {
-            pub center: Xyz<P>,
+            pub center: Vec3<P>,
             pub radius: E,
         }
         impl<P,E> Sphere<P,E> {
@@ -137,36 +137,36 @@ macro_rules! geom_complete_mod {
                 self.radius.clone() + self.radius.clone()
             }
             /*
-            pub fn collision(self, _other: Self) -> Xyz<P> { unimplemented!() }
-            pub fn collision_with_point(self, _p: Xyz<P>) -> Xyz<P> { unimplemented!() }
+            pub fn collision(self, _other: Self) -> Vec3<P> { unimplemented!() }
+            pub fn collision_with_point(self, _p: Vec3<P>) -> Vec3<P> { unimplemented!() }
             */
         }
 
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Ellipsis<P,E> {
-            pub center: Xy<P>,
+            pub center: Vec2<P>,
             pub radius: Extent2<E>,
         }
         /// Nobody can possibly use this ???
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Potato<P,E> {
-            pub center: Xyz<P>,
+            pub center: Vec3<P>,
             pub radius: Extent3<E>,
         }
 
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Line2<T> {
-            pub a: Xy<T>,
-            pub b: Xy<T>,
+            pub a: Vec2<T>,
+            pub b: Vec2<T>,
         }
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Line3<T> {
-            pub a: Xyz<T>,
-            pub b: Xyz<T>,
+            pub a: Vec3<T>,
+            pub b: Vec3<T>,
         }
 
 
@@ -174,28 +174,28 @@ macro_rules! geom_complete_mod {
             pub fn new(x: P, y: P, w: E, h: E) -> Self {
                 Self { x, y, w, h }
             }
-            pub fn position(self) -> Xy<P> {
+            pub fn position(self) -> Vec2<P> {
                 let Self { x, y, .. } = self;
-                Xy { x, y }
+                Vec2 { x, y }
             }
             pub fn extent(self) -> Extent2<E> {
                 let Self { w, h, .. } = self;
                 Extent2 { w, h }
             }
-            pub fn into_pair(self) -> (Xy<P>, Extent2<E>) {
+            pub fn into_pair(self) -> (Vec2<P>, Extent2<E>) {
                 let Self { x, y, w, h } = self;
-                (Xy { x, y }, Extent2 { w, h })
+                (Vec2 { x, y }, Extent2 { w, h })
             }
             pub fn convert<DP,DE,PF,EF>(self, pf: PF, ef: EF) -> Rect<DP,DE>
                 where PF: Fn(P) -> DP, EF: Fn(E) -> DE
             {
                 let Self { x, y, w, h } = self;
-                let Xy { x, y } = Xy { x, y }.convert(pf);
+                let Vec2 { x, y } = Vec2 { x, y }.convert(pf);
                 let Extent2 { w, h } = Extent2 { w, h }.convert(ef);
                 Rect { x, y, w, h }
             }
             /*
-            pub fn collision(self, _other: Self) -> Xy<P> {
+            pub fn collision(self, _other: Self) -> Vec2<P> {
                 unimplemented!()    
             }
             pub fn split_v(self, _from_left: E) -> (Self, Self) {
@@ -210,9 +210,9 @@ macro_rules! geom_complete_mod {
             */
         }
 
-        impl<P,E> From<(Xy<P>, Extent2<E>)> for Rect<P,E> {
-            fn from(t: (Xy<P>, Extent2<E>)) -> Self {
-                let Xy { x, y } = t.0;
+        impl<P,E> From<(Vec2<P>, Extent2<E>)> for Rect<P,E> {
+            fn from(t: (Vec2<P>, Extent2<E>)) -> Self {
+                let Vec2 { x, y } = t.0;
                 let Extent2 { w, h } = t.1;
                 Self { x, y, w, h }
             }

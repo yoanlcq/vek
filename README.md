@@ -83,9 +83,9 @@ With the ergonomic, idiomatic way to shuffle any struct in Rust!
 You want **destructuring**:
 
 ```rust
-let Xyzw { x, y, .. } = xyzw;
-let wzyx = Xyzw { x: w, y: z, z: y, w: x };
-let xyxx = Xyzw { x, y, z: x, w: x };
+let Vec4 { x, y, .. } = xyzw;
+let wzyx = Vec4 { x: w, y: z, z: y, w: x };
+let xyxx = Vec4 { x, y, z: x, w: x };
 ```
 
 But don't take my word for it - let the (release mode) assembly speak for itself!  
@@ -94,9 +94,9 @@ On x86 with SSE, it lowers to `shufps` as wanted.
 If you're only interested in a single element you can use `broadcast` (or even `from`):
 
 ```rust
-let Xyzw { x, .. } = xyzw;
-let xxxx = Xyzw::broadcast(x);
-let xxxx = Xyzw::from(x);
+let Vec4 { x, .. } = xyzw;
+let xxxx = Vec4::broadcast(x);
+let xxxx = Vec4::from(x);
 ```
 
 
@@ -107,7 +107,7 @@ and it's a pain to try to handle this case.
 If you really want a vector of `bool`s for some reason, you can use `convert()`:
 
 ```rust
-let v = Vec4(0,1,0,1);
+let v = Vec4::new(0,1,0,1);
 let b = v.convert(|x| x != 0);
 ```
 
@@ -129,11 +129,15 @@ For these reasons, in `vek`, it is almost always required that you explicitly
 use the matrix's public member instead, which conveys the intent and enforces correctness.  
 Here's how you index matrices in `vek` (assuming, for instance, that `i=1` and `j=3`):
 
-- Row-major, static indexing: `(m.rows.1).3`;
+- Row-major, static indexing: `(m.rows.y).w`;
 - Row-major, dynamic indexing: `m.rows[i][j]`;
-- Column-major, static indexing: `(m.cols.3).1`;
+- Column-major, static indexing: `(m.cols.w).y`;
 - Column-major, dynamic indexing: `m.cols[j][i]`;
-- Any layout, dynamic indexing: `m[(i, j)]` (or `m[Vec2(i, j)]`).
+- Any layout, dynamic indexing: `m[(i, j)]` (or `m[Vec2::new(i, j)]`).
+
+_(Static indexing with `x`, `y`, `z` and `w` is not pretty-looking, but I wanted
+to reuse the vector types because of their representation, alignement requirements, etc.  
+Using tuples or creating dedicated tuple structs don't look like a good idea either)_
 
 In the same way, if you want to get a pointer to the matrix's data, for e.g transferring it
 to a graphics API, get the address of the public member explictly instead, which makes clear
@@ -142,32 +146,22 @@ If you're using OpenGL, check out the `as_gl_uniform_params()` method which is i
 `f32` matrices.
 
 
-## What the heck is a `Xy<T>`? Is spelling out `Vector2` too much for you?
+## Is there a rationale for the terseness ? (a.k.a `Vec2` vs `Vector2` and `Mat4` vs `Matrix4x4`)
 
-There are two issues: first the rationale behind `Xy<T>`, and second, naming conventions.
+- I believe the names match Rust's general terseness level.  
+  Dynamic growable arrays are named `Vec`, not `Vector`, because they're
+  so widely used that typing more than three characters becomes annoying.  
+  It's the same reasoning behind names of shell commands such as `ls`.  
+- People accustomed to GLSL are familiar with names such as `mat4` and `vec4`.
 
-For the former:
-- `Xy<T>` is a struct that has `x` and `y` members. It has uses as spatial coordinates.
-- `Vec2<T>` is a pair of values that have the same type. It's more general-purpose than `Xy<T>`.
-
-For the latter, renaming imports to the rescue!
-
+Also in Rust we might tend to forget that we have renaming imports :
 ```rust
-use vek::Xy as Vector2;
+use vek::Vec2 as Vector2;
 use vek::Mat4 as Matrix4x4;
 
 let v = Vector2 { x: 13, y: 42 };
 // ....
 ```
-
-Also, I believe the names match Rust's general terseness level.  
-Dynamic growable arrays are named `Vec`, not `Vector`, because they're
-so widely used that typing more than three characters becomes annoying.  
-
-It's the same reasoning behind names of shell commands such as `ls`.
-
-Also, people accustomed to GLSL are familiar with `mat4` and `vec4`.
-
 
 ## What's the deal with these `repr_simd` and `repr_c` modules ?
 
@@ -457,7 +451,7 @@ properly handle conversions yourself.
 
 ***
 
-Indexing on Quaternions. Convert them to a `Xyzw` first instead.
+Indexing on Quaternions. Convert them to a `Vec4` first instead.
 
 ***
 

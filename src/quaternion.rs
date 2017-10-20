@@ -43,18 +43,18 @@ macro_rules! quaternion_complete_mod {
             pub fn dot(self, q: Self) -> T 
                 where T: Clone + Sum + Mul<Output=T>
             {
-                self.into_xyzw().dot(q.into_xyzw())
+                self.into_vec4().dot(q.into_vec4())
             }
             pub fn normalized(self) -> Self where T: Float + Sum {
-                Self::from_xyzw(self.into_xyzw().normalized())
+                Self::from_vec4(self.into_vec4().normalized())
             }
 
-            pub fn rotation(angle_radians: T, axis: Xyz<T>) -> Self
+            pub fn rotation(angle_radians: T, axis: Vec3<T>) -> Self
                 where T: Float
             {
                 let two = T::one() + T::one();
                 let v = axis * (angle_radians/two).sin();
-                let Xyz { x, y, z } = v;
+                let Vec3 { x, y, z } = v;
                 let w = (angle_radians/two).cos();
                 Self { x, y, z, w }
             }
@@ -64,30 +64,30 @@ macro_rules! quaternion_complete_mod {
             }
              */
 
-            pub fn into_xyzw(self) -> Xyzw<T> {
+            pub fn into_vec4(self) -> Vec4<T> {
                 self.into()
             }
-            pub fn from_xyzw(v: Xyzw<T>) -> Self {
+            pub fn from_vec4(v: Vec4<T>) -> Self {
                 Self::from(v)
             }
-            pub fn into_xyz(self) -> Xyz<T> {
+            pub fn into_vec3(self) -> Vec3<T> {
                 self.into()
             }
         }
 
-        impl<T> From<Xyzw<T>> for Quaternion<T> {
-            fn from(v: Xyzw<T>) -> Self {
-                let Xyzw { x, y, z, w } = v;
+        impl<T> From<Vec4<T>> for Quaternion<T> {
+            fn from(v: Vec4<T>) -> Self {
+                let Vec4 { x, y, z, w } = v;
                 Self { x, y, z, w }
             }
         }
-        impl<T> From<Quaternion<T>> for Xyzw<T> {
+        impl<T> From<Quaternion<T>> for Vec4<T> {
             fn from(v: Quaternion<T>) -> Self {
                 let Quaternion { x, y, z, w } = v;
                 Self { x, y, z, w }
             }
         }
-        impl<T> From<Quaternion<T>> for Xyz<T> {
+        impl<T> From<Quaternion<T>> for Vec3<T> {
             fn from(v: Quaternion<T>) -> Self {
                 let Quaternion { x, y, z, .. } = v;
                 Self { x, y, z }
@@ -122,8 +122,8 @@ macro_rules! quaternion_complete_mod {
         {
             type Output = Self;
             fn mul(self, rhs: Self) -> Self::Output {
-                let p = self.into_xyz();
-                let q =  rhs.into_xyz();
+                let p = self.into_vec3();
+                let q =  rhs.into_vec3();
                 let r = p.cross(q);
                 let w = p * rhs.w;
                 let r = r + w;
@@ -155,28 +155,28 @@ macro_rules! quaternion_complete_mod {
         // NOTE: The following two were supposed to use `$MulVec` but we miss
         // the required conversion functions right now.
 
-        impl<T: Float> Mul<Xyz<T>> for Quaternion<T> 
+        impl<T: Float> Mul<Vec3<T>> for Quaternion<T> 
             where T: Sum
         {
-            type Output = Xyz<T>;
-            fn mul(self, rhs: Xyz<T>) -> Self::Output {
-                let Xyz { x, y, z } = rhs;
+            type Output = Vec3<T>;
+            fn mul(self, rhs: Vec3<T>) -> Self::Output {
+                let Vec3 { x, y, z } = rhs;
                 let v = Self { x, y, z, w: T::zero() };
 
                 let r = v * self.conjugate().normalized();
-                (self * r).into_xyz()
+                (self * r).into_vec3()
             }
         }
-        impl<T: Float> Mul<Xyzw<T>> for Quaternion<T> 
+        impl<T: Float> Mul<Vec4<T>> for Quaternion<T> 
             where T: Sum
         {
-            type Output = Xyzw<T>;
-            fn mul(self, rhs: Xyzw<T>) -> Self::Output {
-                let Xyzw { x, y, z, .. } = rhs;
+            type Output = Vec4<T>;
+            fn mul(self, rhs: Vec4<T>) -> Self::Output {
+                let Vec4 { x, y, z, .. } = rhs;
                 let v = Self { x, y, z, w: T::zero() }; // XXX: Is it correct to set w to zero here ??
 
                 let r = v * self.conjugate().normalized();
-                (self * r).into_xyzw()
+                (self * r).into_vec4()
             }
         }
 
@@ -259,11 +259,11 @@ macro_rules! quaternion_complete_mod {
 #[cfg(all(nightly, feature="repr_simd"))]
 pub mod repr_simd {
     use super::*;
-    quaternion_complete_mod!(repr_simd #[repr(packed,simd)] Vec3 Xyz);
+    quaternion_complete_mod!(repr_simd #[repr(packed,simd)] Vec3);
 }
 pub mod repr_c {
     use super::*;
-    quaternion_complete_mod!(repr_c #[repr(packed,C)] Vec3 Xyz);
+    quaternion_complete_mod!(repr_c #[repr(packed,C)] Vec3);
 }
 #[cfg(all(nightly, feature="repr_simd"))]
 pub use self::repr_simd::*;

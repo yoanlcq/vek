@@ -97,7 +97,7 @@ macro_rules! mat_impl_mat {
 
 macro_rules! mat_impl_all_mats {
 	($lines:ident) => {
-		// #[cfg(feature="mat4")]
+	    #[cfg(feature="mat4")]
 		/// 4x4 matrix.
 		pub mod mat4 {
 			use super::*;
@@ -108,9 +108,9 @@ macro_rules! mat_impl_all_mats {
 				#[allow(missing_docs)]
 				pub $lines: CVec4<Vec4<T>>,
 			}
-			mat_impl_mat!{$lines Mat4 CVec4 Vec4 (0 1 2 3)}
+			mat_impl_mat!{$lines Mat4 CVec4 Vec4 (x y z w)}
 		}
-		// #[cfg(feature="mat4")]
+		#[cfg(feature="mat4")]
 		pub use self::mat4::Mat4;
 
 		/// 3x3 matrix.
@@ -124,7 +124,7 @@ macro_rules! mat_impl_all_mats {
 				#[allow(missing_docs)]
 				pub $lines: CVec3<Vec3<T>>,
 			}
-			mat_impl_mat!{$lines Mat3 CVec3 Vec3 (0 1 2)}
+			mat_impl_mat!{$lines Mat3 CVec3 Vec3 (x y z)}
 		}
 		#[cfg(feature="mat3")]
 		pub use self::mat3::Mat3;
@@ -140,7 +140,7 @@ macro_rules! mat_impl_all_mats {
 				#[allow(missing_docs)]
 				pub $lines: CVec2<Vec2<T>>,
 			}
-			mat_impl_mat!{$lines Mat2 CVec2 Vec2 (0 1)}
+			mat_impl_mat!{$lines Mat2 CVec2 Vec2 (x y)}
 		}
 		#[cfg(feature="mat2")]
 		pub use self::mat2::Mat2;
