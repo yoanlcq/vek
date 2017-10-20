@@ -97,7 +97,7 @@ macro_rules! mat_impl_mat {
 
 macro_rules! mat_impl_all_mats {
 	($lines:ident) => {
-	    #[cfg(feature="mat4")]
+	    // #[cfg(feature="mat4")] // Commented out, see rationale in Cargo.toml
 		/// 4x4 matrix.
 		pub mod mat4 {
 			use super::*;
@@ -110,7 +110,7 @@ macro_rules! mat_impl_all_mats {
 			}
 			mat_impl_mat!{$lines Mat4 CVec4 Vec4 (x y z w)}
 		}
-		#[cfg(feature="mat4")]
+	    // #[cfg(feature="mat4")] // Commented out, see rationale in Cargo.toml
 		pub use self::mat4::Mat4;
 
 		/// 3x3 matrix.
@@ -191,7 +191,7 @@ pub mod repr_c {
 	use super::vec::repr_c::{Vec2, Vec2 as CVec2};
 	#[cfg(feature="mat3")]
 	use super::vec::repr_c::{Vec3, Vec3 as CVec3};
-	// #[cfg(feature="mat4")]
+	// #[cfg(feature="mat4")] // Commented out, see rationale in Cargo.toml
 	use super::vec::repr_c::{Vec4, Vec4 as CVec4};
 
 	mat_declare_modules!{}
@@ -215,9 +215,9 @@ pub mod repr_simd {
 	use super::vec::repr_simd::{Vec3};
 	#[cfg(feature="mat3")]
 	use super::vec::repr_c::{Vec3 as CVec3};
-	// #[cfg(feature="mat4")]
+	// #[cfg(feature="mat4")] // Commented out, see rationale in Cargo.toml
 	use super::vec::repr_simd::{Vec4};
-	// #[cfg(feature="mat4")]
+	// #[cfg(feature="mat4")] // Commented out, see rationale in Cargo.toml
 	use super::vec::repr_c::{Vec4 as CVec4};
 
 	mat_declare_modules!{}

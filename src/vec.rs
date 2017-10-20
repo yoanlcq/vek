@@ -1230,7 +1230,7 @@ macro_rules! vec_impl_all_vecs {
         #[cfg(feature="vec3")]
         pub use self::vec3::Vec3;
 
-        #[cfg(feature="vec4")]
+    	// #[cfg(feature="vec4")] // Commented out, see rationale in Cargo.toml
         /// Vector type suited for homogeneous 3D spatial coordinates.
         pub mod vec4 {
             use super::*;
@@ -1253,7 +1253,7 @@ macro_rules! vec_impl_all_vecs {
             vec_impl_spatial!(Vec4);
             vec_impl_point_or_direction!(Vec4);
         }
-        #[cfg(feature="vec4")]
+    	// #[cfg(feature="vec4")] // Commented out, see rationale in Cargo.toml
         pub use self::vec4::Vec4;
 
         #[cfg(feature="vec8")]
