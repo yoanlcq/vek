@@ -1191,7 +1191,6 @@ macro_rules! vec_impl_point_or_direction {
 }
 
 
-
 /// Calls `vec_impl_vec!{}` on each appropriate vector type.
 macro_rules! vec_impl_all_vecs {
     ($(#[$attrs:meta])+) => {
@@ -1209,6 +1208,25 @@ macro_rules! vec_impl_all_vecs {
             vec_impl_vec!(struct Vec2   vec2      (2) ("({}, {})") (x y) (x y) (0 1) (T,T));
             vec_impl_spatial!(Vec2);
             vec_impl_spatial_2d!(Vec2);
+
+            #[cfg(feature="vec3")]
+            impl<T> From<Vec3<T>> for Vec2<T> {
+                fn from(v: Vec3<T>) -> Self {
+                    Self::new(v.x, v.y)
+                }
+            }
+    	    // #[cfg(feature="vec4")] // Commented out, see rationale in Cargo.toml
+            impl<T> From<Vec4<T>> for Vec2<T> {
+                fn from(v: Vec4<T>) -> Self {
+                    Self::new(v.x, v.y)
+                }
+            }
+            #[cfg(feature="extent2")]
+            impl<T> From<Extent2<T>> for Vec2<T> {
+                fn from(v: Extent2<T>) -> Self {
+                    Self::new(v.w, v.h)
+                }
+            }
         }
         #[cfg(feature="vec2")]
         pub use self::vec2::Vec2;
@@ -1226,6 +1244,37 @@ macro_rules! vec_impl_all_vecs {
             vec_impl_vec!(struct Vec3     vec3     (3) ("({}, {}, {})") (x y z) (x y z) (0 1 2) (T,T,T));
             vec_impl_spatial!(Vec3);
             vec_impl_cross!(Vec3);
+
+            #[cfg(feature="vec2")]
+            impl<T: Zero> From<Vec2<T>> for Vec3<T> {
+                fn from(v: Vec2<T>) -> Self {
+                    Self::new(v.x, v.y, T::zero())
+                }
+            }
+    	    // #[cfg(feature="vec4")] // Commented out, see rationale in Cargo.toml
+            impl<T> From<Vec4<T>> for Vec3<T> {
+                fn from(v: Vec4<T>) -> Self {
+                    Self::new(v.x, v.y, v.z)
+                }
+            }
+            #[cfg(feature="extent3")]
+            impl<T> From<Extent3<T>> for Vec3<T> {
+                fn from(v: Extent3<T>) -> Self {
+                    Self::new(v.w, v.h, v.d)
+                }
+            }
+            #[cfg(feature="rgb")]
+            impl<T> From<Rgb<T>> for Vec3<T> {
+                fn from(v: Rgb<T>) -> Self {
+                    Self::new(v.r, v.g, v.b)
+                }
+            }
+            #[cfg(feature="uvw")]
+            impl<T> From<Uvw<T>> for Vec3<T> {
+                fn from(v: Uvw<T>) -> Self {
+                    Self::new(v.u, v.v, v.w)
+                }
+            }
         }
         #[cfg(feature="vec3")]
         pub use self::vec3::Vec3;
@@ -1252,6 +1301,26 @@ macro_rules! vec_impl_all_vecs {
             vec_impl_vec!(struct Vec4   vec4    (4) ("({}, {}, {}, {})") (x y z w) (x y z w) (0 1 2 3) (T,T,T,T));
             vec_impl_spatial!(Vec4);
             vec_impl_point_or_direction!(Vec4);
+
+            #[cfg(feature="vec3")]
+            impl<T: Zero> From<Vec3<T>> for Vec4<T> {
+                fn from(v: Vec3<T>) -> Self {
+                    Self::new(v.x, v.y, v.z, T::zero())
+                }
+            }
+            #[cfg(feature="vec2")]
+            impl<T: Zero> From<Vec2<T>> for Vec4<T> {
+                fn from(v: Vec2<T>) -> Self {
+                    Self::new(v.x, v.y, T::zero(), T::zero())
+                }
+            }
+            #[cfg(feature="rgba")]
+            impl<T> From<Rgba<T>> for Vec4<T> {
+                fn from(v: Rgba<T>) -> Self {
+                    Self::new(v.r, v.g, v.b, v.a)
+                }
+            }
+
         }
     	// #[cfg(feature="vec4")] // Commented out, see rationale in Cargo.toml
         pub use self::vec4::Vec4;
@@ -1364,6 +1433,13 @@ macro_rules! vec_impl_all_vecs {
             pub struct Extent3<T> { pub w:T, pub h:T, pub d:T }
             vec_impl_vec!(struct Extent3 extent3 (3) ("({}, {}, {})") (w h d) (w h d) (0 1 2) (T,T,T));
             vec_impl_spatial!(Extent3);
+
+            #[cfg(feature="vec3")]
+            impl<T> From<Vec3<T>> for Extent3<T> {
+                fn from(v: Vec3<T>) -> Self {
+                    Self::new(v.x, v.y, v.z)
+                }
+            }
         }
         #[cfg(feature="extent3")]
         pub use self::extent3::Extent3;
@@ -1387,6 +1463,13 @@ macro_rules! vec_impl_all_vecs {
             pub struct Extent2<T> { pub w:T, pub h:T }
             vec_impl_vec!(struct Extent2 extent2 (2) ("({}, {})") (w h) (w h) (0 1) (T,T));
             vec_impl_spatial!(Extent2);
+
+            #[cfg(feature="vec2")]
+            impl<T> From<Vec2<T>> for Extent2<T> {
+                fn from(v: Vec2<T>) -> Self {
+                    Self::new(v.x, v.y)
+                }
+            }
         }
         #[cfg(feature="extent2")]
         pub use self::extent2::Extent2;
@@ -1405,6 +1488,13 @@ macro_rules! vec_impl_all_vecs {
             $(#[$attrs])+
             pub struct Rgba<T> { pub r:T, pub g:T, pub b:T, pub a:T }
             vec_impl_vec!(struct Rgba   rgba    (4) ("rgba({}, {}, {}, {})") (r g b a) (r g b a) (0 1 2 3) (T,T,T,T));
+
+            #[cfg(feature="vec4")]
+            impl<T> From<Vec4<T>> for Rgba<T> {
+                fn from(v: Vec4<T>) -> Self {
+                    Self::new(v.x, v.y, v.z, v.w)
+                }
+            }
         }
         #[cfg(feature="rgba")]
         pub use self::rgba::Rgba;
@@ -1423,6 +1513,13 @@ macro_rules! vec_impl_all_vecs {
             $(#[$attrs])+
             pub struct Rgb<T> { pub r:T, pub g:T, pub b:T }
             vec_impl_vec!(struct Rgb     rgb     (3) ("rgb({}, {}, {})") (r g b) (r g b) (0 1 2) (T,T,T));
+
+            #[cfg(feature="vec3")]
+            impl<T> From<Vec3<T>> for Rgb<T> {
+                fn from(v: Vec3<T>) -> Self {
+                    Self::new(v.x, v.y, v.z)
+                }
+            }
         }
         #[cfg(feature="rgb")]
         pub use self::rgb::Rgb;
@@ -1438,6 +1535,13 @@ macro_rules! vec_impl_all_vecs {
             $(#[$attrs])+
             pub struct Uvw<T> { pub u:T, pub v:T, pub w:T }
             vec_impl_vec!(struct Uvw     uvw     (3) ("({}, {}, {})") (u v w) (u v w) (0 1 2) (T,T,T));
+
+            #[cfg(feature="vec3")]
+            impl<T> From<Vec3<T>> for Uvw<T> {
+                fn from(v: Vec3<T>) -> Self {
+                    Self::new(v.x, v.y, v.z)
+                }
+            }
         }
         #[cfg(feature="uvw")]
         pub use self::uvw::Uvw;
@@ -1453,6 +1557,13 @@ macro_rules! vec_impl_all_vecs {
             $(#[$attrs])+
             pub struct Uv<T> { pub u:T, pub v:T }
             vec_impl_vec!(struct Uv   uv      (2) ("({}, {})") (u v) (u v) (0 1) (T,T));
+
+            #[cfg(feature="vec2")]
+            impl<T> From<Vec2<T>> for Uv<T> {
+                fn from(v: Vec2<T>) -> Self {
+                    Self::new(v.x, v.y)
+                }
+            }
         }
         #[cfg(feature="uv")]
         pub use self::uv::Uv;
