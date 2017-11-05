@@ -9,14 +9,7 @@ use num_traits::{Zero, One, Float};
 use ops::MulAdd;
 use vec;
 use geom::{FrustumPlanes, Rect};
-
-// TODO:
-// - MulAssign
-// - Add
-// - Sub
-// - Div
-// - Rem
-// - Neg
+use quaternion;
 
 macro_rules! mat_impl_mat {
     (rows $Mat:ident $CVec:ident $Vec:ident ($nrows:tt x $ncols:tt) ($($get:tt)+)) => {
@@ -1028,6 +1021,58 @@ macro_rules! mat_impl_mat4 {
                 }
             }
         }
+
+        #[cfg(feature="quaternion")]
+        impl<T> From<Quaternion<T>> for Mat4<T>
+            where T: Copy + Zero + One + Mul<Output=T> + Add<Output=T> + Sub<Output=T>
+        {
+            fn from(q: Quaternion<T>) -> Self {
+                let Quaternion { w: a, x: b, y: c, z: d } = q;
+                let (a2, b2, c2, d2) = (a*a, b*b, c*c, d*d);
+                let two = T::one() + T::one();
+                Self::new(
+                    a2 + b2 - c2 - d2, two*(b*c + a*d), two*(b*d - a*c), T::zero(),
+                    two*(b*c - a*d), a2 - b2 + c2 - d2, two*(c*d + a*b), T::zero(),
+                    two*(b*d + a*c), two*(c*d - a*b), a2 - b2 - c2 + d2, T::zero(),
+                    T::zero(), T::zero(), T::zero(), T::one()
+                )
+            }
+        }
+
+        #[cfg(feature="quaternion")]
+        impl<T> From<Mat4<T>> for Quaternion<T>
+            where T: Float + Zero + One + Mul<Output=T> + Add<Output=T> + Sub<Output=T>
+        {
+            fn from(m: Mat4<T>) -> Self {
+                use super::row_major::Mat4 as Rows4;
+                let m = Rows4::from(m).rows;
+                let r = T::zero();
+                let perm = [ 0, 1, 2, 0, 1 ];
+                let mut p = &perm[..];
+
+                for i in 0..3 {
+                    let min = m[i][i];
+                    if min < r {
+                        continue;
+                    }
+                    p = &perm[i..];
+                }
+
+                let r = (T::one() + m[p[0]][p[0]] - m[p[1]][p[1]] - m[p[2]][p[2]]).sqrt();
+
+                if r < T::epsilon() {
+                    Self::from_xyzw(T::zero(), T::zero(), T::zero(), T::one())
+                } else {
+                    let two = T::one() + T::one();
+                    Self::from_xyzw(
+                        (m[p[0]][p[1]] - m[p[1]][p[0]])/(two*r),
+                        (m[p[2]][p[0]] - m[p[0]][p[2]])/(two*r),
+                        (m[p[2]][p[1]] - m[p[1]][p[2]])/(two*r),
+                        r/two
+                    )
+                }
+            }
+        }
     };
 }
 
@@ -1174,6 +1219,23 @@ macro_rules! mat_impl_mat3 {
                 }
             }
         }
+        #[cfg(feature="quaternion")]
+        impl<T> From<Quaternion<T>> for Mat3<T> 
+            where T: Copy + Zero + One + Mul<Output=T> + Add<Output=T> + Sub<Output=T>
+        {
+            fn from(q: Quaternion<T>) -> Self {
+                Mat4::from(q).into()
+            }
+        }
+        #[cfg(feature="quaternion")]
+        impl<T> From<Mat3<T>> for Quaternion<T> 
+            where T: Zero + One + Mul<Output=T> + Add<Output=T> + Sub<Output=T> + Float
+        {
+            fn from(m: Mat3<T>) -> Self {
+                Mat4::from(m).into()
+            }
+        }
+
     };
 }
 
@@ -1391,6 +1453,8 @@ pub mod repr_c {
     // #[cfg(feature="mat4")] // Commented out, see rationale in Cargo.toml
     use super::vec::repr_c::{Vec4, Vec4 as CVec4};
 
+    use super::quaternion::repr_c::Quaternion;
+
     mat_declare_modules!{}
 }
 
@@ -1416,6 +1480,8 @@ pub mod repr_simd {
     use super::vec::repr_simd::{Vec4};
     // #[cfg(feature="mat4")] // Commented out, see rationale in Cargo.toml
     use super::vec::repr_c::{Vec4 as CVec4};
+
+    use super::quaternion::repr_simd::Quaternion;
 
     mat_declare_modules!{}
 }

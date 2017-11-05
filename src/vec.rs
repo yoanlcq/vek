@@ -888,12 +888,40 @@ macro_rules! vec_impl_vec {
             }
         }
 
+        impl<T> Lerp<T> for $Vec<T>
+            where T: Copy + One + Mul<Output=T> + Sub<Output=T> + Add<Output=T> + MulAdd<T,T,Output=T>
+        {
+            fn lerp_unclamped_precise(from: Self, to: Self, factor: T) -> Self {
+                Self::lerp_unclamped_precise(from, to, Self::broadcast(factor))
+            }
+            fn lerp_unclamped(from: Self, to: Self, factor: T) -> Self {
+                Self::lerp_unclamped(from, to, Self::broadcast(factor))
+            }
+        }
+
+        impl<T> Lerp<$Vec<T>> for $Vec<T>
+            where T: Copy + One + Mul<Output=T> + Sub<Output=T> + Add<Output=T> + MulAdd<T,T,Output=T>
+        {
+            fn lerp_unclamped_precise(from: Self, to: Self, factor: Self) -> Self {
+                from.mul_add(Self::one()-factor, to*factor)
+            }
+            fn lerp_unclamped(from: Self, to: Self, factor: Self) -> Self {
+                factor.mul_add(to - from, from)
+            }
+        }
+        impl<T: Float + Copy> Wrap<T> for $Vec<T> {
+            fn wrapped(self, upper: T) -> Self {
+                self.wrapped(Self::broadcast(upper))
+            }
+        }
+        impl<T: Float + Copy> Wrap<$Vec<T>> for $Vec<T> {
+            fn wrapped(self, upper: $Vec<T>) -> Self {
+                self - (self/upper).floor() * upper
+            }
+        }
+
+
         vec_impl_trinop!{impl MulAdd for $Vec { mul_add } ($($get)+)}
-        // vec_impl_trinop!{impl Lerp for $Vec { lerp } ($($get)+)}
-        // vec_impl_trinop!{impl LerpUnclamped for $Vec { lerp_unclamped } ($($get)+)}
-        // vec_impl_binop!{impl WrapFloat for $Vec { wrapped } ($($get)+)}
-        // vec_impl_binop!{impl Wrap2PI for $Vec { wrapped_2pi } ($($get)+)}
-        // vec_impl_binop!{impl WrapInteger for $Vec { wrapped } ($($get)+)}
         vec_impl_binop!{impl Add for $Vec { add } ($($get)+)}
         vec_impl_binop!{impl Sub for $Vec { sub } ($($get)+)}
         vec_impl_binop!{impl Mul for $Vec { mul } ($($get)+)}
@@ -1023,6 +1051,12 @@ macro_rules! vec_impl_vec {
                 Self::new($(tuple.$tupleget),+)
             }
         }
+        #[cfg_attr(feature = "clippy", allow(type_complexity))]
+        impl<T> From<[T; $dim]> for $Vec<T> {
+            fn from(array: [T; $dim]) -> Self {
+                Self::new($(unsafe { ptr::read(&array[$tupleget])}),+)
+            }
+        }
         /// A vector can be obtained from a single scalar by broadcasting it.
         impl<T: Clone> From<T> for $Vec<T> {
             fn from(val: T) -> Self {
@@ -1064,6 +1098,29 @@ macro_rules! vec_impl_spatial {
             /// Divide this vector's components such that its length equals 1.
             pub fn normalize(&mut self) where T: Sum + Float + Mul<Output=T> + Div<T, Output=T> {
                 *self = self.clone().normalized();
+            }
+            /// Get the smallest angle, in radians, between two direction vectors.
+            pub fn angle_radians(self, v: Self) -> T where T: Sum + Float + Mul<Output=T> + Div<T, Output=T> {
+                self.normalized().dot(v.normalized()).acos()
+            }
+            /// Get the smallest angle, in degrees, between two direction vectors.
+            pub fn angle_degrees(self, v: Self) -> T
+                where T: From<u16> + Sum + Float + Mul<Output=T> + Div<T, Output=T>
+            {
+                <T as From<u16>>::from(360_u16) * self.angle_radians(v)
+            }
+            pub fn slerp_unclamped(from: Self, to: Self, factor: T) -> Self
+                where T: Sum + Float + Mul<Output=T> + Div<T, Output=T> + Clamp
+            {
+                let cos_theta = from.dot(to).clamped(-T::one(), T::one());
+                let theta = cos_theta.acos() * factor;
+                let rel = (to - from*cos_theta).normalized();
+                (from * theta.cos()) + (rel * theta.sin())
+            }
+            pub fn slerp(from: Self, to: Self, factor: T) -> Self
+                where T: Sum + Float + Mul<Output=T> + Div<T, Output=T> + Clamp
+            {
+                Self::slerp_unclamped(from, to, factor.clamped01())
             }
             /// The reflection direction for this vector on a surface which normal is given.
             pub fn reflect(self, surface_normal: Self) -> Self 
@@ -1136,11 +1193,31 @@ macro_rules! vec_impl_spatial_2d {
             pub fn triangle_area(a: Self, b: Self, c: Self) -> T where T: Float {
                 Self::signed_triangle_area(a, b, c).abs()
             }
+            /// Gets a 2D-rotated copy of this vector.
+            pub fn rotated_z(self, angle_radians: T) -> Self where T: Float {
+                let c = angle_radians.cos();
+                let s = angle_radians.sin();
+                let Self { x, y } = self;
+                Self::new(c*x - s*y, s*x + c*y)
+            }
+            /// Get the unit vector which has `x` set to 1.
+            pub fn unit_x    () -> Self where T: Zero + One { Self::new(T::one(), T::zero()) }
+            /// Get the unit vector which has `y` set to 1.
+            pub fn unit_y    () -> Self where T: Zero + One { Self::new(T::zero(), T::one()) }
+            /// Get the unit vector which has `x` set to -1.
+            pub fn left      () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_x() }
+            /// Get the unit vector which has `x` set to 1.
+            pub fn right     () -> Self where T: Zero + One {  Self::unit_x() }
+            /// Get the unit vector which has `y` set to 1.
+            pub fn up        () -> Self where T: Zero + One {  Self::unit_y() }
+            /// Get the unit vector which has `y` set to -1.
+            pub fn down      () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_y() }
         }
     };
 }
 
-macro_rules! vec_impl_cross {
+
+macro_rules! vec_impl_spatial_3d {
     ($($Vec:ident)+) => {
         $(
             impl<T> $Vec<T> {
@@ -1158,12 +1235,34 @@ macro_rules! vec_impl_cross {
                         s.0*v.1 - ss.1*vv.0
                     )
                 }
+                /// Get the unit vector which has `x` set to 1.
+                pub fn unit_x    () -> Self where T: Zero + One { Self::new(T::one(), T::zero(), T::zero()) }
+                /// Get the unit vector which has `y` set to 1.
+                pub fn unit_y    () -> Self where T: Zero + One { Self::new(T::zero(), T::one(), T::zero()) }
+                /// Get the unit vector which has `z` set to 1.
+                pub fn unit_z    () -> Self where T: Zero + One { Self::new(T::zero(), T::zero(), T::one()) }
+                /// Get the unit vector which has `x` set to -1.
+                pub fn left      () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_x() }
+                /// Get the unit vector which has `x` set to 1.
+                pub fn right     () -> Self where T: Zero + One {  Self::unit_x() }
+                /// Get the unit vector which has `y` set to 1.
+                pub fn up        () -> Self where T: Zero + One {  Self::unit_y() }
+                /// Get the unit vector which has `y` set to -1.
+                pub fn down      () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_y() }
+                /// In a left-handed coordinate system, get the unit vector which has `z` set to 1.
+                pub fn forward_lh() -> Self where T: Zero + One {  Self::unit_z() }
+                /// In a right-handed coordinate system, get the unit vector which has `z` set to -1.
+                pub fn forward_rh() -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_z() }
+                /// In a left-handed coordinate system, get the unit vector which has `z` set to -1.
+                pub fn back_lh   () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_z() }
+                /// In a right-handed coordinate system, get the unit vector which has `z` set to 1.
+                pub fn back_rh   () -> Self where T: Zero + One {  Self::unit_z() }
             }
         )+
     }
 }
 
-macro_rules! vec_impl_point_or_direction {
+macro_rules! vec_impl_spatial_4d {
     ($($Vec:ident)+) => {
         $(
             impl<T> $Vec<T> {
@@ -1185,11 +1284,89 @@ macro_rules! vec_impl_point_or_direction {
                     let Vec3 { x, y, z } = v.into();
                     Self::new_direction(x, y, z)
                 }
+                /// Get the unit vector which has `x` set to 1.
+                pub fn unit_x    () -> Self where T: Zero + One { Self::new(T::one(), T::zero(), T::zero(), T::zero()) }
+                /// Get the unit vector which has `y` set to 1.
+                pub fn unit_y    () -> Self where T: Zero + One { Self::new(T::zero(), T::one(), T::zero(), T::zero()) }
+                /// Get the unit vector which has `z` set to 1.
+                pub fn unit_z    () -> Self where T: Zero + One { Self::new(T::zero(), T::zero(), T::one(), T::zero()) }
+                /// Get the unit vector which has `w` set to 1.
+                pub fn unit_w    () -> Self where T: Zero + One { Self::new(T::zero(), T::zero(), T::zero(), T::one()) }
+                /// Get the unit vector which has `x` set to -1.
+                pub fn left      () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_x() }
+                /// Get the unit vector which has `x` set to 1.
+                pub fn right     () -> Self where T: Zero + One {  Self::unit_x() }
+                /// Get the unit vector which has `y` set to 1.
+                pub fn up        () -> Self where T: Zero + One {  Self::unit_y() }
+                /// Get the unit vector which has `y` set to -1.
+                pub fn down      () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_y() }
+                /// In a left-handed coordinate system, get the unit vector which has `z` set to 1.
+                pub fn forward_lh() -> Self where T: Zero + One {  Self::unit_z() }
+                /// In a right-handed coordinate system, get the unit vector which has `z` set to -1.
+                pub fn forward_rh() -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_z() }
+                /// In a left-handed coordinate system, get the unit vector which has `z` set to -1.
+                pub fn back_lh   () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_z() }
+                /// In a right-handed coordinate system, get the unit vector which has `z` set to 1.
+                pub fn back_rh   () -> Self where T: Zero + One {  Self::unit_z() }
             }
         )+
     }
 }
 
+macro_rules! vec_impl_color_rgba {
+    ($Vec:ident) => {
+        impl<T: ColorComponent> Rgba<T> {
+            pub fn new_opaque(r: T, g: T, b: T) -> Self {
+                Self::new(r, g, b, T::full())
+            }
+            pub fn new_transparent(r: T, g: T, b: T) -> Self {
+                Self::new(r, g, b, T::zero())
+            }
+            pub fn opaque<V: Into<Rgb<T>>>(color: V) -> Self {
+                let Rgb { r, g, b } = color.into();
+                Self::new_opaque(r, g, b)
+            }
+            pub fn transparent<V: Into<Rgb<T>>>(color: V) -> Self {
+                let Rgb { r, g, b } = color.into();
+                Self::new_transparent(r, g, b)
+            }
+        }
+        impl<T> Rgba<T> {
+            pub fn translucent<V: Into<Rgb<T>>>(color: V, opacity: T) -> Self {
+                let Rgb { r, g, b } = color.into();
+                Self::new(r, g, b, opacity)
+            }
+        }
+    };
+}
+
+macro_rules! vec_impl_color_rgb {
+    ($($Vec:ident)+) => {
+        $(
+            #[cfg(feature="rgba")]
+            impl<T: ColorComponent> $Vec<T> {
+                pub fn black   () -> Self { Self::from(Rgba::new_opaque(T::zero(), T::zero(), T::zero())) }
+                pub fn white   () -> Self { Self::from(Rgba::new_opaque(T::full(), T::full(), T::full())) }
+                pub fn red     () -> Self { Self::from(Rgba::new_opaque(T::full(), T::zero(), T::zero())) }
+                pub fn green   () -> Self { Self::from(Rgba::new_opaque(T::zero(), T::full(), T::zero())) }
+                pub fn blue    () -> Self { Self::from(Rgba::new_opaque(T::zero(), T::zero(), T::full())) }
+                pub fn cyan    () -> Self { Self::from(Rgba::new_opaque(T::zero(), T::full(), T::full())) }
+                pub fn magenta () -> Self { Self::from(Rgba::new_opaque(T::full(), T::zero(), T::full())) }
+                pub fn yellow  () -> Self { Self::from(Rgba::new_opaque(T::full(), T::full(), T::zero())) }
+                pub fn gray(value: T) -> Self where T: Copy { Self::from(Rgba::new_opaque(value, value, value)) }
+                // NOTE: Let's not get started with the 'gray' vs 'grey' debate. I picked 'gray' because that's
+                // what the Unity Engine happens to favor. From that, there's no point in implementing aliases
+                // just because people might prefer to spell 'grey' on a whim. A choice has to be made.
+                pub fn inverted_rgb(mut self) -> Self where T: Sub<Output=T> {
+                    self.r = T::full() - self.r;
+                    self.g = T::full() - self.g;
+                    self.b = T::full() - self.b;
+                    self
+                }
+            }
+        )+
+    }
+}
 
 /// Calls `vec_impl_vec!{}` on each appropriate vector type.
 macro_rules! vec_impl_all_vecs {
@@ -1243,7 +1420,7 @@ macro_rules! vec_impl_all_vecs {
             pub struct Vec3<T> { pub x:T, pub y:T, pub z:T }
             vec_impl_vec!(struct Vec3     vec3     (3) ("({}, {}, {})") (x y z) (x y z) (0 1 2) (T,T,T));
             vec_impl_spatial!(Vec3);
-            vec_impl_cross!(Vec3);
+            vec_impl_spatial_3d!(Vec3);
 
             #[cfg(feature="vec2")]
             impl<T: Zero> From<Vec2<T>> for Vec3<T> {
@@ -1300,7 +1477,7 @@ macro_rules! vec_impl_all_vecs {
             }
             vec_impl_vec!(struct Vec4   vec4    (4) ("({}, {}, {}, {})") (x y z w) (x y z w) (0 1 2 3) (T,T,T,T));
             vec_impl_spatial!(Vec4);
-            vec_impl_point_or_direction!(Vec4);
+            vec_impl_spatial_4d!(Vec4);
 
             #[cfg(feature="vec3")]
             impl<T: Zero> From<Vec3<T>> for Vec4<T> {
@@ -1488,11 +1665,19 @@ macro_rules! vec_impl_all_vecs {
             $(#[$attrs])+
             pub struct Rgba<T> { pub r:T, pub g:T, pub b:T, pub a:T }
             vec_impl_vec!(struct Rgba   rgba    (4) ("rgba({}, {}, {}, {})") (r g b a) (r g b a) (0 1 2 3) (T,T,T,T));
+            vec_impl_color_rgb!{Rgba}
+            vec_impl_color_rgba!{Rgba}
 
             #[cfg(feature="vec4")]
             impl<T> From<Vec4<T>> for Rgba<T> {
                 fn from(v: Vec4<T>) -> Self {
                     Self::new(v.x, v.y, v.z, v.w)
+                }
+            }
+            #[cfg(feature="rgb")]
+            impl<T: ColorComponent> From<Rgb<T>> for Rgba<T> {
+                fn from(v: Rgb<T>) -> Self {
+                    Self::opaque(v)
                 }
             }
         }
@@ -1513,11 +1698,18 @@ macro_rules! vec_impl_all_vecs {
             $(#[$attrs])+
             pub struct Rgb<T> { pub r:T, pub g:T, pub b:T }
             vec_impl_vec!(struct Rgb     rgb     (3) ("rgb({}, {}, {})") (r g b) (r g b) (0 1 2) (T,T,T));
+            vec_impl_color_rgb!{Rgb}
 
             #[cfg(feature="vec3")]
             impl<T> From<Vec3<T>> for Rgb<T> {
                 fn from(v: Vec3<T>) -> Self {
                     Self::new(v.x, v.y, v.z)
+                }
+            }
+            #[cfg(feature="rgba")]
+            impl<T> From<Rgba<T>> for Rgb<T> {
+                fn from(v: Rgba<T>) -> Self {
+                    Self::new(v.r, v.g, v.b)
                 }
             }
         }

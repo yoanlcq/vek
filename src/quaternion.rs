@@ -3,6 +3,20 @@
 use num_traits::{Zero, One, Float};
 use core::ops::*;
 use core::iter::Sum;
+use ops::*;
+
+// TODO:
+// is_zero
+// is_identity
+// from_mat3()
+// from_scalar_and_vector(s,v)
+// from_arc(v3,v3)
+// Mul against all (non-color) vector types (by value, and by ref)
+// rotated_x (convenience)
+// rotated_y (convenience)
+// rotated_z (convenience)
+// rotated_xyz(axis, angle) (convenience)
+// look_at
 
 macro_rules! quaternion_complete_mod {
     ($mod:ident #[$attrs:meta] $($MulVec:ident)+) => {
@@ -20,8 +34,21 @@ macro_rules! quaternion_complete_mod {
         }
 
         impl<T> Quaternion<T> {
-            pub fn new(x: T, y: T, z: T, w: T) -> Self {
+            pub fn from_xyzw(x: T, y: T, z: T, w: T) -> Self {
                 Self { x, y, z, w }
+            }
+            #[cfg(feature="vec3")]
+            pub fn from_scalar_and_vector(s: T, v: Vec3<T>) -> Self {
+                let Vec3 { x, y, z } = v;
+                Self { x, y, z, w: s }
+            }
+            pub fn zero() -> Self where T: Zero {
+                Self { 
+                    x: T::zero(),
+                    y: T::zero(),
+                    z: T::zero(),
+                    w: T::zero(),
+                }
             }
             pub fn identity() -> Self where T: Zero + One {
                 Self { 
@@ -46,10 +73,10 @@ macro_rules! quaternion_complete_mod {
                 self.into_vec4().dot(q.into_vec4())
             }
             pub fn normalized(self) -> Self where T: Float + Sum {
-                Self::from_vec4(self.into_vec4().normalized())
+                self.into_vec4().normalized().into()
             }
 
-            pub fn rotation(angle_radians: T, axis: Vec3<T>) -> Self
+            pub fn rotation_3d(angle_radians: T, axis: Vec3<T>) -> Self
                 where T: Float
             {
                 let two = T::one() + T::one();
@@ -58,6 +85,16 @@ macro_rules! quaternion_complete_mod {
                 let w = (angle_radians/two).cos();
                 Self { x, y, z, w }
             }
+            pub fn rotation_x(angle_radians: T) -> Self where T: Float {
+                Self::rotation_3d(angle_radians, Vec3::unit_x())
+            }
+            pub fn rotation_y(angle_radians: T) -> Self where T: Float {
+                Self::rotation_3d(angle_radians, Vec3::unit_y())
+            }
+            pub fn rotation_z(angle_radians: T) -> Self where T: Float {
+                Self::rotation_3d(angle_radians, Vec3::unit_z())
+            }
+
             /*
             pub fn into_axis_angle(self) -> (T, Vec3<T>) {
                 // Q57
@@ -68,7 +105,7 @@ macro_rules! quaternion_complete_mod {
                 self.into()
             }
             pub fn from_vec4(v: Vec4<T>) -> Self {
-                Self::from(v)
+                v.into()
             }
             pub fn into_vec3(self) -> Vec3<T> {
                 self.into()
@@ -93,6 +130,80 @@ macro_rules! quaternion_complete_mod {
                 Self { x, y, z }
             }
         }
+        
+        impl<T> Lerp<T> for Quaternion<T>
+            where T: Copy + Zero + One + Mul<Output=T> + Sub<Output=T> + Add<Output=T> + MulAdd<T,T,Output=T> + Clamp
+        {
+            fn lerp_unclamped_precise(from: Self, to: Self, factor: T) -> Self {
+                Vec4::lerp_unclamped_precise(from.into(), to.into(), factor).into()
+            }
+            fn lerp_unclamped(from: Self, to: Self, factor: T) -> Self {
+                Vec4::lerp_unclamped(from.into(), to.into(), factor).into()
+            }
+        }
+        impl<T> Quaternion<T>
+            where T: Copy + Zero + One + Mul<Output=T> + Sub<Output=T> + Add<Output=T> + MulAdd<T,T,Output=T> + Clamp + Sum + Float
+        {
+            pub fn nlerp(from: Self, to: Self, factor: T) -> Self {
+                Self::lerp(from, to, factor).normalized()
+            }
+            pub fn nlerp_precise(from: Self, to: Self, factor: T) -> Self {
+                Self::lerp_precise(from, to, factor).normalized()
+            }
+            pub fn nlerp_unclamped(from: Self, to: Self, factor: T) -> Self {
+                Self::lerp_unclamped(from, to, factor).normalized()
+            }
+            pub fn nlerp_unclamped_precise(from: Self, to: Self, factor: T) -> Self {
+                Self::lerp_unclamped_precise(from, to, factor).normalized()
+            }
+            // From GLM's source code.
+            pub fn slerp_unclamped(from: Self, mut to: Self, factor: T) -> Self 
+                where T: Neg<Output=T>
+            {
+                let mut cos_theta = from.dot(to);
+                // If cosTheta < 0, the interpolation will take the long way around the sphere. 
+                // To fix this, one quat must be negated.
+                if cos_theta < T::zero() {
+                    to = -to;
+                    cos_theta = -cos_theta;
+                }
+
+                // Perform a linear interpolation when cosTheta is close to 1 to avoid side effect of sin(angle) becoming a zero denominator
+                if cos_theta > T::one() - T::epsilon() {
+                    return Vec4::lerp(from.into(), to.into(), factor).into();
+                }
+                let angle = cos_theta.acos();
+                (from * ((T::one() - factor) * angle).sin() + to * (factor * angle).sin()) / angle.sin()
+            }
+            pub fn slerp(from: Self, to: Self, factor: T) -> Self {
+                Self::slerp_unclamped(from, to, factor.clamped01())
+            }
+        }
+
+
+        impl<T> Neg for Quaternion<T> where T: Neg<Output=T> {
+            type Output = Self;
+            fn neg(self) -> Self::Output {
+                Self {
+                    x: -self.x,
+                    y: -self.y,
+                    z: -self.z,
+                    w: -self.w,
+                }
+            }
+        }
+        impl<T> Div<T> for Quaternion<T> where T: Clone + Div<Output=T> {
+            type Output = Self;
+            fn div(self, rhs: T) -> Self::Output {
+                Self {
+                    x: self.x / rhs.clone(),
+                    y: self.y / rhs.clone(),
+                    z: self.z / rhs.clone(),
+                    w: self.w / rhs.clone(),
+                }
+            }
+        }
+
 
         impl<T> Add for Quaternion<T> where T: Add<Output=T> {
             type Output = Self;
@@ -180,40 +291,7 @@ macro_rules! quaternion_complete_mod {
             }
         }
 
-
-
         /*
-
-        static inline void mat4_from_quat(mat4 M, quat q)
-        {
-            float a = q[3];
-            float b = q[0];
-            float c = q[1];
-            float d = q[2];
-            float a2 = a*a;
-            float b2 = b*b;
-            float c2 = c*c;
-            float d2 = d*d;
-            
-            M[0][0] = a2 + b2 - c2 - d2;
-            M[0][1] = 2.f*(b*c + a*d);
-            M[0][2] = 2.f*(b*d - a*c);
-            M[0][3] = 0.f;
-
-            M[1][0] = 2*(b*c - a*d);
-            M[1][1] = a2 - b2 + c2 - d2;
-            M[1][2] = 2.f*(c*d + a*b);
-            M[1][3] = 0.f;
-
-            M[2][0] = 2.f*(b*d + a*c);
-            M[2][1] = 2.f*(c*d - a*b);
-            M[2][2] = a2 - b2 - c2 + d2;
-            M[2][3] = 0.f;
-
-            M[3][0] = M[3][1] = M[3][2] = 0.f;
-            M[3][3] = 1.f;
-        }
-
         // NOTE: Only for orthogonal matrices
         static inline void mat4o_mul_quat(mat4 R, mat4 M, quat q)
         {
@@ -223,35 +301,6 @@ macro_rules! quaternion_complete_mod {
 
             R[3][0] = R[3][1] = R[3][2] = 0.f;
             R[3][3] = 1.f;
-        }
-        static inline void quat_from_mat4(quat q, mat4 M)
-        {
-            float r=0.f;
-            int i;
-
-            int perm[] = { 0, 1, 2, 0, 1 };
-            int *p = perm;
-
-            for(i = 0; i<3; i++) {
-                float m = M[i][i];
-                if( m < r )
-                    continue;
-                m = r;
-                p = &perm[i];
-            }
-
-            r = sqrtf(1.f + M[p[0]][p[0]] - M[p[1]][p[1]] - M[p[2]][p[2]] );
-
-            if(r < 1e-6) {
-                q[0] = 1.f;
-                q[1] = q[2] = q[3] = 0.f;
-                return;
-            }
-
-            q[0] = r/2.f;
-            q[1] = (M[p[0]][p[1]] - M[p[1]][p[0]])/(2.f*r);
-            q[2] = (M[p[2]][p[0]] - M[p[0]][p[2]])/(2.f*r);
-            q[3] = (M[p[2]][p[1]] - M[p[1]][p[2]])/(2.f*r);
         }
         */
     }
