@@ -632,8 +632,8 @@ macro_rules! vec_impl_vec {
             /// # use vek::vec::Vec4;
             /// assert_eq!(2.5_f32, Vec4::new(1_f32, 2_f32, 3_f32, 4_f32).average());
             /// ```
-            pub fn average(self) -> T where T: Sum + Div<T, Output=T> + From<u16> {
-                self.sum() / T::from($dim)
+            pub fn average(self) -> T where T: Sum + Div<T, Output=T> + From<u8> {
+                self.sum() / T::from($dim as _)
             }
 
             /// Returns a new vector which elements are the respective square roots of this
@@ -1313,8 +1313,214 @@ macro_rules! vec_impl_spatial_4d {
     }
 }
 
+macro_rules! vec_impl_pixel_rgb {
+    ($Vec:ident) => {
+        extern crate image;
+
+        use self::image::{Primitive, Pixel, ColorType, Luma, LumaA};
+
+        impl<T> Pixel for $Vec<T> 
+            where T: ColorComponent + Copy + Clone + Primitive
+        {
+            type Subpixel = T;
+            fn channel_count() -> u8 {
+                3
+            }
+            fn channels(&self) -> &[Self::Subpixel] {
+                self.as_slice()
+            }
+            fn channels_mut(&mut self) -> &mut [Self::Subpixel] {
+                self.as_mut_slice()
+            }
+            fn color_model() -> &'static str {
+                "RGB"
+            }
+            fn color_type() -> ColorType {
+                ColorType::RGB(Self::channel_count() * mem::size_of::<T>() as u8 * 8_u8)
+            }
+            fn channels4(&self) -> (Self::Subpixel, Self::Subpixel, Self::Subpixel, Self::Subpixel) {
+                (self.r, self.g, self.b, T::full())
+            }
+            fn from_channels(a: Self::Subpixel, b: Self::Subpixel, c: Self::Subpixel, _d: Self::Subpixel) -> Self {
+                Self::new(a, b, c)
+            }
+            fn from_slice(slice: &[Self::Subpixel]) -> &Self {
+                assert!(slice.len() >= Self::channel_count() as _);
+                unsafe { &*(slice.as_ptr() as *const _ as *const Self) }
+            }
+            fn from_slice_mut(slice: &mut [Self::Subpixel]) -> &mut Self {
+                assert!(slice.len() >= Self::channel_count() as _);
+                unsafe { &mut *(slice.as_mut_ptr() as *mut _ as *mut Self) }
+            }
+            fn to_rgb(&self) -> image::Rgb<Self::Subpixel> {
+                image::Rgb { data: [self.r, self.g, self.b] }
+            }
+            fn to_rgba(&self) -> image::Rgba<Self::Subpixel> {
+                image::Rgba { data: [self.r, self.g, self.b, T::full()] }
+            }
+            fn to_luma(&self) -> Luma<Self::Subpixel> {
+                let three = T::one() + T::one() + T::one();
+                let c = (self.r + self.g + self.b) / three;
+                Luma { data: [c] }
+            }
+            fn to_luma_alpha(&self) -> LumaA<Self::Subpixel> {
+                LumaA { data: [self.to_luma().data[0], T::full()] }
+            }
+            fn map<F>(&self, mut f: F) -> Self where F: FnMut(Self::Subpixel) -> Self::Subpixel {
+                Self { r: f(self.r), g: f(self.g), b: f(self.b) }
+            }
+            fn apply<F>(&mut self, f: F) where F: FnMut(Self::Subpixel) -> Self::Subpixel {
+                *self = self.map(f);
+            }
+            fn map_with_alpha<F, G>(&self, mut f: F, mut _g: G) -> Self
+                where F: FnMut(Self::Subpixel) -> Self::Subpixel, G: FnMut(Self::Subpixel) -> Self::Subpixel
+            {
+                Self { r: f(self.r), g: f(self.g), b: f(self.b) }
+            }
+            fn apply_with_alpha<F, G>(&mut self, f: F, g: G)
+                where F: FnMut(Self::Subpixel) -> Self::Subpixel, G: FnMut(Self::Subpixel) -> Self::Subpixel
+            {
+                *self = self.map_with_alpha(f, g);
+            }
+
+            fn map2<F>(&self, other: &Self, mut f: F) -> Self
+                where F: FnMut(Self::Subpixel, Self::Subpixel) -> Self::Subpixel
+            {
+                Self {
+                    r: f(self.r, other.r),
+                    g: f(self.g, other.g),
+                    b: f(self.b, other.b)
+                }
+            }
+            fn apply2<F>(&mut self, other: &Self, f: F)
+                where F: FnMut(Self::Subpixel, Self::Subpixel) -> Self::Subpixel
+            {
+                *self = self.map2(other, f);
+            }
+
+            fn invert(&mut self) {
+                *self = self.inverted();
+            }
+            fn blend(&mut self, other: &Self) {
+                self.apply2(other, |a, b| {
+                    let a = <f64 as NumCast>::from(a).unwrap();
+                    let b = <f64 as NumCast>::from(b).unwrap();
+                    let m = (a+b)/2f64;
+                    <T as NumCast>::from(m.round()).unwrap()
+                });
+            }
+        }
+    }
+}
+
+
+macro_rules! vec_impl_pixel_rgba {
+    ($Vec:ident) => {
+        extern crate image;
+
+        use self::image::{Primitive, Pixel, ColorType, Luma, LumaA};
+
+        impl<T> Pixel for $Vec<T> 
+            where T: ColorComponent + Copy + Clone + Primitive
+        {
+            type Subpixel = T;
+            fn channel_count() -> u8 {
+                4
+            }
+            fn channels(&self) -> &[Self::Subpixel] {
+                self.as_slice()
+            }
+            fn channels_mut(&mut self) -> &mut [Self::Subpixel] {
+                self.as_mut_slice()
+            }
+            fn color_model() -> &'static str {
+                "RGBA"
+            }
+            fn color_type() -> ColorType {
+                ColorType::RGBA(Self::channel_count() * mem::size_of::<T>() as u8 * 8_u8)
+            }
+            fn channels4(&self) -> (Self::Subpixel, Self::Subpixel, Self::Subpixel, Self::Subpixel) {
+                (self.r, self.g, self.b, self.a)
+            }
+            fn from_channels(a: Self::Subpixel, b: Self::Subpixel, c: Self::Subpixel, d: Self::Subpixel) -> Self {
+                Self::new(a, b, c, d)
+            }
+            fn from_slice(slice: &[Self::Subpixel]) -> &Self {
+                assert!(slice.len() >= Self::channel_count() as _);
+                unsafe { &*(slice.as_ptr() as *const _ as *const Self) }
+            }
+            fn from_slice_mut(slice: &mut [Self::Subpixel]) -> &mut Self {
+                assert!(slice.len() >= Self::channel_count() as _);
+                unsafe { &mut *(slice.as_mut_ptr() as *mut _ as *mut Self) }
+            }
+            fn to_rgb(&self) -> image::Rgb<Self::Subpixel> {
+                image::Rgb { data: [self.r, self.g, self.b] }
+            }
+            fn to_rgba(&self) -> image::Rgba<Self::Subpixel> {
+                image::Rgba { data: [self.r, self.g, self.b, self.a] }
+            }
+            fn to_luma(&self) -> Luma<Self::Subpixel> {
+                let three = T::one() + T::one() + T::one();
+                let c = (self.r + self.g + self.b) / three;
+                Luma { data: [c] }
+            }
+            fn to_luma_alpha(&self) -> LumaA<Self::Subpixel> {
+                LumaA { data: [self.to_luma().data[0], self.a] }
+            }
+            fn map<F>(&self, mut f: F) -> Self where F: FnMut(Self::Subpixel) -> Self::Subpixel {
+                Self { r: f(self.r), g: f(self.g), b: f(self.b), a: f(self.a) }
+            }
+            fn apply<F>(&mut self, f: F) where F: FnMut(Self::Subpixel) -> Self::Subpixel {
+                *self = self.map(f);
+            }
+            fn map_with_alpha<F, G>(&self, mut f: F, mut g: G) -> Self
+                where F: FnMut(Self::Subpixel) -> Self::Subpixel, G: FnMut(Self::Subpixel) -> Self::Subpixel
+            {
+                Self { r: f(self.r), g: f(self.g), b: f(self.b), a: g(self.a) }
+            }
+            fn apply_with_alpha<F, G>(&mut self, f: F, g: G)
+                where F: FnMut(Self::Subpixel) -> Self::Subpixel, G: FnMut(Self::Subpixel) -> Self::Subpixel
+            {
+                *self = self.map_with_alpha(f, g);
+            }
+
+            fn map2<F>(&self, other: &Self, mut f: F) -> Self
+                where F: FnMut(Self::Subpixel, Self::Subpixel) -> Self::Subpixel
+            {
+                Self {
+                    r: f(self.r, other.r),
+                    g: f(self.g, other.g),
+                    b: f(self.b, other.b),
+                    a: f(self.a, other.a)
+                }
+            }
+            fn apply2<F>(&mut self, other: &Self, f: F)
+                where F: FnMut(Self::Subpixel, Self::Subpixel) -> Self::Subpixel
+            {
+                *self = self.map2(other, f);
+            }
+
+            fn invert(&mut self) {
+                *self = self.inverted();
+            }
+            fn blend(&mut self, other: &Self) {
+                self.apply2(other, |a, b| {
+                    let a = <f64 as NumCast>::from(a).unwrap();
+                    let b = <f64 as NumCast>::from(b).unwrap();
+                    let m = (a+b)/2f64;
+                    <T as NumCast>::from(m.round()).unwrap()
+                });
+            }
+        }
+    }
+}
+
 macro_rules! vec_impl_color_rgba {
     ($Vec:ident) => {
+
+        #[cfg(feature="image")]
+        vec_impl_pixel_rgba!{$Vec}
+
         impl<T: ColorComponent> Rgba<T> {
             pub fn new_opaque(r: T, g: T, b: T) -> Self {
                 Self::new(r, g, b, T::full())
@@ -1337,34 +1543,52 @@ macro_rules! vec_impl_color_rgba {
                 Self::new(r, g, b, opacity)
             }
         }
+        impl<T: ColorComponent> $Vec<T> {
+            pub fn black   () -> Self { Self::new_opaque(T::zero(), T::zero(), T::zero()) }
+            pub fn white   () -> Self { Self::new_opaque(T::full(), T::full(), T::full()) }
+            pub fn red     () -> Self { Self::new_opaque(T::full(), T::zero(), T::zero()) }
+            pub fn green   () -> Self { Self::new_opaque(T::zero(), T::full(), T::zero()) }
+            pub fn blue    () -> Self { Self::new_opaque(T::zero(), T::zero(), T::full()) }
+            pub fn cyan    () -> Self { Self::new_opaque(T::zero(), T::full(), T::full()) }
+            pub fn magenta () -> Self { Self::new_opaque(T::full(), T::zero(), T::full()) }
+            pub fn yellow  () -> Self { Self::new_opaque(T::full(), T::full(), T::zero()) }
+            pub fn gray(value: T) -> Self where T: Copy { Self::from(Rgba::new_opaque(value, value, value)) }
+            // NOTE: Let's not get started with the 'gray' vs 'grey' debate. I picked 'gray' because that's
+            // what the Unity Engine happens to favor. From that, there's no point in implementing aliases
+            // just because people might prefer to spell 'grey' on a whim. A choice has to be made.
+            pub fn inverted(mut self) -> Self where T: Sub<Output=T> {
+                self.r = T::full() - self.r;
+                self.g = T::full() - self.g;
+                self.b = T::full() - self.b;
+                self
+            }
+        }
     };
 }
 
 macro_rules! vec_impl_color_rgb {
-    ($($Vec:ident)+) => {
-        $(
-            #[cfg(feature="rgba")]
-            impl<T: ColorComponent> $Vec<T> {
-                pub fn black   () -> Self { Self::from(Rgba::new_opaque(T::zero(), T::zero(), T::zero())) }
-                pub fn white   () -> Self { Self::from(Rgba::new_opaque(T::full(), T::full(), T::full())) }
-                pub fn red     () -> Self { Self::from(Rgba::new_opaque(T::full(), T::zero(), T::zero())) }
-                pub fn green   () -> Self { Self::from(Rgba::new_opaque(T::zero(), T::full(), T::zero())) }
-                pub fn blue    () -> Self { Self::from(Rgba::new_opaque(T::zero(), T::zero(), T::full())) }
-                pub fn cyan    () -> Self { Self::from(Rgba::new_opaque(T::zero(), T::full(), T::full())) }
-                pub fn magenta () -> Self { Self::from(Rgba::new_opaque(T::full(), T::zero(), T::full())) }
-                pub fn yellow  () -> Self { Self::from(Rgba::new_opaque(T::full(), T::full(), T::zero())) }
-                pub fn gray(value: T) -> Self where T: Copy { Self::from(Rgba::new_opaque(value, value, value)) }
-                // NOTE: Let's not get started with the 'gray' vs 'grey' debate. I picked 'gray' because that's
-                // what the Unity Engine happens to favor. From that, there's no point in implementing aliases
-                // just because people might prefer to spell 'grey' on a whim. A choice has to be made.
-                pub fn inverted_rgb(mut self) -> Self where T: Sub<Output=T> {
-                    self.r = T::full() - self.r;
-                    self.g = T::full() - self.g;
-                    self.b = T::full() - self.b;
-                    self
-                }
+    ($Vec:ident) => {
+
+        #[cfg(feature="image")]
+        vec_impl_pixel_rgb!{$Vec}
+
+        impl<T: ColorComponent> $Vec<T> {
+            pub fn black   () -> Self { Self::new(T::zero(), T::zero(), T::zero()) }
+            pub fn white   () -> Self { Self::new(T::full(), T::full(), T::full()) }
+            pub fn red     () -> Self { Self::new(T::full(), T::zero(), T::zero()) }
+            pub fn green   () -> Self { Self::new(T::zero(), T::full(), T::zero()) }
+            pub fn blue    () -> Self { Self::new(T::zero(), T::zero(), T::full()) }
+            pub fn cyan    () -> Self { Self::new(T::zero(), T::full(), T::full()) }
+            pub fn magenta () -> Self { Self::new(T::full(), T::zero(), T::full()) }
+            pub fn yellow  () -> Self { Self::new(T::full(), T::full(), T::zero()) }
+            pub fn gray(value: T) -> Self where T: Copy { Self::new(value, value, value) }
+            pub fn inverted(mut self) -> Self where T: Sub<Output=T> {
+                self.r = T::full() - self.r;
+                self.g = T::full() - self.g;
+                self.b = T::full() - self.b;
+                self
             }
-        )+
+        }
     }
 }
 
@@ -1665,7 +1889,6 @@ macro_rules! vec_impl_all_vecs {
             $(#[$attrs])+
             pub struct Rgba<T> { pub r:T, pub g:T, pub b:T, pub a:T }
             vec_impl_vec!(struct Rgba   rgba    (4) ("rgba({}, {}, {}, {})") (r g b a) (r g b a) (0 1 2 3) (T,T,T,T));
-            vec_impl_color_rgb!{Rgba}
             vec_impl_color_rgba!{Rgba}
 
             #[cfg(feature="vec4")]

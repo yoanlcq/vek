@@ -58,6 +58,7 @@
 //! # Cargo features
 //!
 //! - `serde` makes vectors and matrices derive `Serialize` and `Deserialize`.
+//! - `image` makes color vectors implement the `Pixel` trait from the `image` crate.
 //!
 //! ***
 //!
@@ -87,7 +88,7 @@
 #![no_std]
 #![doc(
 	test(attr(deny(warnings))),
-	html_root_url = "https://docs.rs/vek/0.2.5",
+	html_root_url = "https://docs.rs/vek/0.3.0",
 	//html_logo_url = "https://yoanlcq.github.io/vek/logo.png",
 	//html_favicon_url = "https://yoanlcq.github.io/vek/favicon.ico",
 )]
@@ -101,6 +102,8 @@
 //#![cfg_attr(feature="repr_simd", allow(improper_ctypes)]
 //#![cfg_attr(feature="repr_simd", feature(link_llvm_intrinsics)]
 #![cfg_attr(all(nightly,test), feature(test))]
+
+#![allow(warnings)] // FIXME: Remove before release
 
 #[cfg(all(nightly,test))]
 extern crate test;
