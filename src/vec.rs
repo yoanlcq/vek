@@ -1063,7 +1063,13 @@ macro_rules! vec_impl_vec {
                 Self::broadcast(val)
             }
         }
-
+        /*
+        impl<U, T: From<U>> From<$Vec<U>> for $Vec<T> {
+            fn from(v: $Vec<U>) -> Self {
+                Self::new($(v.$get.into()),+)
+            }
+        }
+        */
     };
 }
 
