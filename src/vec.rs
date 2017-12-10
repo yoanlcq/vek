@@ -2013,6 +2013,12 @@ pub mod repr_simd {
     //! You can instantiate any vector type of this module with any type as long as
     //! it is a "machine type", like `f32` and `i32`, but not `isize` or newtypes
     //! (normally, unless they're marked `#[repr(transparent)]`, but that hasn't been tested yet).
+    //!
+    //! *Caution:* The size of a `#[repr_simd]` vector is never guaranteed to be
+    //! exactly equal to the sum of its elements (for instance, an SIMD `Vec3<f32>` actually contains
+    //! 4 `f32` elements on x86). This has also an impact on `repr_simd` matrices.
+    //!
+    //! Therefore, be careful when sending these as raw data (as you may want to do with OpenGL).
     
     use super::*;
     vec_impl_all_vecs!{#[repr(packed, simd)]}

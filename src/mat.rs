@@ -8,7 +8,9 @@ use core::ops::*;
 use num_traits::{Zero, One, Float};
 use ops::MulAdd;
 use vec;
+#[cfg(feature="geom")]
 use geom::{FrustumPlanes, Rect};
+#[cfg(feature="quaternion")]
 use quaternion;
 
 macro_rules! mat_impl_mat {
@@ -834,6 +836,7 @@ macro_rules! mat_impl_mat4 {
             // PROJECTIONS
             //
 
+            #[cfg(feature="geom")]
             pub fn orthographic (o: FrustumPlanes<T>) -> Self
                 where T: Copy + Zero + One 
                        + Add<Output=T> + Sub<Output=T> + Neg<Output=T>
@@ -904,6 +907,7 @@ macro_rules! mat_impl_mat4 {
                     T::zero(), T::zero(), (epsilon - two) * near, T::zero()
                 )
             }
+            #[cfg(feature="geom")]
             pub fn frustum (o: FrustumPlanes<T>) -> Self 
                 where T: Copy + Zero + One 
                        + Add<Output=T> + Sub<Output=T> + Neg<Output=T>
@@ -928,7 +932,7 @@ macro_rules! mat_impl_mat4 {
             // used to restrict drawing to a small region of the viewport.
             //
             // u16 is chosen as viewport units because f32 has a direct conversion from it.
-            #[cfg(all(feature="vec3", feature="vec2"))]
+            #[cfg(all(feature="vec3", feature="vec2", feature="geom"))]
             pub fn picking_region<V2: Into<Vec2<T>>>(center: V2, delta: V2, viewport: Rect<u16, u16>) -> Self
                 where T: Zero + One + Copy + From<u16> + PartialOrd + Sub<Output=T> + Div<Output=T> + MulAdd<T,T,Output=T> + Mul<Output=T>
             {
@@ -949,7 +953,7 @@ macro_rules! mat_impl_mat4 {
                 );
                 Self::scaling_3d(sc) * Self::translation_3d(tr)
             }
-            #[cfg(feature="vec3")]
+            #[cfg(all(feature="vec3", feature="geom"))]
             pub fn world_to_viewport<V3>(obj: V3, modelview: Self, proj: Self, viewport: Rect<u16, u16>) -> Vec3<T>
                 where T: Zero + One + Copy + From<u16> + Add<Output=T> + Mul<Output=T> + Div<Output=T> + MulAdd<T,T,Output=T> + DivAssign,
                       V3: Into<Vec3<T>>
@@ -969,7 +973,7 @@ macro_rules! mat_impl_mat4 {
 
                 tmp.into()
             }
-            #[cfg(feature="vec3")]
+            #[cfg(all(feature="vec3", feature="geom"))]
             pub fn viewport_to_world<V3>(ray: V3, modelview: Self, proj: Self, viewport: Rect<u16, u16>) -> Vec3<T>
                 where T: Float + From<u16> + MulAdd<T,T,Output=T>,
                       V3: Into<Vec3<T>>
@@ -1446,13 +1450,14 @@ pub mod repr_c {
     //! You can instantiate any matrix type from this module with any type T.
 
     use super::*;
-    #[cfg(feature="mat2")]
+    #[cfg(feature="vec2")]
     use super::vec::repr_c::{Vec2, Vec2 as CVec2};
-    #[cfg(feature="mat3")]
+    #[cfg(feature="vec3")]
     use super::vec::repr_c::{Vec3, Vec3 as CVec3};
-    // #[cfg(feature="mat4")] // Commented out, see rationale in Cargo.toml
+    // #[cfg(feature="vec4")] // Commented out, see rationale in Cargo.toml
     use super::vec::repr_c::{Vec4, Vec4 as CVec4};
 
+    #[cfg(feature="quaternion")]
     use super::quaternion::repr_c::Quaternion;
 
     mat_declare_modules!{}
@@ -1466,21 +1471,28 @@ pub mod repr_simd {
     //! and only if T is one of the "machine types".  
     //! These include `f32` and `i32`, but not `isize` or
     //! newtypes (normally, unless they're `#[repr(transparent)]`, but this hasn't been tested).
+    //!
+    //! *Caution:* The size of a `#[repr_simd]` vector is never guaranteed to be
+    //! exactly equal to the sum of its elements (for instance, an SIMD `Vec3<f32>` actually contains
+    //! 4 `f32` elements on x86). This has also an impact on `repr_simd` matrices.
+    //!
+    //! Therefore, be careful when sending these as raw data (as you may want to do with OpenGL).
     
     use super::*;
-    #[cfg(feature="mat2")]
+    #[cfg(feature="vec2")]
     use super::vec::repr_simd::{Vec2};
-    #[cfg(feature="mat2")]
+    #[cfg(feature="vec2")]
     use super::vec::repr_c::{Vec2 as CVec2};
-    #[cfg(feature="mat3")]
+    #[cfg(feature="vec3")]
     use super::vec::repr_simd::{Vec3};
-    #[cfg(feature="mat3")]
+    #[cfg(feature="vec3")]
     use super::vec::repr_c::{Vec3 as CVec3};
-    // #[cfg(feature="mat4")] // Commented out, see rationale in Cargo.toml
+    // #[cfg(feature="vec4")] // Commented out, see rationale in Cargo.toml
     use super::vec::repr_simd::{Vec4};
-    // #[cfg(feature="mat4")] // Commented out, see rationale in Cargo.toml
+    // #[cfg(feature="vec4")] // Commented out, see rationale in Cargo.toml
     use super::vec::repr_c::{Vec4 as CVec4};
 
+    #[cfg(feature="quaternion")]
     use super::quaternion::repr_simd::Quaternion;
 
     mat_declare_modules!{}
