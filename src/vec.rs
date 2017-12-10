@@ -1559,9 +1559,7 @@ macro_rules! vec_impl_color_rgba {
             pub fn magenta () -> Self { Self::new_opaque(T::full(), T::zero(), T::full()) }
             pub fn yellow  () -> Self { Self::new_opaque(T::full(), T::full(), T::zero()) }
             pub fn gray(value: T) -> Self where T: Copy { Self::from(Rgba::new_opaque(value, value, value)) }
-            // NOTE: Let's not get started with the 'gray' vs 'grey' debate. I picked 'gray' because that's
-            // what the Unity Engine happens to favor. From that, there's no point in implementing aliases
-            // just because people might prefer to spell 'grey' on a whim. A choice has to be made.
+            pub fn grey(value: T) -> Self where T: Copy { Self::from(Rgba::new_opaque(value, value, value)) }
             pub fn inverted(mut self) -> Self where T: Sub<Output=T> {
                 self.r = T::full() - self.r;
                 self.g = T::full() - self.g;
@@ -1588,6 +1586,7 @@ macro_rules! vec_impl_color_rgb {
             pub fn magenta () -> Self { Self::new(T::full(), T::zero(), T::full()) }
             pub fn yellow  () -> Self { Self::new(T::full(), T::full(), T::zero()) }
             pub fn gray(value: T) -> Self where T: Copy { Self::new(value, value, value) }
+            pub fn grey(value: T) -> Self where T: Copy { Self::new(value, value, value) }
             pub fn inverted(mut self) -> Self where T: Sub<Output=T> {
                 self.r = T::full() - self.r;
                 self.g = T::full() - self.g;
