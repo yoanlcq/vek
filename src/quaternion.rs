@@ -18,8 +18,57 @@ use ops::*;
 // rotated_xyz(axis, angle) (convenience)
 // look_at
 
+macro_rules! impl_mul_by_vec {
+    ($Vec3:ident $Vec4:ident) => {
+        impl<T: Float + Sum> Mul<$Vec3<T>> for Quaternion<T> {
+            type Output = $Vec3<T>;
+            fn mul(self, rhs: $Vec3<T>) -> Self::Output {
+                let $Vec3 { x, y, z } = rhs;
+                let v = Self { x, y, z, w: T::zero() }; // XXX: Is it correct to set w to zero here ??
+                let r = v * self.conjugate().normalized();
+                (self * r).into()
+            }
+        }
+        impl<T: Float + Sum> Mul<$Vec4<T>> for Quaternion<T> {
+            type Output = $Vec4<T>;
+            fn mul(self, rhs: $Vec4<T>) -> Self::Output {
+                let $Vec4 { x, y, z, .. } = rhs;
+                let v = Self { x, y, z, w: T::zero() }; // XXX: Is it correct to set w to zero here ??
+                let r = v * self.conjugate().normalized();
+                (self * r).into()
+            }
+        }
+    };
+}
+
+macro_rules! quaternion_vec3_vec4 {
+    ($Vec3:ident $Vec4:ident) => {
+
+        impl_mul_by_vec!{$Vec3 $Vec4}
+
+        impl<T> From<$Vec4<T>> for Quaternion<T> {
+            fn from(v: $Vec4<T>) -> Self {
+                let $Vec4 { x, y, z, w } = v;
+                Self { x, y, z, w }
+            }
+        }
+        impl<T> From<Quaternion<T>> for $Vec4<T> {
+            fn from(v: Quaternion<T>) -> Self {
+                let Quaternion { x, y, z, w } = v;
+                Self { x, y, z, w }
+            }
+        }
+        impl<T> From<Quaternion<T>> for $Vec3<T> {
+            fn from(v: Quaternion<T>) -> Self {
+                let Quaternion { x, y, z, .. } = v;
+                Self { x, y, z }
+            }
+        }
+    };
+}
+
 macro_rules! quaternion_complete_mod {
-    ($mod:ident #[$attrs:meta] $($MulVec:ident)+) => {
+    ($mod:ident #[$attrs:meta]) => {
 
         use vec::$mod::*;
 
@@ -37,9 +86,8 @@ macro_rules! quaternion_complete_mod {
             pub fn from_xyzw(x: T, y: T, z: T, w: T) -> Self {
                 Self { x, y, z, w }
             }
-            #[cfg(feature="vec3")]
-            pub fn from_scalar_and_vector(s: T, v: Vec3<T>) -> Self {
-                let Vec3 { x, y, z } = v;
+            pub fn from_scalar_and_vec3<V: Into<Vec3<T>>>(s: T, v: V) -> Self {
+                let Vec3 { x, y, z } = v.into();
                 Self { x, y, z, w: s }
             }
             pub fn zero() -> Self where T: Zero {
@@ -76,9 +124,10 @@ macro_rules! quaternion_complete_mod {
                 self.into_vec4().normalized().into()
             }
 
-            pub fn rotation_3d(angle_radians: T, axis: Vec3<T>) -> Self
+            pub fn rotation_3d<V: Into<Vec3<T>>>(angle_radians: T, axis: V) -> Self
                 where T: Float
             {
+                let axis = axis.into();
                 let two = T::one() + T::one();
                 let v = axis * (angle_radians/two).sin();
                 let Vec3 { x, y, z } = v;
@@ -109,25 +158,6 @@ macro_rules! quaternion_complete_mod {
             }
             pub fn into_vec3(self) -> Vec3<T> {
                 self.into()
-            }
-        }
-
-        impl<T> From<Vec4<T>> for Quaternion<T> {
-            fn from(v: Vec4<T>) -> Self {
-                let Vec4 { x, y, z, w } = v;
-                Self { x, y, z, w }
-            }
-        }
-        impl<T> From<Quaternion<T>> for Vec4<T> {
-            fn from(v: Quaternion<T>) -> Self {
-                let Quaternion { x, y, z, w } = v;
-                Self { x, y, z, w }
-            }
-        }
-        impl<T> From<Quaternion<T>> for Vec3<T> {
-            fn from(v: Quaternion<T>) -> Self {
-                let Quaternion { x, y, z, .. } = v;
-                Self { x, y, z }
             }
         }
         
@@ -263,34 +293,6 @@ macro_rules! quaternion_complete_mod {
             }
         }
 
-        // NOTE: The following two were supposed to use `$MulVec` but we miss
-        // the required conversion functions right now.
-
-        impl<T: Float> Mul<Vec3<T>> for Quaternion<T> 
-            where T: Sum
-        {
-            type Output = Vec3<T>;
-            fn mul(self, rhs: Vec3<T>) -> Self::Output {
-                let Vec3 { x, y, z } = rhs;
-                let v = Self { x, y, z, w: T::zero() };
-
-                let r = v * self.conjugate().normalized();
-                (self * r).into_vec3()
-            }
-        }
-        impl<T: Float> Mul<Vec4<T>> for Quaternion<T> 
-            where T: Sum
-        {
-            type Output = Vec4<T>;
-            fn mul(self, rhs: Vec4<T>) -> Self::Output {
-                let Vec4 { x, y, z, .. } = rhs;
-                let v = Self { x, y, z, w: T::zero() }; // XXX: Is it correct to set w to zero here ??
-
-                let r = v * self.conjugate().normalized();
-                (self * r).into_vec4()
-            }
-        }
-
         /*
         // NOTE: Only for orthogonal matrices
         static inline void mat4o_mul_quat(mat4 R, mat4 M, quat q)
@@ -305,14 +307,25 @@ macro_rules! quaternion_complete_mod {
         */
     }
 }
+
+
 #[cfg(all(nightly, feature="repr_simd"))]
 pub mod repr_simd {
     use super::*;
-    quaternion_complete_mod!(repr_simd #[repr(packed,simd)] Vec3);
+    use super::super::vec::repr_c::{Vec3 as CVec3, Vec4 as CVec4};
+    quaternion_complete_mod!(repr_simd #[repr(packed,simd)]);
+    quaternion_vec3_vec4!(Vec3 Vec4);
+    quaternion_vec3_vec4!(CVec3 CVec4);
 }
 pub mod repr_c {
     use super::*;
-    quaternion_complete_mod!(repr_c #[repr(packed,C)] Vec3);
+    quaternion_complete_mod!(repr_c #[repr(packed,C)]);
+    quaternion_vec3_vec4!(Vec3 Vec4);
+
+    #[cfg(all(nightly, feature="repr_simd"))]
+    use super::super::vec::repr_simd::{Vec3 as SimdVec3, Vec4 as SimdVec4};
+    #[cfg(all(nightly, feature="repr_simd"))]
+    quaternion_vec3_vec4!(SimdVec3 SimdVec4);
 }
 #[cfg(all(nightly, feature="repr_simd"))]
 pub use self::repr_simd::*;
