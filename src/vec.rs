@@ -7,6 +7,7 @@
 
 // TODO:
 // - Abuse Into conversions so that repr_c and repr_simd interoperate seamlessly;
+// - Get rid of mem::uninitialized()
 
 use core::borrow::{Borrow, BorrowMut};
 use core::fmt::{self, Display, Formatter};
@@ -136,9 +137,11 @@ macro_rules! vec_impl_trinop {
 
 macro_rules! vec_impl_binop {
     (impl $Op:ident for $Vec:ident { $op:tt } ($($get:tt)+)) => {
-        impl<T> $Op<$Vec<T>> for $Vec<T> where T: $Op<Output=T> {
-            type Output = $Vec<T>;
-            fn $op(self, rhs: $Vec<T>) -> Self::Output {
+        // NOTE: Reminder that scalars T: Copy also implement Into<$Vec<T>>.
+        impl<V, T> $Op<V> for $Vec<T> where V: Into<$Vec<T>>, T: $Op<Output=T> {
+            type Output = Self;
+            fn $op(self, rhs: V) -> Self::Output {
+                let rhs = rhs.into();
                 $Vec::new($(self.$get.$op(rhs.$get)),+)
             }
         }
@@ -161,13 +164,6 @@ macro_rules! vec_impl_binop {
             }
         }
 
-        // Implement on scalars too
-        impl<T> $Op<T> for $Vec<T> where T: $Op<Output=T> + Copy {
-            type Output = $Vec<T>;
-            fn $op(self, rhs: T) -> Self::Output {
-                $Vec::new($(self.$get.$op(rhs)),+)
-            }
-        }
         impl<'a, T> $Op<&'a T> for $Vec<T> where T: $Op<&'a T, Output=T> {
             type Output = $Vec<T>;
             fn $op(self, rhs: &'a T) -> Self::Output {
@@ -191,19 +187,16 @@ macro_rules! vec_impl_binop {
 }
 macro_rules! vec_impl_unop {
     (impl $Op:ident for $Vec:ident { $op:tt } ($($get:tt)+)) => {
-        impl<T> $Op<$Vec<T>> for $Vec<T> where T: $Op<T> {
-            fn $op(&mut self, rhs: $Vec<T>) {
+        // NOTE: Reminder that scalars T: Copy also implement Into<$Vec<T>>.
+        impl<V, T> $Op<V> for $Vec<T> where V: Into<$Vec<T>>, T: $Op<T> {
+            fn $op(&mut self, rhs: V) {
+                let rhs = rhs.into();
                 $(self.$get.$op(rhs.$get);)+
             }
         }
         impl<'a, T> $Op<&'a $Vec<T>> for $Vec<T> where T: $Op<&'a T> {
             fn $op(&mut self, rhs: &'a $Vec<T>) {
                 $(self.$get.$op(&rhs.$get);)+
-            }
-        }
-        impl<T> $Op<T> for $Vec<T> where T: $Op<T> + Copy {
-            fn $op(&mut self, rhs: T) {
-                $(self.$get.$op(rhs);)+
             }
         }
         impl<'a, T> $Op<&'a T> for $Vec<T> where T: $Op<&'a T> {
@@ -283,6 +276,23 @@ macro_rules! vec_impl_vec {
             }
         }
 
+        /* WISH: Is it right?
+        impl<T> AsRef<CVec<T>> for $Vec<T> {
+            fn as_ref(v: &Self) -> &CVec<T> {
+                unsafe {
+                    mem::transmute(self)
+                }
+            }
+        }
+        impl<T> AsMut<CVec<T>> for $Vec<T> {
+            fn as_ref(v: &mut Self) -> &mut CVec<T> {
+                {
+                    mem::transmute(self)
+                }
+            }
+        }
+        */
+
         impl<T> $Vec<T> {
             pub fn into_repr_c(self) -> CVec<T> {
                 self.into()
@@ -297,11 +307,9 @@ macro_rules! vec_impl_vec {
     (common $Vec:ident $vec:ident ($dim:expr) ($fmt:expr) ($($get:tt)+) ($($namedget:tt)+) ($($tupleget:tt)+) $Tuple:ty) => {
 
         #[allow(missing_docs)]
-        /* TODO re-enable this when not using incremental compilation
         /// Displays the vector, formatted as `
         #[doc=$fmt]
         /// `.
-        */
         impl<T: Display> Display for $Vec<T> {
             fn fmt(&self, f: &mut Formatter) -> fmt::Result {
                 write!(f, $fmt, $(self.$get),+)
@@ -324,9 +332,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(Vec4::broadcast(5), Vec4::from(5));
             /// ```
             pub fn broadcast(val: T) -> Self where T: Copy {
-                let mut out: Self = unsafe { mem::uninitialized() };
-                $(out.$get = val;)+
-                out
+                Self::new($({let $get = val; $get}),+)
             }
 
             /// Creates a new vector with all elements set to zero.
@@ -338,9 +344,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(Vec4::zero(), Vec4::from(0));
             /// ```
             pub fn zero() -> Self where T: Zero {
-                let mut out: Self = unsafe { mem::uninitialized() };
-                $(out.$get = Zero::zero();)+
-                out
+                Self::new($({let $get = T::zero(); $get}),+)
             }
 
             /// Creates a new vector with all elements set to one.
@@ -352,9 +356,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(Vec4::one(), Vec4::from(1));
             /// ```
             pub fn one() -> Self where T: One {
-                let mut out: Self = unsafe { mem::uninitialized() };
-                $(out.$get = One::one();)+
-                out
+                Self::new($({let $get = T::one(); $get}),+)
             }
 
             /// Are all elements of this vector equal to the given value ?
@@ -384,7 +386,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(Vec4::iota(), Vec4::new(0, 1, 2, 3));
             /// ```
             pub fn iota() -> Self where T: Zero + One + AddAssign + Copy {
-                let mut out: Self = unsafe { mem::uninitialized() };
+                let mut out = Self::zero();
                 let mut i = T::zero();
                 $(
                     out.$get = i;
@@ -478,15 +480,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(i, Vec4::new(0, 1, 2, 3));
             /// ```
             pub fn numcast<D>(self) -> Option<$Vec<D>> where T: NumCast, D: NumCast {
-                let mut out: $Vec<D> = unsafe { mem::uninitialized() };
-                $(
-                    if let Some(val) = D::from(self.$get) {
-                        out.$get = val;
-                    } else {
-                        return None;
-                    }
-                )+
-                Some(out)
+                Some($Vec::new($(D::from(self.$get)?),+))
             }
             /// Converts this vector into a fixed-size array.
             pub fn into_array(self) -> [T; $dim] {
@@ -510,9 +504,11 @@ macro_rules! vec_impl_vec {
             /// let c = Vec4::new(8,9,0,1);
             /// assert_eq!(a*b+c, a.mul_add(b, c));
             /// ```
-            pub fn mul_add(self, mul: Self, add: Self) -> Self 
+            pub fn mul_add<V: Into<Self>>(self, mul: V, add: V) -> Self 
                 where T: MulAdd<T,T,Output=T>
             {
+                let mul = mul.into();
+                let add = add.into();
                 let mut out: Self = unsafe { mem::uninitialized() };
                 let mut iter = self.into_iter().zip(mul.into_iter().zip(add.into_iter()));
                 for elem in &mut out {
