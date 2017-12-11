@@ -22,7 +22,7 @@ use ops::*;
 macro_rules! vec_impl_cmp {
     ($(#[$attrs:meta])*, $Vec:ident, $cmp:ident, $op:tt, $Bounds:tt) => {
         $(#[$attrs])*
-        pub fn $cmp<Rhs: AsRef<Self>>(&self, rhs: Rhs) -> $Vec<u8> where T: $Bounds {
+        pub fn $cmp<Rhs: AsRef<Self>>(&self, rhs: &Rhs) -> $Vec<u8> where T: $Bounds {
             let mut out: $Vec<u8> = unsafe { mem::uninitialized() };
             let mut iter = self.iter().zip(rhs.as_ref().iter());
             for elem in &mut out {
