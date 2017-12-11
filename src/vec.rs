@@ -22,6 +22,7 @@ use ops::*;
 
 macro_rules! vec_impl_cmp {
     ($(#[$attrs:meta])*, $Vec:ident, $cmp:ident, $op:tt, $Bounds:tt) => {
+        // NOTE: Rhs is taken as reference: see how std::cmp::PartialEq is implemented.
         $(#[$attrs])*
         pub fn $cmp<Rhs: AsRef<Self>>(&self, rhs: &Rhs) -> $Vec<u8> where T: $Bounds {
             let mut out: $Vec<u8> = unsafe { mem::uninitialized() };
@@ -145,6 +146,7 @@ macro_rules! vec_impl_binop {
                 $Vec::new($(self.$get.$op(rhs.$get)),+)
             }
         }
+
         impl<'a, T> $Op<&'a $Vec<T>> for $Vec<T> where T: $Op<&'a T, Output=T> {
             type Output = $Vec<T>;
             fn $op(self, rhs: &'a $Vec<T>) -> Self::Output {
@@ -550,7 +552,8 @@ macro_rules! vec_impl_vec {
             /// let m = Vec4::new(0,1,1,0);
             /// assert_eq!(m, Vec4::min(a, b));
             /// ```
-            pub fn min(a: Self, b: Self) -> Self where T: Ord {
+            pub fn min<V>(a: V, b: V) -> Self where V: Into<Self>, T: Ord {
+                let (a, b) = (a.into(), b.into());
                 Self::new($(cmp::min(a.$get, b.$get)),+)
             }
             /// Compares elements of `a` and `b`, and returns the maximum values into a new
@@ -563,7 +566,8 @@ macro_rules! vec_impl_vec {
             /// let m = Vec4::new(3,2,2,3);
             /// assert_eq!(m, Vec4::max(a, b));
             /// ```
-            pub fn max(a: Self, b: Self) -> Self where T: Ord {
+            pub fn max<V>(a: V, b: V) -> Self where V: Into<Self>, T: Ord {
+                let (a, b) = (a.into(), b.into());
                 Self::new($(cmp::max(a.$get, b.$get)),+)
             }
             /// Compares elements of `a` and `b`, and returns the minimum values into a new
@@ -576,7 +580,8 @@ macro_rules! vec_impl_vec {
             /// let m = Vec4::new(0,1,1,0);
             /// assert_eq!(m, Vec4::partial_min(a, b));
             /// ```
-            pub fn partial_min(a: Self, b: Self) -> Self where T: PartialOrd {
+            pub fn partial_min<V>(a: V, b: V) -> Self where V: Into<Self>, T: Ord {
+                let (a, b) = (a.into(), b.into());
                 Self::new($(partial_min(a.$get, b.$get)),+)
             }
             /// Compares elements of `a` and `b`, and returns the minimum values into a new
@@ -589,7 +594,8 @@ macro_rules! vec_impl_vec {
             /// let m = Vec4::new(3,2,2,3);
             /// assert_eq!(m, Vec4::partial_max(a, b));
             /// ```
-            pub fn partial_max(a: Self, b: Self) -> Self where T: PartialOrd  {
+            pub fn partial_max<V>(a: V, b: V) -> Self where V: Into<Self>, T: Ord {
+                let (a, b) = (a.into(), b.into());
                 Self::new($(partial_max(a.$get, b.$get)),+)
             }
 
@@ -743,7 +749,8 @@ macro_rules! vec_impl_vec {
             /// let h = Vec4::new(0+1, 2+3, 4+5, 6+7);
             /// assert_eq!(h, a.hadd(b));
             /// ```
-            pub fn hadd(self, rhs: Self) -> Self where T: Add<T, Output=T> {
+            pub fn hadd<V>(self, rhs: V) -> Self where V: Into<Self>, T: Add<T, Output=T> {
+                let rhs = rhs.into();
                 let mut out: Self = unsafe { mem::uninitialized() };
                 let mut iter = self.into_iter().chain(rhs.into_iter());
                 for elem in &mut out {
@@ -895,6 +902,23 @@ macro_rules! vec_impl_vec {
                 /// ```
                 , $Vec, cmplt, <, Ord
             }
+
+	        /// Returns the linear interpolation of `from` to `to` with `factor` unconstrained.  
+            /// See the `Lerp` trait.
+            fn lerp_unclamped_precise<V: Into<Self>, S: Into<Self>>(from: V, to: V, factor: S) -> Self
+                where T: Copy + One + Mul<Output=T> + Sub<Output=T> + Add<Output=T> + MulAdd<T,T,Output=T>
+            {
+                let (from, to, factor) = (from.into(), to.into(), factor.into());
+                from.mul_add(Self::one()-factor, to*factor)
+            }
+	        /// Same as `lerp_unclamped_precise`, implemented as a possibly faster but less precise operation.
+            /// See the `Lerp` trait.
+            fn lerp_unclamped<V: Into<Self>, S: Into<Self>>(from: V, to: V, factor: S) -> Self
+                where T: Copy + One + Mul<Output=T> + Sub<Output=T> + Add<Output=T> + MulAdd<T,T,Output=T>
+            {
+                let (from, to, factor) = (from.into(), to.into(), factor.into());
+                factor.mul_add(to - from, from)
+            }
         }
 
         // TRAITS IMPLS
@@ -906,7 +930,10 @@ macro_rules! vec_impl_vec {
         impl<T: One> One for $Vec<T> {
             fn one() -> Self { Self::one() }
         }
-        // TODO impl Float for Vec<Float> ??
+        // WISH: impl Float for Vec<Float> ?
+        // NOPE: Vectors can't implement these items :
+        // - fn classify(self) -> FpCategory;
+        // - fn integer_decode(self) -> (u64, i16, i8);
 
         // OPS
 
@@ -921,10 +948,10 @@ macro_rules! vec_impl_vec {
             where T: Copy + One + Mul<Output=T> + Sub<Output=T> + Add<Output=T> + MulAdd<T,T,Output=T>
         {
             fn lerp_unclamped_precise(from: Self, to: Self, factor: T) -> Self {
-                Self::lerp_unclamped_precise(from, to, Self::broadcast(factor))
+                Self::lerp_unclamped_precise(from, to, factor)
             }
             fn lerp_unclamped(from: Self, to: Self, factor: T) -> Self {
-                Self::lerp_unclamped(from, to, Self::broadcast(factor))
+                Self::lerp_unclamped(from, to, factor)
             }
         }
 
@@ -932,10 +959,10 @@ macro_rules! vec_impl_vec {
             where T: Copy + One + Mul<Output=T> + Sub<Output=T> + Add<Output=T> + MulAdd<T,T,Output=T>
         {
             fn lerp_unclamped_precise(from: Self, to: Self, factor: Self) -> Self {
-                from.mul_add(Self::one()-factor, to*factor)
+                Self::lerp_unclamped_precise(from, to, factor)
             }
             fn lerp_unclamped(from: Self, to: Self, factor: Self) -> Self {
-                factor.mul_add(to - from, from)
+                Self::lerp_unclamped(from, to, factor)
             }
         }
         impl<T: Float + Copy> Wrap<T> for $Vec<T> {
@@ -1310,13 +1337,13 @@ macro_rules! vec_impl_spatial_4d {
                 }
                 /// Turns a vector into a point vector in homogeneous coordinates (sets the last coordinate to 1).
                 #[cfg(feature="vec3")]
-                pub fn point<V: Into<Vec3<T>>>(v: V) -> Self where T: One {
+                pub fn from_point<V: Into<Vec3<T>>>(v: V) -> Self where T: One {
                     let Vec3 { x, y, z } = v.into();
                     Self::new_point(x, y, z)
                 }
                 /// Turns a vector into a direction vector in homogeneous coordinates (sets the last coordinate to 0).
                 #[cfg(feature="vec3")]
-                pub fn direction<V: Into<Vec3<T>>>(v: V) -> Self where T: Zero {
+                pub fn from_direction<V: Into<Vec3<T>>>(v: V) -> Self where T: Zero {
                     let Vec3 { x, y, z } = v.into();
                     Self::new_direction(x, y, z)
                 }
@@ -1564,17 +1591,20 @@ macro_rules! vec_impl_color_rgba {
             pub fn new_transparent(r: T, g: T, b: T) -> Self {
                 Self::new(r, g, b, T::zero())
             }
-            pub fn opaque<V: Into<Rgb<T>>>(color: V) -> Self {
+            #[cfg(feature="rgb")]
+            pub fn from_opaque<V: Into<Rgb<T>>>(color: V) -> Self {
                 let Rgb { r, g, b } = color.into();
                 Self::new_opaque(r, g, b)
             }
-            pub fn transparent<V: Into<Rgb<T>>>(color: V) -> Self {
+            #[cfg(feature="rgb")]
+            pub fn from_transparent<V: Into<Rgb<T>>>(color: V) -> Self {
                 let Rgb { r, g, b } = color.into();
                 Self::new_transparent(r, g, b)
             }
         }
         impl<T> Rgba<T> {
-            pub fn translucent<V: Into<Rgb<T>>>(color: V, opacity: T) -> Self {
+            #[cfg(feature="rgb")]
+            pub fn from_translucent<V: Into<Rgb<T>>>(color: V, opacity: T) -> Self {
                 let Rgb { r, g, b } = color.into();
                 Self::new(r, g, b, opacity)
             }
@@ -1935,7 +1965,7 @@ macro_rules! vec_impl_all_vecs {
             #[cfg(feature="rgb")]
             impl<T: ColorComponent> From<Rgb<T>> for Rgba<T> {
                 fn from(v: Rgb<T>) -> Self {
-                    Self::opaque(v)
+                    Self::from_opaque(v)
                 }
             }
         }

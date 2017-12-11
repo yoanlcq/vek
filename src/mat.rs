@@ -959,7 +959,7 @@ macro_rules! mat_impl_mat4 {
                       V3: Into<Vec3<T>>
             {
                 let viewport = viewport.convert(|p| T::from(p), |e| T::from(e));
-                let mut tmp = Vec4::point(obj.into());
+                let mut tmp = Vec4::from_point(obj.into());
                 tmp = modelview * tmp;
                 tmp = proj * tmp;
 
@@ -982,7 +982,7 @@ macro_rules! mat_impl_mat4 {
                 let inverse = (proj * modelview).inverted();
                 let two = T::one() + T::one();
 
-                let mut tmp = Vec4::point(ray.into());
+                let mut tmp = Vec4::from_point(ray.into());
                 tmp.x = (tmp.x - viewport.x) / viewport.w;
                 tmp.y = (tmp.y - viewport.y) / viewport.h;
                 tmp = tmp * two - T::one();
