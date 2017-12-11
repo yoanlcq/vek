@@ -1,4 +1,5 @@
 [package]
+version = "0.7.0" # remember to update html_root_url in src/lib.rs
 authors = ["Yoan Lecoq <yoanlecoq.io@gmail.com>"]
 description = "Generic but efficient SIMD vector+matrix library for game engines, with focus on intent and the small bits that make you happier as a user."
 documentation = "https://docs.rs/vek"
@@ -8,7 +9,6 @@ license = "MIT/Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/yoanlcq/vek"
 name = "vek"
-version = "0.6.0" # remember to update html_root_url in src/lib.rs
 build = "build.rs"
 exclude = [
     "previous_work/*",

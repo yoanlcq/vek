@@ -10,14 +10,8 @@ use ops::*;
 // TODO:
 // is_zero
 // is_identity
-// from_mat3()
-// from_scalar_and_vector(s,v)
 // from_arc(v3,v3)
-// Mul against all (non-color) vector types (by value, and by ref)
-// rotated_x (convenience)
-// rotated_y (convenience)
-// rotated_z (convenience)
-// rotated_xyz(axis, angle) (convenience)
+// Mul against all (non-color) vector types , by ref
 // look_at
 
 macro_rules! impl_mul_by_vec {
@@ -136,14 +130,38 @@ macro_rules! quaternion_complete_mod {
                 let w = (angle_radians/two).cos();
                 Self { x, y, z, w }
             }
-            pub fn rotation_x(angle_radians: T) -> Self where T: Float {
+            pub fn rotation_x(angle_radians: T) -> Self where T: Float + Sum {
                 Self::rotation_3d(angle_radians, Vec3::unit_x())
             }
-            pub fn rotation_y(angle_radians: T) -> Self where T: Float {
+            pub fn rotation_y(angle_radians: T) -> Self where T: Float + Sum {
                 Self::rotation_3d(angle_radians, Vec3::unit_y())
             }
-            pub fn rotation_z(angle_radians: T) -> Self where T: Float {
+            pub fn rotation_z(angle_radians: T) -> Self where T: Float + Sum {
                 Self::rotation_3d(angle_radians, Vec3::unit_z())
+            }
+            pub fn rotated_3d<V: Into<Vec3<T>>>(self, angle_radians: T, axis: V) -> Self where T: Float + Sum {
+                Self::rotation_3d(angle_radians, axis) * self
+            }
+            pub fn rotated_x(self, angle_radians: T) -> Self where T: Float + Sum {
+                Self::rotation_x(angle_radians) * self
+            }
+            pub fn rotated_y(self, angle_radians: T) -> Self where T: Float + Sum {
+                Self::rotation_y(angle_radians) * self
+            }
+            pub fn rotated_z(self, angle_radians: T) -> Self where T: Float + Sum {
+                Self::rotation_z(angle_radians) * self
+            }
+            pub fn rotate_3d<V: Into<Vec3<T>>>(&mut self, angle_radians: T, axis: V) where T: Float + Sum {
+                *self = self.rotated_3d(angle_radians, axis);
+            }
+            pub fn rotate_x(&mut self, angle_radians: T) where T: Float + Sum {
+                *self = self.rotated_x(angle_radians);
+            }
+            pub fn rotate_y(&mut self, angle_radians: T) where T: Float + Sum {
+                *self = self.rotated_y(angle_radians);
+            }
+            pub fn rotate_z(&mut self, angle_radians: T) where T: Float + Sum {
+                *self = self.rotated_z(angle_radians);
             }
 
             /*
