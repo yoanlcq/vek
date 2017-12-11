@@ -43,9 +43,9 @@ macro_rules! mat_impl_mat {
             }
         }
 
-        impl $Mat<f32> {
-            pub fn as_gl_uniform_params(&self) -> (u32, *const f32) {
-                (0, self.rows.as_ptr() as _)
+        impl<T> $Mat<T> {
+            pub fn as_gl_uniform_params(&self) -> (bool, *const T) {
+                (unimplemented!{}, self.rows.x.as_ptr())
             }
         }
 
@@ -204,9 +204,9 @@ macro_rules! mat_impl_mat {
             }
         }
 
-        impl $Mat<f32> {
-            pub fn as_gl_uniform_params(&self) -> (u32, *const f32) {
-                (1, self.cols.as_ptr() as _)
+        impl<T> $Mat<T> {
+            pub fn as_gl_uniform_params(&self) -> (bool, *const T) {
+                (unimplemented!{}, self.cols.x.as_ptr())
             }
         }
 
