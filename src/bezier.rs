@@ -17,6 +17,7 @@ use vec::repr_c::{
 macro_rules! bezier_impl_any {
     ($Bezier:ident $Point:ident) => {
         impl<T> $Bezier<T> {
+            /// Evaluates the normalized tangent at interpolation factor `t`.
             pub fn normalized_tangent(self, t: T) -> $Point<T> where T: Float + Sum {
                 self.evaluate_derivative(t).normalized()
             }
@@ -41,24 +42,37 @@ macro_rules! bezier_impl_any {
 }
 
 macro_rules! bezier_impl_quadratic {
-    ($QuadraticBezier:ident $Point:ident $Line:ident) => {
+    ($QuadraticBezier:ident $Point:ident $LineSegment:ident) => {
         
         #[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, /*PartialOrd, Ord*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct $QuadraticBezier<T>(pub $Point<T>, pub $Point<T>, pub $Point<T>);
         
         impl<T: Float> $QuadraticBezier<T> {
+            /// Evaluates the position of the point lying on the curve at interpolation factor `t`.
+            ///
+            /// This is one of the most important Bézier curve operations,
+            /// because, in one way or another, it is used to render a curve
+            /// to the screen.
+            /// The common use case is to successively evaluate a curve at a set of values
+            /// that range from 0 to 1, to approximate the curve as an array of
+            /// line segments which are then rendered.
             pub fn evaluate(self, t: T) -> $Point<T> {
                 let l = T::one();
                 let two = l+l;
                 self.0*(l-t)*(l-t) + self.1*two*(l-t)*t + self.2*t*t
             }
+            /// Evaluates the derivative tangent at interpolation factor `t`, which happens to give
+            /// a non-normalized tangent vector.
+            ///
+            /// See also `normalized_tangent()`.
             pub fn evaluate_derivative(self, t: T) -> $Point<T> {
                 let l = T::one();
                 let n = l+l;
                 (self.1-self.0)*(l-t)*n + (self.2-self.1)*t*n
             }
-            pub fn from_line(line: $Line<T>) -> Self {
+            /// Creates a quadratic Bézier curve from a single segment.
+            pub fn from_line_segment(line: $LineSegment<T>) -> Self {
                 $QuadraticBezier(line.a, line.a, line.b)
             }
             /// Returns the constant matrix M such that,
@@ -78,6 +92,7 @@ macro_rules! bezier_impl_quadratic {
                     )
                 }
             }
+            /// Splits this quadratic Bézier curve into two curves, at interpolation factor `t`.
             // NOTE that some computations may be reused, but the compiler can
             // reason about these. Clarity wins here IMO.
             pub fn split(self, t: T) -> (Self, Self) {
@@ -113,25 +128,38 @@ macro_rules! bezier_impl_quadratic {
 }
 
 macro_rules! bezier_impl_cubic {
-    ($CubicBezier:ident $Point:ident $Line:ident) => {
+    ($CubicBezier:ident $Point:ident $LineSegment:ident) => {
         
         #[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, /*PartialOrd, Ord*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct $CubicBezier<T>(pub $Point<T>, pub $Point<T>, pub $Point<T>, pub $Point<T>);
 
         impl<T: Float> $CubicBezier<T> {
+            /// Evaluates the position of the point lying on the curve at interpolation factor `t`.
+            ///
+            /// This is one of the most important Bézier curve operations,
+            /// because, in one way or another, it is used to render a curve
+            /// to the screen.
+            /// The common use case is to successively evaluate a curve at a set of values
+            /// that range from 0 to 1, to approximate the curve as an array of
+            /// line segments which are then rendered.
             pub fn evaluate(self, t: T) -> $Point<T> {
                 let l = T::one();
                 let three = l+l+l;
 		        self.0*(l-t)*(l-t)*(l-t) + self.1*three*(l-t)*(l-t)*t + self.2*three*(l-t)*t*t + self.3*t*t*t
             }
+            /// Evaluates the derivative tangent at interpolation factor `t`, which happens to give
+            /// a non-normalized tangent vector.
+            ///
+            /// See also `normalized_tangent()`.
             pub fn evaluate_derivative(self, t: T) -> $Point<T> {
                 let l = T::one();
         	    let n = l+l+l;
                 let two = l+l;
         		(self.1-self.0)*(l-t)*(l-t)*n + (self.2-self.1)*two*(l-t)*t*n + (self.3-self.2)*t*t*n
         	}
-            pub fn from_line(line: $Line<T>) -> Self {
+            /// Creates a cubic Bézier curve from a single segment.
+            pub fn from_line_segment(line: $LineSegment<T>) -> Self {
                 $CubicBezier(line.a, line.a, line.b, line.b)
             }
             /// Returns the constant matrix M such that,
@@ -153,6 +181,7 @@ macro_rules! bezier_impl_cubic {
                     )
                 }
             }
+            /// Splits this cubic Bézier curve into two curves, at interpolation factor `t`.
             // NOTE that some computations may be reused, but the compiler can
             // reason about these. Clarity wins here IMO.
             pub fn split(self, t: T) -> (Self, Self) {
@@ -197,24 +226,21 @@ pub mod repr_simd {
     use super::*;
     use vec::repr_simd::{Vec3, Vec4, Vec2};
     use mat::repr_simd::row_major::{Mat3, Mat4};
-    use geom::repr_simd::{Line2, Line3};
-    bezier_impl_quadratic!(QuadraticBezier2 Vec2 Line2);
-    bezier_impl_quadratic!(QuadraticBezier3 Vec3 Line3);
-    bezier_impl_cubic!(CubicBezier2 Vec2 Line2);
-    bezier_impl_cubic!(CubicBezier3 Vec3 Line3);
+    use geom::repr_simd::{LineSegment2, LineSegment3};
+    bezier_impl_quadratic!(QuadraticBezier2 Vec2 LineSegment2);
+    bezier_impl_quadratic!(QuadraticBezier3 Vec3 LineSegment3);
+    bezier_impl_cubic!(CubicBezier2 Vec2 LineSegment2);
+    bezier_impl_cubic!(CubicBezier3 Vec3 LineSegment3);
 }
 pub mod repr_c {
     use super::*;
     use  vec::repr_c::{Vec3, Vec4, Vec2};
     use  mat::repr_c::row_major::{Mat3, Mat4};
-    use geom::repr_c::{Line2, Line3};
-    bezier_impl_quadratic!(QuadraticBezier2 Vec2 Line2);
-    bezier_impl_quadratic!(QuadraticBezier3 Vec3 Line3);
-    bezier_impl_cubic!(CubicBezier2 Vec2 Line2);
-    bezier_impl_cubic!(CubicBezier3 Vec3 Line3);
+    use geom::repr_c::{LineSegment2, LineSegment3};
+    bezier_impl_quadratic!(QuadraticBezier2 Vec2 LineSegment2);
+    bezier_impl_quadratic!(QuadraticBezier3 Vec3 LineSegment3);
+    bezier_impl_cubic!(CubicBezier2 Vec2 LineSegment2);
+    bezier_impl_cubic!(CubicBezier3 Vec3 LineSegment3);
 }
 
-#[cfg(all(nightly, feature="repr_simd"))]
-pub use self::repr_simd::*;
-#[cfg(not(all(nightly, feature="repr_simd")))]
 pub use self::repr_c::*;

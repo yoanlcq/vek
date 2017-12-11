@@ -1,3 +1,5 @@
+//! This module is still a work-in-progress. A lot of useful operations remain to be implemented.
+
 // WISH add useful impls to this module (inclusing basic conversions from rect to vec pairs)
 
 // NOTE: in this module, the type parameters <P,E> usually stand for Position and Extent.
@@ -158,13 +160,13 @@ macro_rules! geom_complete_mod {
 
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        pub struct Line2<T> {
+        pub struct LineSegment2<T> {
             pub a: Vec2<T>,
             pub b: Vec2<T>,
         }
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        pub struct Line3<T> {
+        pub struct LineSegment3<T> {
             pub a: Vec3<T>,
             pub b: Vec3<T>,
         }
@@ -243,7 +245,4 @@ pub mod repr_c {
     geom_complete_mod!(repr_c);
 }
 
-#[cfg(all(nightly, feature="repr_simd"))]
-pub use self::repr_simd::*;
-#[cfg(not(all(nightly, feature="repr_simd")))]
 pub use self::repr_c::*;

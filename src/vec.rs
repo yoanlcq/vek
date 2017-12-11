@@ -24,12 +24,12 @@ macro_rules! vec_impl_cmp {
     ($(#[$attrs:meta])*, $Vec:ident, $cmp:ident, $op:tt, $Bounds:tt) => {
         // NOTE: Rhs is taken as reference: see how std::cmp::PartialEq is implemented.
         $(#[$attrs])*
-        pub fn $cmp<Rhs: AsRef<Self>>(&self, rhs: &Rhs) -> $Vec<u8> where T: $Bounds {
-            let mut out: $Vec<u8> = unsafe { mem::uninitialized() };
+        pub fn $cmp<Rhs: AsRef<Self>>(&self, rhs: &Rhs) -> $Vec<bool> where T: $Bounds {
+            let mut out: $Vec<bool> = unsafe { mem::uninitialized() };
             let mut iter = self.iter().zip(rhs.as_ref().iter());
             for elem in &mut out {
                 let (a, b) = iter.next().unwrap();
-                *elem = (a $op b) as u8;
+                *elem = a $op b;
             }
             out
         }
@@ -768,7 +768,7 @@ macro_rules! vec_impl_vec {
                 /// # use vek::vec::Vec4;
                 /// let u = Vec4::new(0,2,2,6);
                 /// let v = Vec4::new(0,1,2,3);
-                /// assert_eq!(u.partial_cmpeq(v), Vec4::new(1, 0, 1, 0));
+                /// assert_eq!(u.partial_cmpeq(&v), Vec4::new(true, false, true, false));
                 /// ```
                 , $Vec, partial_cmpeq, ==, PartialEq
             }
@@ -779,7 +779,7 @@ macro_rules! vec_impl_vec {
                 /// # use vek::vec::Vec4;
                 /// let u = Vec4::new(0,2,2,6);
                 /// let v = Vec4::new(0,1,2,3);
-                /// assert_eq!(u.partial_cmpne(v), Vec4::new(0, 1, 0, 1));
+                /// assert_eq!(u.partial_cmpne(&v), Vec4::new(false, true, false, true));
                 /// ```
                 , $Vec, partial_cmpne, !=, PartialEq
             }
@@ -791,7 +791,7 @@ macro_rules! vec_impl_vec {
                 /// # use vek::vec::Vec4;
                 /// let u = Vec4::new(0,2,2,2);
                 /// let v = Vec4::new(0,1,2,3);
-                /// assert_eq!(u.partial_cmpge(v), Vec4::new(1, 1, 1, 0));
+                /// assert_eq!(u.partial_cmpge(&v), Vec4::new(true, true, true, false));
                 /// ```
                 , $Vec, partial_cmpge, >=, PartialOrd
             }
@@ -803,7 +803,7 @@ macro_rules! vec_impl_vec {
                 /// # use vek::vec::Vec4;
                 /// let u = Vec4::new(0,2,2,6);
                 /// let v = Vec4::new(0,1,2,3);
-                /// assert_eq!(u.partial_cmpgt(v), Vec4::new(0, 1, 0, 1));
+                /// assert_eq!(u.partial_cmpgt(&v), Vec4::new(false, true, false, true));
                 /// ```
                 , $Vec, partial_cmpgt, >, PartialOrd
             }
@@ -815,7 +815,7 @@ macro_rules! vec_impl_vec {
                 /// # use vek::vec::Vec4;
                 /// let u = Vec4::new(0,2,2,2);
                 /// let v = Vec4::new(0,1,2,3);
-                /// assert_eq!(u.partial_cmple(v), Vec4::new(1, 0, 1, 1));
+                /// assert_eq!(u.partial_cmple(&v), Vec4::new(true, false, true, true));
                 /// ```
                 , $Vec, partial_cmple, <=, PartialOrd
             }
@@ -827,7 +827,7 @@ macro_rules! vec_impl_vec {
                 /// # use vek::vec::Vec4;
                 /// let u = Vec4::new(0,2,2,2);
                 /// let v = Vec4::new(0,1,2,3);
-                /// assert_eq!(u.partial_cmplt(v), Vec4::new(0, 0, 0, 1));
+                /// assert_eq!(u.partial_cmplt(&v), Vec4::new(false, false, false, true));
                 /// ```
                 , $Vec, partial_cmplt, <, PartialOrd
             }
@@ -839,7 +839,7 @@ macro_rules! vec_impl_vec {
                 /// # use vek::vec::Vec4;
                 /// let u = Vec4::new(0,2,2,6);
                 /// let v = Vec4::new(0,1,2,3);
-                /// assert_eq!(u.cmpeq(v), Vec4::new(1, 0, 1, 0));
+                /// assert_eq!(u.cmpeq(&v), Vec4::new(true, false, true, false));
                 /// ```
                 , $Vec, cmpeq, ==, Eq
             }
@@ -850,7 +850,7 @@ macro_rules! vec_impl_vec {
                 /// # use vek::vec::Vec4;
                 /// let u = Vec4::new(0,2,2,6);
                 /// let v = Vec4::new(0,1,2,3);
-                /// assert_eq!(u.cmpne(v), Vec4::new(0, 1, 0, 1));
+                /// assert_eq!(u.cmpne(&v), Vec4::new(false, true, false, true));
                 /// ```
                 , $Vec, cmpne, !=, Eq
             }
@@ -862,7 +862,7 @@ macro_rules! vec_impl_vec {
                 /// # use vek::vec::Vec4;
                 /// let u = Vec4::new(0,2,2,2);
                 /// let v = Vec4::new(0,1,2,3);
-                /// assert_eq!(u.cmpge(v), Vec4::new(1, 1, 1, 0));
+                /// assert_eq!(u.cmpge(&v), Vec4::new(true, true, true, false));
                 /// ```
                 , $Vec, cmpge, >=, Ord
             }
@@ -874,7 +874,7 @@ macro_rules! vec_impl_vec {
                 /// # use vek::vec::Vec4;
                 /// let u = Vec4::new(0,2,2,6);
                 /// let v = Vec4::new(0,1,2,3);
-                /// assert_eq!(u.cmpgt(v), Vec4::new(0, 1, 0, 1));
+                /// assert_eq!(u.cmpgt(&v), Vec4::new(false, true, false, true));
                 /// ```
                 , $Vec, cmpgt, >, Ord
             }
@@ -886,7 +886,7 @@ macro_rules! vec_impl_vec {
                 /// # use vek::vec::Vec4;
                 /// let u = Vec4::new(0,2,2,2);
                 /// let v = Vec4::new(0,1,2,3);
-                /// assert_eq!(u.cmple(v), Vec4::new(1, 0, 1, 1));
+                /// assert_eq!(u.cmple(&v), Vec4::new(true, false, true, true));
                 /// ```
                 , $Vec, cmple, <=, Ord
             }
@@ -898,7 +898,7 @@ macro_rules! vec_impl_vec {
                 /// # use vek::vec::Vec4;
                 /// let u = Vec4::new(0,2,2,2);
                 /// let v = Vec4::new(0,1,2,3);
-                /// assert_eq!(u.cmplt(v), Vec4::new(0, 0, 0, 1));
+                /// assert_eq!(u.cmplt(&v), Vec4::new(false, false, false, true));
                 /// ```
                 , $Vec, cmplt, <, Ord
             }
@@ -1114,6 +1114,9 @@ macro_rules! vec_impl_vec {
             }
         }
         /// A vector can be obtained from a single scalar by broadcasting it.
+        ///
+        /// This conversion is important because it allows scalars to be
+        /// smoothly accepted as operands in most vector operations.
         impl<T: Copy> From<T> for $Vec<T> {
             fn from(val: T) -> Self {
                 Self::broadcast(val)
@@ -2054,13 +2057,10 @@ macro_rules! vec_impl_all_vecs {
 pub mod repr_c {
     //! Vector types which are marked `#[repr(packed, C)]`.
     //!
-    //! You can instantiate any vector type of this module with any type `T`.
-    //!
-    //! # Be careful
-    //!
-    //! Because `#[repr(packed)]` is enforced, taking a reference to vector's field
-    //! [may cause undefined behaviour as of Rust 1.0](https://github.com/rust-lang/rust/issues/27060).
-    
+    //! See also the `repr_simd` neighbour module, which is available on Nightly
+    //! with the `repr_simd` feature enabled.
+
+   
     use super::*;
     vec_impl_all_vecs!{
         c
@@ -2075,28 +2075,6 @@ pub mod repr_c {
 #[cfg(all(nightly, feature="repr_simd"))]
 pub mod repr_simd {
     //! Vector types which are marked `#[repr(packed, simd)]`.
-    //!
-    //! You can instantiate any vector type of this module with any type as long as
-    //! it is a "machine type", like `f32` and `i32`, but not `isize` or newtypes
-    //!
-    //! # Be careful
-    //!
-    //! The size of a `#[repr_simd]` vector is never guaranteed to be
-    //! exactly equal to the sum of its elements (for instance, an SIMD `Vec3<f32>` actually contains
-    //! 4 `f32` elements on x86). This has also an impact on `repr_simd` matrices.
-    //!
-    //! Therefore, be careful when sending these as raw data (as you may want to do with OpenGL).
-    //!
-    //! Also, taking a reference to vector's field
-    //! [may cause undefined behaviour as of Rust 1.0](https://github.com/rust-lang/rust/issues/27060).
-    //!
-    //! # So when should I use them?
-    //!
-    //! - When you know the SIMD representation on your target hardware;
-    //! - When you don't mind alignment requirements and extra empty space;
-    //!
-    //! You should avoid using these in general-purpose aggregates.
-    //! You should put these into large arrays to process them efficiently.
     
     use super::*;
     vec_impl_all_vecs!{
@@ -2105,8 +2083,4 @@ pub mod repr_simd {
     }
 }
 
-#[cfg(all(nightly, feature="repr_simd"))]
-pub use self::repr_simd::*;
-/// If you're on Nightly with the `repr_simd` feature enabled, this exports `self::repr_simd::*` instead.
-#[cfg(not(all(nightly, feature="repr_simd")))]
 pub use self::repr_c::*;

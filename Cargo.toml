@@ -8,7 +8,7 @@ license = "MIT/Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/yoanlcq/vek"
 name = "vek"
-version = "0.5.0" # remember to update html_root_url in src/lib.rs
+version = "0.6.0" # remember to update html_root_url in src/lib.rs
 build = "build.rs"
 exclude = [
     "previous_work/*",

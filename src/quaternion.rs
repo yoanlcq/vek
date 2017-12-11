@@ -1,3 +1,5 @@
+//! This module is still a work-in-progress.
+
 // TODO document why euler angles are not supported
 
 use num_traits::{Zero, One, Float};
@@ -327,7 +329,4 @@ pub mod repr_c {
     #[cfg(all(nightly, feature="repr_simd"))]
     quaternion_vec3_vec4!(SimdVec3 SimdVec4);
 }
-#[cfg(all(nightly, feature="repr_simd"))]
-pub use self::repr_simd::*;
-#[cfg(not(all(nightly, feature="repr_simd")))]
 pub use self::repr_c::*;

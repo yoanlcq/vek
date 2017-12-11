@@ -44,8 +44,13 @@ macro_rules! mat_impl_mat {
         }
 
         impl<T> $Mat<T> {
-            pub fn as_gl_uniform_params(&self) -> (bool, *const T) {
-                (unimplemented!{}, self.rows.x.as_ptr())
+            /// Gets the `transpose` parameter to pass to 
+            /// OpenGL `glUniformMatrix*()` functions.
+            ///
+            /// The return value is a plain `bool` which you may directly cast
+            /// to a `GLboolean`.
+            pub fn gl_should_transpose(&self) -> bool {
+                true
             }
         }
 
@@ -205,8 +210,13 @@ macro_rules! mat_impl_mat {
         }
 
         impl<T> $Mat<T> {
-            pub fn as_gl_uniform_params(&self) -> (bool, *const T) {
-                (unimplemented!{}, self.cols.x.as_ptr())
+            /// Gets the `transpose` parameter to pass to 
+            /// OpenGL `glUniformMatrix*()` functions.
+            ///
+            /// The return value is a plain `bool` which you may directly cast
+            /// to a `GLboolean`.
+            pub fn gl_should_transpose(&self) -> bool {
+                false
             }
         }
 
@@ -331,7 +341,6 @@ macro_rules! mat_impl_mat {
                 }
             }
         }
-
     };
     (common $lines:ident $Mat:ident $CVec:ident $Vec:ident ($nrows:tt x $ncols:tt) ($($get:tt)+)) => {
         /// The default value for a square matrix is the identity.
@@ -655,6 +664,11 @@ macro_rules! mat_impl_mat4 {
             // BASIC
             //
 
+            /// Inverts this matrix, blindly assuming that it is invertible.
+            pub fn invert(&mut self) where T: Float {
+                *self = self.inverted()
+            }
+            /// Returns this matrix's inverse, blindly assuming that it is invertible.
             // Taken verbatim from datenwolf's linmath.h
             // As mentioned in the original, it assumes that the matrix is invertible.
             pub fn inverted(self) -> Self where T: Float
@@ -699,6 +713,9 @@ macro_rules! mat_impl_mat4 {
                 Rows4 { rows: m }.into()
             }
 
+            pub fn orthonormalize(&mut self) where T: Float + Sum + SubAssign {
+                *self = self.orthonormalized();
+            }
             pub fn orthonormalized(self) -> Self where T: Float + Sum + SubAssign {
                 let mut r = Rows4::from(self).rows;
 
@@ -724,6 +741,12 @@ macro_rules! mat_impl_mat4 {
             //
 
             #[cfg(feature="vec2")]
+            pub fn translated_2d<V: Into<Vec2<T>>>(self, v: V) -> Self
+                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+            {
+                Self::translation_2d(v) * self
+            }
+            #[cfg(feature="vec2")]
             pub fn translation_2d<V: Into<Vec2<T>>>(v: V) -> Self where T: Zero + One {
                 let Vec2 { x, y } = v.into();
                 Self::new(
@@ -732,6 +755,12 @@ macro_rules! mat_impl_mat4 {
                     T::zero(), T::zero(), T::one() , T::zero(),
                     T::zero(), T::zero(), T::zero(), T::one(),
                 )
+            }
+            #[cfg(feature="vec3")]
+            pub fn translated_3d<V: Into<Vec3<T>>>(self, v: V) -> Self
+                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+            {
+                Self::translation_3d(v) * self
             }
             #[cfg(feature="vec3")]
             pub fn translation_3d<V: Into<Vec3<T>>>(v: V) -> Self where T: Zero + One {
@@ -756,6 +785,12 @@ macro_rules! mat_impl_mat4 {
             }
 
             #[cfg(feature="vec3")]
+            pub fn scaled_3d<V: Into<Vec3<T>>>(self, v: V) -> Self
+                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+            {
+                Self::scaling_3d(v) * self
+            }
+            #[cfg(feature="vec3")]
             pub fn scaling_3d<V: Into<Vec3<T>>>(v: V) -> Self where T: Zero + One {
                 let Vec3 { x, y, z } = v.into();
                 Self::new(
@@ -764,6 +799,11 @@ macro_rules! mat_impl_mat4 {
                     T::zero(), T::zero(), z, T::zero(),
                     T::zero(), T::zero(), T::zero(), T::one()
                 )
+            }
+            pub fn rotated_x(self, angle_radians: T) -> Self 
+                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+            {
+                Self::rotation_x(angle_radians) * self
             }
             pub fn rotation_x(angle_radians: T) -> Self where T: Float {
                 let c = angle_radians.cos();
@@ -775,6 +815,11 @@ macro_rules! mat_impl_mat4 {
                     T::zero(), T::zero(), T::zero(), T::one()
                 )
             }
+            pub fn rotated_y(self, angle_radians: T) -> Self
+                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+            {
+                Self::rotation_y(angle_radians) * self
+            }
             pub fn rotation_y(angle_radians: T) -> Self where T: Float {
                 let c = angle_radians.cos();
                 let s = angle_radians.sin();
@@ -784,6 +829,11 @@ macro_rules! mat_impl_mat4 {
                     -s, T::zero(), c, T::zero(),
                     T::zero(), T::zero(), T::zero(), T::one()
                 )
+            }
+            pub fn rotated_z(self, angle_radians: T) -> Self
+                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+            {
+                Self::rotation_z(angle_radians) * self
             }
             pub fn rotation_z(angle_radians: T) -> Self where T: Float {
                 let c = angle_radians.cos();
@@ -795,7 +845,12 @@ macro_rules! mat_impl_mat4 {
                     T::zero(), T::zero(), T::zero(), T::one()
                 )
             }
-
+            #[cfg(feature="vec3")]
+            pub fn rotated_3d<V: Into<Vec3<T>>>(self, angle_radians: T, axis: V) -> Self
+                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy + Sum
+            {
+                Self::rotation_3d(angle_radians, axis) * self
+            }
             #[cfg(feature="vec3")]
             pub fn rotation_3d<V: Into<Vec3<T>>>(angle_radians: T, axis: V) -> Self where T: Float + Sum {
                 let Vec3 { x, y, z } = axis.into().normalized();
@@ -1134,6 +1189,12 @@ macro_rules! mat_impl_mat3 {
     (common $lines:ident) => {
         impl<T> Mat3<T> {
             #[cfg(feature="vec2")]
+            pub fn translated_2d<V: Into<Vec2<T>>>(self, v: V) -> Self
+                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+            {
+                Self::translation_2d(v) * self
+            }
+            #[cfg(feature="vec2")]
             pub fn translation_2d<V: Into<Vec2<T>>>(v: V) -> Self where T: Zero + One {
                 let v = v.into();
                 Self::new(
@@ -1141,6 +1202,12 @@ macro_rules! mat_impl_mat3 {
                     T::zero(), T::one() , v.y,
                     T::zero(), T::zero(), T::one()
                 )
+            }
+            #[cfg(feature="vec3")]
+            pub fn scaled_2d<V: Into<Vec3<T>>>(self, v: V) -> Self
+                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+            {
+                Self::scaling_3d(v) * self
             }
             #[cfg(feature="vec3")]
             pub fn scaling_3d<V: Into<Vec3<T>>>(v: V) -> Self where T: Zero {
@@ -1151,6 +1218,11 @@ macro_rules! mat_impl_mat3 {
                     T::zero(), T::zero(), z
                 )
             }
+            pub fn rotated_x(self, angle_radians: T) -> Self
+                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+            {
+                Self::rotation_x(angle_radians) * self
+            }
             pub fn rotation_x(angle_radians: T) -> Self where T: Float {
                 let c = angle_radians.cos();
                 let s = angle_radians.sin();
@@ -1160,6 +1232,11 @@ macro_rules! mat_impl_mat3 {
                     T::zero(), s, c
                 )
             }
+            pub fn rotated_y(self, angle_radians: T) -> Self
+                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+            {
+                Self::rotation_y(angle_radians) * self
+            }
             pub fn rotation_y(angle_radians: T) -> Self where T: Float {
                 let c = angle_radians.cos();
                 let s = angle_radians.sin();
@@ -1168,6 +1245,11 @@ macro_rules! mat_impl_mat3 {
                     T::zero(), T::one(), T::zero(),
                     -s, T::zero(), c
                 )
+            }
+            pub fn rotated_z(self, angle_radians: T) -> Self
+                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+            {
+                Self::rotation_z(angle_radians) * self
             }
             pub fn rotation_z(angle_radians: T) -> Self where T: Float {
                 let c = angle_radians.cos();
@@ -1179,6 +1261,12 @@ macro_rules! mat_impl_mat3 {
                 )
             }
 
+            #[cfg(feature="vec3")]
+            pub fn rotated_3d<V: Into<Vec3<T>>>(self, angle_radians: T, axis: V) -> Self
+                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy + Sum
+            {
+                Self::rotation_3d(angle_radians, axis) * self
+            }
             #[cfg(feature="vec3")]
             pub fn rotation_3d<V: Into<Vec3<T>>>(angle_radians: T, axis: V) -> Self where T: Float + Sum {
                 let Vec3 { x, y, z } = axis.into().normalized();
@@ -1292,6 +1380,11 @@ macro_rules! mat_impl_mat2 {
     };
     (common $lines:ident) => {
         impl<T> Mat2<T> {
+            pub fn rotated_z(self, angle_radians: T) -> Self
+                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+            {
+                Self::rotation_z(angle_radians) * self
+            }
             pub fn rotation_z(angle_radians: T) -> Self where T: Float {
                 let c = angle_radians.cos();
                 let s = angle_radians.sin();
@@ -1300,6 +1393,11 @@ macro_rules! mat_impl_mat2 {
                     s,  c
                 )
             }
+            pub fn scaled_2d<V: Into<Vec2<T>>>(self, v: V) -> Self
+                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+            {
+                Self::scaling_2d(v) * self
+            }
             pub fn scaling_2d<V: Into<Vec2<T>>>(v: V) -> Self where T: Zero {
                 let Vec2 { x, y } = v.into();
                 Self::new(
@@ -1307,13 +1405,23 @@ macro_rules! mat_impl_mat2 {
                     T::zero(), y
                 )
             }
-            pub fn shear_x(k: T) -> Self where T: Zero + One {
+            pub fn sheared_x(self, k: T) -> Self
+                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+            {
+                Self::shearing_x(k) * self
+            }
+            pub fn shearing_x(k: T) -> Self where T: Zero + One {
                 Self::new(
                     T::one(), k,
                     T::zero(), T::one()
                 )
             }
-            pub fn shear_y(k: T) -> Self where T: Zero + One {
+            pub fn sheared_y(self, k: T) -> Self
+                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+            {
+                Self::shearing_y(k) * self
+            }
+            pub fn shearing_y(k: T) -> Self where T: Zero + One {
                 Self::new(
                     T::one(), T::zero(),
                     k, T::one()
@@ -1451,8 +1559,6 @@ pub mod repr_c {
     //! 
     //! See also the `repr_simd` neighbour module, which is available on Nightly
     //! with the `repr_simd` feature enabled.
-    //!
-    //! You can instantiate any matrix type from this module with any type T.
 
     use super::*;
     #[cfg(feature="vec2")]
@@ -1471,26 +1577,6 @@ pub mod repr_c {
 #[cfg(all(nightly, feature="repr_simd"))]
 pub mod repr_simd {
     //! Matrix types which use a `#[repr(packed, C)]` vector of `#[repr(packed, simd)]` vectors.
-    //!
-    //! You can instantiate any matrix type from this module with any type T if
-    //! and only if T is one of the "machine types".  
-    //! These include `f32` and `i32`, but not `isize` or newtypes.
-    //!
-    //! # Be careful
-    //!
-    //! The size of a `#[repr_simd]` vector is never guaranteed to be
-    //! exactly equal to the sum of its elements (for instance, an SIMD `Vec3<f32>` actually contains
-    //! 4 `f32` elements on x86). This has also an impact on `repr_simd` matrices.
-    //!
-    //! Therefore, be careful when sending these as raw data (as you may want to do with OpenGL).
-    //!
-    //! # So when should I use them?
-    //!
-    //! - When you know the SIMD representation on your target hardware;
-    //! - When you don't mind alignment requirements and extra empty space;
-    //!
-    //! You should avoid using these in general-purpose aggregates.
-    //! You should put these into large arrays to process them efficiently.
    
     use super::*;
     #[cfg(feature="vec2")]
@@ -1512,8 +1598,4 @@ pub mod repr_simd {
     mat_declare_modules!{}
 }
 
-#[cfg(all(nightly, feature="repr_simd"))]
-pub use self::repr_simd::*;
-/// If you're on Nightly with the `repr_simd` feature enabled, this exports `self::repr_simd::*` instead.
-#[cfg(not(all(nightly, feature="repr_simd")))]
 pub use self::repr_c::*;
