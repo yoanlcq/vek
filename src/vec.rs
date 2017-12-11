@@ -7,8 +7,6 @@
 
 // TODO:
 // - Abuse Into conversions so that repr_c and repr_simd interoperate seamlessly;
-// - Replace Clone by Copy;
-// - Assert size_ofs(); ??? (done by repr(C, packed))
 
 use core::borrow::{Borrow, BorrowMut};
 use core::fmt::{self, Display, Formatter};
@@ -2031,6 +2029,11 @@ pub mod repr_c {
     //! Vector types which are marked `#[repr(packed, C)]`.
     //!
     //! You can instantiate any vector type of this module with any type `T`.
+    //!
+    //! # Be careful
+    //!
+    //! Because `#[repr(packed)]` is enforced, taking a reference to vector's field
+    //! [may cause undefined behaviour as of Rust 1.0](https://github.com/rust-lang/rust/issues/27060).
     
     use super::*;
     vec_impl_all_vecs!{
@@ -2057,6 +2060,9 @@ pub mod repr_simd {
     //! 4 `f32` elements on x86). This has also an impact on `repr_simd` matrices.
     //!
     //! Therefore, be careful when sending these as raw data (as you may want to do with OpenGL).
+    //!
+    //! Also, taking a reference to vector's field
+    //! [may cause undefined behaviour as of Rust 1.0](https://github.com/rust-lang/rust/issues/27060).
     //!
     //! # So when should I use them?
     //!
