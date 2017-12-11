@@ -106,32 +106,32 @@ macro_rules! vec_impl_trinop {
         impl<'a, 'b, 'c, T> $Op<&'a $Vec<T>, &'b $Vec<T>> for &'c $Vec<T> where &'c T: $Op<&'a T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>, &'b $Vec<T>} }
 
         /* I give up, it's dumb.
-        impl<           T> $Op< T,   T> for  $Vec<T> where   T: $Op<    T,   T, Output=T>, T: Copy { vec_impl_trinop_s_s!{$op, $Vec<T>,  T,  T, a.clone(), b.clone()} }
-        impl<       'c, T> $Op< T,   T> for &'c $Vec<T> where &'c T: $Op<   T,   T, Output=T>, T: Copy { vec_impl_trinop_s_s!{$op, $Vec<T>,  T,  T, a.clone(), b.clone()} }
-        impl<   'b,  T> $Op<    T, &'b T> for    $Vec<T> where   T: $Op<    T, &'b T, Output=T>, T: Copy { vec_impl_trinop_s_s!{$op, $Vec<T>,    T, &'b T, a.clone(), b     } }
-        impl<   'b, 'c, T> $Op< T, &'b T> for &'c $Vec<T> where &'c T: $Op< T, &'b T, Output=T>, T: Copy { vec_impl_trinop_s_s!{$op, $Vec<T>,    T, &'b T, a.clone(), b     } }
-        impl<'a,         T> $Op<&'a T,   T> for  $Vec<T> where   T: $Op<&'a T,   T, Output=T>, T: Copy { vec_impl_trinop_s_s!{$op, $Vec<T>, &'a T,   T, a       , b.clone()} }
-        impl<'a,     'c, T> $Op<&'a T,   T> for &'c $Vec<T> where &'c T: $Op<&'a T,  T, Output=T>, T: Copy { vec_impl_trinop_s_s!{$op, $Vec<T>, &'a T,   T, a       , b.clone()} }
+        impl<           T> $Op< T,   T> for  $Vec<T> where   T: $Op<    T,   T, Output=T>, T: Copy { vec_impl_trinop_s_s!{$op, $Vec<T>,  T,  T, a, b} }
+        impl<       'c, T> $Op< T,   T> for &'c $Vec<T> where &'c T: $Op<   T,   T, Output=T>, T: Copy { vec_impl_trinop_s_s!{$op, $Vec<T>,  T,  T, a, b} }
+        impl<   'b,  T> $Op<    T, &'b T> for    $Vec<T> where   T: $Op<    T, &'b T, Output=T>, T: Copy { vec_impl_trinop_s_s!{$op, $Vec<T>,    T, &'b T, a, b     } }
+        impl<   'b, 'c, T> $Op< T, &'b T> for &'c $Vec<T> where &'c T: $Op< T, &'b T, Output=T>, T: Copy { vec_impl_trinop_s_s!{$op, $Vec<T>,    T, &'b T, a, b     } }
+        impl<'a,         T> $Op<&'a T,   T> for  $Vec<T> where   T: $Op<&'a T,   T, Output=T>, T: Copy { vec_impl_trinop_s_s!{$op, $Vec<T>, &'a T,   T, a       , b} }
+        impl<'a,     'c, T> $Op<&'a T,   T> for &'c $Vec<T> where &'c T: $Op<&'a T,  T, Output=T>, T: Copy { vec_impl_trinop_s_s!{$op, $Vec<T>, &'a T,   T, a       , b} }
         impl<'a, 'b,     T> $Op<&'a T, &'b T> for    $Vec<T> where   T: $Op<&'a T, &'b T, Output=T>, T: Copy { vec_impl_trinop_s_s!{$op, $Vec<T>, &'a T, &'b T, a       , b     } }
         impl<'a, 'b, 'c, T> $Op<&'a T, &'b T> for &'c $Vec<T> where &'c T: $Op<&'a T, &'b T, Output=T>, T: Copy { vec_impl_trinop_s_s!{$op, $Vec<T>, &'a T, &'b T, a        , b     } }
 
-        impl<           T> $Op< $Vec<T>,     T> for  $Vec<T> where   T: $Op<    T,   T, Output=T>, T: Copy { vec_impl_trinop_vec_s!{$op, $Vec<T>,    $Vec<T>,    T, b.clone() }
-        impl<       'c, T> $Op< $Vec<T>,     T> for &'c $Vec<T> where &'c T: $Op<   T,   T, Output=T>, T: Copy { vec_impl_trinop_vec_s!{$op, $Vec<T>,    $Vec<T>,    T, b.clone() }
-        impl<   'b,  T> $Op<    $Vec<T>, &'b T> for  $Vec<T> where   T: $Op<    T, &'b T, Output=T>, T: Copy { vec_impl_trinop_vec_s!{$op, $Vec<T>,  $Vec<T>, &'b T, b.clone() }
-        impl<   'b, 'c, T> $Op< $Vec<T>, &'b T> for &'c $Vec<T> where &'c T: $Op<   T, &'b T, Output=T>, T: Copy { vec_impl_trinop_vec_s!{$op, $Vec<T>,  $Vec<T>, &'b T, b.clone() }
-        impl<'a,         T> $Op<&'a $Vec<T>,     T> for  $Vec<T> where   T: $Op<&'a T,   T, Output=T>, T: Copy { vec_impl_trinop_vec_s!{$op, $Vec<T>, &'a $Vec<T>,   T, b.clone() }
-        impl<'a,     'c, T> $Op<&'a $Vec<T>,     T> for &'c $Vec<T> where &'c T: $Op<&'a T,  T, Output=T>, T: Copy { vec_impl_trinop_vec_s!{$op, $Vec<T>, &'a $Vec<T>,   T, b.clone() }
-        impl<'a, 'b,     T> $Op<&'a $Vec<T>, &'b T> for  $Vec<T> where   T: $Op<&'a T, &'b T, Output=T>, T: Copy { vec_impl_trinop_vec_s!{$op, $Vec<T>, &'a $Vec<T>, &'b T, b.clone() }
-        impl<'a, 'b, 'c, T> $Op<&'a $Vec<T>, &'b T> for &'c $Vec<T> where &'c T: $Op<&'a T, &'b T, Output=T>, T: Copy { vec_impl_trinop_vec_s!{$op, $Vec<T>, &'a $Vec<T>, &'b T, b.clone() }
+        impl<           T> $Op< $Vec<T>,     T> for  $Vec<T> where   T: $Op<    T,   T, Output=T>, T: Copy { vec_impl_trinop_vec_s!{$op, $Vec<T>,    $Vec<T>,    T, b }
+        impl<       'c, T> $Op< $Vec<T>,     T> for &'c $Vec<T> where &'c T: $Op<   T,   T, Output=T>, T: Copy { vec_impl_trinop_vec_s!{$op, $Vec<T>,    $Vec<T>,    T, b }
+        impl<   'b,  T> $Op<    $Vec<T>, &'b T> for  $Vec<T> where   T: $Op<    T, &'b T, Output=T>, T: Copy { vec_impl_trinop_vec_s!{$op, $Vec<T>,  $Vec<T>, &'b T, b }
+        impl<   'b, 'c, T> $Op< $Vec<T>, &'b T> for &'c $Vec<T> where &'c T: $Op<   T, &'b T, Output=T>, T: Copy { vec_impl_trinop_vec_s!{$op, $Vec<T>,  $Vec<T>, &'b T, b }
+        impl<'a,         T> $Op<&'a $Vec<T>,     T> for  $Vec<T> where   T: $Op<&'a T,   T, Output=T>, T: Copy { vec_impl_trinop_vec_s!{$op, $Vec<T>, &'a $Vec<T>,   T, b }
+        impl<'a,     'c, T> $Op<&'a $Vec<T>,     T> for &'c $Vec<T> where &'c T: $Op<&'a T,  T, Output=T>, T: Copy { vec_impl_trinop_vec_s!{$op, $Vec<T>, &'a $Vec<T>,   T, b }
+        impl<'a, 'b,     T> $Op<&'a $Vec<T>, &'b T> for  $Vec<T> where   T: $Op<&'a T, &'b T, Output=T>, T: Copy { vec_impl_trinop_vec_s!{$op, $Vec<T>, &'a $Vec<T>, &'b T, b }
+        impl<'a, 'b, 'c, T> $Op<&'a $Vec<T>, &'b T> for &'c $Vec<T> where &'c T: $Op<&'a T, &'b T, Output=T>, T: Copy { vec_impl_trinop_vec_s!{$op, $Vec<T>, &'a $Vec<T>, &'b T, b }
 
-        impl<           T> $Op< T,   $Vec<T>> for    $Vec<T> where   T: $Op<    T,   T, Output=T>, T: Copy { vec_impl_trinop_s_vec!{$op, $Vec<T>,    T,  $Vec<T>, a.clone() }
-        impl<       'c, T> $Op< T,   $Vec<T>> for &'c $Vec<T> where &'c T: $Op< T,   T, Output=T>, T: Copy { vec_impl_trinop_s_vec!{$op, $Vec<T>,    T,  $Vec<T>, a.clone() }
-        impl<   'b,  T> $Op<    T, &'b $Vec<T>> for  $Vec<T> where   T: $Op<    T, &'b T, Output=T>, T: Copy { vec_impl_trinop_s_vec!{$op, $Vec<T>,  T, &'b $Vec<T>, a.clone() }
-        impl<   'b, 'c, T> $Op< T, &'b $Vec<T>> for &'c $Vec<T> where &'c T: $Op<   T, &'b T, Output=T>, T: Copy { vec_impl_trinop_s_vec!{$op, $Vec<T>,  T, &'b $Vec<T>, a.clone() }
-        impl<'a,         T> $Op<&'a T,   $Vec<T>> for    $Vec<T> where   T: $Op<&'a T,   T, Output=T>, T: Copy { vec_impl_trinop_s_vec!{$op, $Vec<T>, &'a T,     $Vec<T>, a.clone() }
-        impl<'a,     'c, T> $Op<&'a T,   $Vec<T>> for &'c $Vec<T> where &'c T: $Op<&'a T,    T, Output=T>, T: Copy { vec_impl_trinop_s_vec!{$op, $Vec<T>, &'a T,     $Vec<T>, a.clone() }
-        impl<'a, 'b,     T> $Op<&'a T, &'b $Vec<T>> for  $Vec<T> where   T: $Op<&'a T, &'b T, Output=T>, T: Copy { vec_impl_trinop_s_vec!{$op, $Vec<T>, &'a T, &'b $Vec<T>, a.clone() }
-        impl<'a, 'b, 'c, T> $Op<&'a T, &'b $Vec<T>> for &'c $Vec<T> where &'c T: $Op<&'a T, &'b T, Output=T>, T: Copy { vec_impl_trinop_s_vec!{$op, $Vec<T>, &'a T, &'b $Vec<T>, a.clone() }
+        impl<           T> $Op< T,   $Vec<T>> for    $Vec<T> where   T: $Op<    T,   T, Output=T>, T: Copy { vec_impl_trinop_s_vec!{$op, $Vec<T>,    T,  $Vec<T>, a }
+        impl<       'c, T> $Op< T,   $Vec<T>> for &'c $Vec<T> where &'c T: $Op< T,   T, Output=T>, T: Copy { vec_impl_trinop_s_vec!{$op, $Vec<T>,    T,  $Vec<T>, a }
+        impl<   'b,  T> $Op<    T, &'b $Vec<T>> for  $Vec<T> where   T: $Op<    T, &'b T, Output=T>, T: Copy { vec_impl_trinop_s_vec!{$op, $Vec<T>,  T, &'b $Vec<T>, a }
+        impl<   'b, 'c, T> $Op< T, &'b $Vec<T>> for &'c $Vec<T> where &'c T: $Op<   T, &'b T, Output=T>, T: Copy { vec_impl_trinop_s_vec!{$op, $Vec<T>,  T, &'b $Vec<T>, a }
+        impl<'a,         T> $Op<&'a T,   $Vec<T>> for    $Vec<T> where   T: $Op<&'a T,   T, Output=T>, T: Copy { vec_impl_trinop_s_vec!{$op, $Vec<T>, &'a T,     $Vec<T>, a }
+        impl<'a,     'c, T> $Op<&'a T,   $Vec<T>> for &'c $Vec<T> where &'c T: $Op<&'a T,    T, Output=T>, T: Copy { vec_impl_trinop_s_vec!{$op, $Vec<T>, &'a T,     $Vec<T>, a }
+        impl<'a, 'b,     T> $Op<&'a T, &'b $Vec<T>> for  $Vec<T> where   T: $Op<&'a T, &'b T, Output=T>, T: Copy { vec_impl_trinop_s_vec!{$op, $Vec<T>, &'a T, &'b $Vec<T>, a }
+        impl<'a, 'b, 'c, T> $Op<&'a T, &'b $Vec<T>> for &'c $Vec<T> where &'c T: $Op<&'a T, &'b T, Output=T>, T: Copy { vec_impl_trinop_s_vec!{$op, $Vec<T>, &'a T, &'b $Vec<T>, a }
         */
     }
 }
@@ -164,10 +164,10 @@ macro_rules! vec_impl_binop {
         }
 
         // Implement on scalars too
-        impl<T> $Op<T> for $Vec<T> where T: $Op<Output=T> + Clone {
+        impl<T> $Op<T> for $Vec<T> where T: $Op<Output=T> + Copy {
             type Output = $Vec<T>;
             fn $op(self, rhs: T) -> Self::Output {
-                $Vec::new($(self.$get.$op(rhs.clone())),+)
+                $Vec::new($(self.$get.$op(rhs)),+)
             }
         }
         impl<'a, T> $Op<&'a T> for $Vec<T> where T: $Op<&'a T, Output=T> {
@@ -176,10 +176,10 @@ macro_rules! vec_impl_binop {
                 $Vec::new($(self.$get.$op(rhs)),+)
             }
         }
-        impl<'a, T> $Op<T> for &'a $Vec<T> where &'a T: $Op<T, Output=T>, T: Clone {
+        impl<'a, T> $Op<T> for &'a $Vec<T> where &'a T: $Op<T, Output=T>, T: Copy {
             type Output = $Vec<T>;
             fn $op(self, rhs: T) -> Self::Output {
-                $Vec::new($(self.$get.$op(rhs.clone())),+)
+                $Vec::new($(self.$get.$op(rhs)),+)
             }
         }
         impl<'a, 'b, T> $Op<&'a T> for &'b $Vec<T> where &'b T: $Op<&'a T, Output=T> {
@@ -203,9 +203,9 @@ macro_rules! vec_impl_unop {
                 $(self.$get.$op(&rhs.$get);)+
             }
         }
-        impl<T> $Op<T> for $Vec<T> where T: $Op<T> + Clone {
+        impl<T> $Op<T> for $Vec<T> where T: $Op<T> + Copy {
             fn $op(&mut self, rhs: T) {
-                $(self.$get.$op(rhs.clone());)+
+                $(self.$get.$op(rhs);)+
             }
         }
         impl<'a, T> $Op<&'a T> for $Vec<T> where T: $Op<&'a T> {
@@ -325,9 +325,9 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(Vec4::broadcast(5), Vec4::new(5,5,5,5));
             /// assert_eq!(Vec4::broadcast(5), Vec4::from(5));
             /// ```
-            pub fn broadcast(val: T) -> Self where T: Clone {
+            pub fn broadcast(val: T) -> Self where T: Copy {
                 let mut out: Self = unsafe { mem::uninitialized() };
-                $(out.$get = val.clone();)+
+                $(out.$get = val;)+
                 out
             }
 
@@ -360,7 +360,7 @@ macro_rules! vec_impl_vec {
             }
 
             /// Are all elements of this vector equal to the given value ?
-            pub fn is_broadcast(&self, val: T) -> bool where T: Clone + PartialEq {
+            pub fn is_broadcast(&self, val: T) -> bool where T: Copy + PartialEq {
                 self == &Self::broadcast(val)
             }
             /// Are all elements of this vector equal to zero ?
@@ -385,11 +385,11 @@ macro_rules! vec_impl_vec {
             /// # use vek::vec::Vec4;
             /// assert_eq!(Vec4::iota(), Vec4::new(0, 1, 2, 3));
             /// ```
-            pub fn iota() -> Self where T: Zero + One + AddAssign + Clone {
+            pub fn iota() -> Self where T: Zero + One + AddAssign + Copy {
                 let mut out: Self = unsafe { mem::uninitialized() };
                 let mut i = T::zero();
                 $(
-                    out.$get = i.clone();
+                    out.$get = i;
                     i += T::one();
                 )+
                 out
@@ -436,7 +436,7 @@ macro_rules! vec_impl_vec {
 
             /// Collects the content of a slice into a new vector. Elements are initialized to
             /// their default values.
-            pub fn from_slice(slice: &[T]) -> Self where T: Default + Clone {
+            pub fn from_slice(slice: &[T]) -> Self where T: Default + Copy {
                 Self::from_iter(slice.into_iter().cloned())
             }
 
@@ -1093,7 +1093,7 @@ macro_rules! vec_impl_vec {
             }
         }
         /// A vector can be obtained from a single scalar by broadcasting it.
-        impl<T: Clone> From<T> for $Vec<T> {
+        impl<T: Copy> From<T> for $Vec<T> {
             fn from(val: T) -> Self {
                 Self::broadcast(val)
             }
@@ -1118,16 +1118,15 @@ macro_rules! vec_impl_spatial {
                 (self * v).sum()
             }
             /// The squared magnitude of a vector is its length multiplied by itself.
-            pub fn magnitude_squared(self) -> T where T: Clone + Sum + Mul<Output=T> {
-                let v = self.clone();
-                self.dot(v)
+            pub fn magnitude_squared(self) -> T where T: Copy + Sum + Mul<Output=T> {
+                self.dot(self)
             }
             /// The magnitude of a vector is its length.
             pub fn magnitude(self) -> T where T: Sum + Float + Mul<Output=T> {
                 self.magnitude_squared().sqrt()
             }
             /// Squared distance between two point vectors.
-            pub fn distance_squared(self, v: Self) -> T where T: Clone + Sum + Sub<Output=T> + Mul<Output=T> {
+            pub fn distance_squared(self, v: Self) -> T where T: Copy + Sum + Sub<Output=T> + Mul<Output=T> {
                 (self - v).magnitude_squared()
             }
             /// Distance between two point vectors.
@@ -1140,7 +1139,7 @@ macro_rules! vec_impl_spatial {
             }
             /// Divide this vector's components such that its length equals 1.
             pub fn normalize(&mut self) where T: Sum + Float + Mul<Output=T> + Div<T, Output=T> {
-                *self = self.clone().normalized();
+                *self = self.normalized();
             }
             /// Get the smallest angle, in radians, between two direction vectors.
             pub fn angle_radians(self, v: Self) -> T where T: Sum + Float + Mul<Output=T> + Div<T, Output=T> {
@@ -1167,13 +1166,13 @@ macro_rules! vec_impl_spatial {
             }
             /// The reflection direction for this vector on a surface which normal is given.
             pub fn reflect(self, surface_normal: Self) -> Self 
-                where T: Clone + Sum + Mul<Output=T> + Sub<Output=T> + Add<Output=T>
+                where T: Copy + Sum + Mul<Output=T> + Sub<Output=T> + Add<Output=T>
             {
-                let dot = self.clone().dot(surface_normal.clone());
-                let p = dot.clone() + dot.clone();
+                let dot = self.dot(surface_normal);
+                let p = dot + dot;
                 let mut out: Self = unsafe { mem::uninitialized() };
                 for ((out_e, v), s) in out.iter_mut().zip(self.into_iter()).zip(surface_normal.into_iter()) {
-                    *out_e = v - s * p.clone();
+                    *out_e = v - s * p;
                 }
                 out
             }
@@ -1184,7 +1183,7 @@ macro_rules! vec_impl_spatial {
             {
                 let n = surface_normal;
                 let i = self;
-                let n_dot_i = n.clone().dot(i.clone());
+                let n_dot_i = n.dot(i);
                 let k = T::one() - eta * eta * (T::one() - n_dot_i * n_dot_i);
                 if k < T::zero() {
                     Self::zero()
@@ -1223,7 +1222,7 @@ macro_rules! vec_impl_spatial_2d {
                 let (cx, cy) = self.into_tuple();
                 let (ax, ay) = a.into_tuple();
                 let (bx, by) = b.into_tuple();
-                let d1 = (bx - ax.clone()) * (cy - ay.clone());
+                let d1 = (bx - ax) * (cy - ay);
                 let d2 = (by - ay) * (cx - ax);
                 d1 - d2
             }
@@ -1266,16 +1265,14 @@ macro_rules! vec_impl_spatial_3d {
             impl<T> $Vec<T> {
                 /// The cross-product of this vector with another.
                 pub fn cross(self, v: Self) 
-                    -> Self where T: Clone + Mul<Output=T> + Sub<Output=T>
+                    -> Self where T: Copy + Mul<Output=T> + Sub<Output=T>
                 {
                     let s = self.into_tuple();
                     let v = v.into_tuple();
-                    let ss = s.clone();
-                    let vv = v.clone();
                     Self::new(
-                        s.1*v.2 - ss.2*vv.1,
-                        s.2*v.0 - ss.0*vv.2,
-                        s.0*v.1 - ss.1*vv.0
+                        s.1*v.2 - s.2*v.1,
+                        s.2*v.0 - s.0*v.2,
+                        s.0*v.1 - s.1*v.0
                     )
                 }
                 /// Get the unit vector which has `x` set to 1.
@@ -1318,11 +1315,13 @@ macro_rules! vec_impl_spatial_4d {
                     Self::new(x, y, z, T::zero())
                 }
                 /// Turns a vector into a point vector in homogeneous coordinates (sets the last coordinate to 1).
+                #[cfg(feature="vec3")]
                 pub fn point<V: Into<Vec3<T>>>(v: V) -> Self where T: One {
                     let Vec3 { x, y, z } = v.into();
                     Self::new_point(x, y, z)
                 }
                 /// Turns a vector into a direction vector in homogeneous coordinates (sets the last coordinate to 0).
+                #[cfg(feature="vec3")]
                 pub fn direction<V: Into<Vec3<T>>>(v: V) -> Self where T: Zero {
                     let Vec3 { x, y, z } = v.into();
                     Self::new_direction(x, y, z)

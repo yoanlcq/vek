@@ -375,17 +375,16 @@ pub trait Wrap<Bound=Self>: Sized {
 	/// ```
 	fn wrapped_between(self, lower: Bound, upper: Bound) -> Self 
 		where Self: Sub<Output=Self> + Add<Output=Self> + From<Bound>,
-			  Bound: Clone + Sub<Output=Bound>
+			  Bound: Copy + Sub<Output=Bound>
 	{
-		let lower = || lower.clone();
-		let out = self - Self::from(lower());
-		let out = out.wrapped(upper - lower());
-		out + Self::from(lower())
+		let out = self - Self::from(lower);
+		let out = out.wrapped(upper - lower);
+		out + Self::from(lower)
 	}
 	/// Alias to `wrapped_between` which doesn't take `self`.
 	fn wrap_between(val: Self, lower: Bound, upper: Bound) -> Self 
 		where Self: Sub<Output=Self> + Add<Output=Self> + From<Bound>,
-			  Bound: Clone + Sub<Output=Bound>
+			  Bound: Copy + Sub<Output=Bound>
 	{
 		val.wrapped_between(lower, upper)
 	}
@@ -409,10 +408,10 @@ pub trait Wrap<Bound=Self>: Sized {
 	/// ```
 	fn pingpong(self, upper: Bound) -> Self 
 		where Self: Signed + From<Bound> + Sub<Output=Self>,
-			Bound: Add<Output=Bound> + Clone
+			Bound: Add<Output=Bound> + Copy
 	{
-		let t = self.wrapped(upper.clone() + upper.clone());
-		let upper = || Self::from(upper.clone());
+		let t = self.wrapped(upper + upper);
+		let upper = || Self::from(upper);
 		upper() - (t - upper()).abs()
 	}
 	/// Calculates the shortest difference between two given angles, in radians.

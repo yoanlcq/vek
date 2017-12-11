@@ -76,12 +76,12 @@ macro_rules! geom_complete_mod {
         }
 
         impl<P,E> Disk<P,E> {
-            pub fn area(self) -> E where E: Clone + FloatConst + Mul<Output=E> { 
-                let r = || self.radius.clone(); 
+            pub fn area(self) -> E where E: Copy + FloatConst + Mul<Output=E> { 
+                let r = || self.radius; 
                 E::PI()*r()*r()
             }
-            pub fn diameter(self) -> E where E: Clone + Add<Output=E> { 
-                self.radius.clone() + self.radius.clone()
+            pub fn diameter(self) -> E where E: Copy + Add<Output=E> { 
+                self.radius + self.radius
             }
             /*
             /// Returns the magnitude of the direction vector that can push or pull
@@ -96,15 +96,15 @@ macro_rules! geom_complete_mod {
             }
             /// How much this disk penetrates another.
             pub fn disk_penetration_vector(self, other: Self) -> Vec2<P>
-                where P: Clone, E: Clone + Zero
+                where P: Copy, E: Copy + Zero
             {
-                let len = self.clone().disk_collision_magnitude(other.clone());
+                let len = self.disk_collision_magnitude(other);
                 (self.center - other.center) * partial_max(E::zero(), len)
             }
             pub fn disk_distance_vector(self, other: Self) -> Vec2<P>
-                where P: Clone + Sub<Output=P>, E: Clone 
+                where P: Copy + Sub<Output=P>, E: Copy 
             {
-                let len = self.clone().disk_collision_magnitude(other.clone());
+                let len = self.disk_collision_magnitude(other);
                 (self.center - other.center) * len
             }
             /// Returns the direction vector such that moving `p` by it pushes it
@@ -122,19 +122,19 @@ macro_rules! geom_complete_mod {
             pub radius: E,
         }
         impl<P,E> Sphere<P,E> {
-            pub fn surface_area(self) -> E where E: Clone + One + FloatConst + Add<Output=E> + Mul<Output=E> {
+            pub fn surface_area(self) -> E where E: Copy + One + FloatConst + Add<Output=E> + Mul<Output=E> {
                 let four = E::one() + E::one() + E::one() + E::one();
-                let r = || self.radius.clone();
-                four*E::PI()*r()*r()
+                let r = self.radius;
+                four*E::PI()*r*r
             }
-            pub fn volume(self) -> E where E: Clone + One + FloatConst + Add<Output=E> + Mul<Output=E> + Div<Output=E> {
+            pub fn volume(self) -> E where E: Copy + One + FloatConst + Add<Output=E> + Mul<Output=E> + Div<Output=E> {
                 let four = E::one() + E::one() + E::one() + E::one();
                 let three = E::one() + E::one() + E::one();
-                let r = || self.radius.clone();
-                (four/three)*E::PI()*r()*r()*r()
+                let r = self.radius;
+                (four*E::PI()*r*r*r)/three
             }
-            pub fn diameter(self) -> E where E: Clone + Add<Output=E> {
-                self.radius.clone() + self.radius.clone()
+            pub fn diameter(self) -> E where E: Copy + Add<Output=E> {
+                self.radius + self.radius
             }
             /*
             pub fn collision(self, _other: Self) -> Vec3<P> { unimplemented!() }

@@ -68,7 +68,7 @@ macro_rules! quaternion_complete_mod {
             }
             // inner_product
             pub fn dot(self, q: Self) -> T 
-                where T: Clone + Sum + Mul<Output=T>
+                where T: Copy + Sum + Mul<Output=T>
             {
                 self.into_vec4().dot(q.into_vec4())
             }
@@ -192,14 +192,14 @@ macro_rules! quaternion_complete_mod {
                 }
             }
         }
-        impl<T> Div<T> for Quaternion<T> where T: Clone + Div<Output=T> {
+        impl<T> Div<T> for Quaternion<T> where T: Copy + Div<Output=T> {
             type Output = Self;
             fn div(self, rhs: T) -> Self::Output {
                 Self {
-                    x: self.x / rhs.clone(),
-                    y: self.y / rhs.clone(),
-                    z: self.z / rhs.clone(),
-                    w: self.w / rhs.clone(),
+                    x: self.x / rhs,
+                    y: self.y / rhs,
+                    z: self.z / rhs,
+                    w: self.w / rhs,
                 }
             }
         }
@@ -250,15 +250,15 @@ macro_rules! quaternion_complete_mod {
         }
 
         impl<T> Mul<T> for Quaternion<T>
-        where T: Mul<Output=T> + Clone
+        where T: Mul<Output=T> + Copy
         {
             type Output = Self;
             fn mul(self, rhs: T) -> Self::Output {
                 Self {
-                    x: self.x * rhs.clone(),
-                    y: self.y * rhs.clone(),
-                    z: self.z * rhs.clone(),
-                    w: self.w * rhs.clone(),
+                    x: self.x * rhs,
+                    y: self.y * rhs,
+                    z: self.z * rhs,
+                    w: self.w * rhs,
                 }
             }
         }

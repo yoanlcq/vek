@@ -69,12 +69,12 @@ macro_rules! mat_impl_mat {
         /// let r = Vec4::new(26, 32, 18, 24);
         /// assert_eq!(v * m, r);
         /// ```
-        impl<T: MulAdd<T,T,Output=T> + Mul<Output=T> + Clone> Mul<$Mat<T>> for $Vec<T> {
+        impl<T: MulAdd<T,T,Output=T> + Mul<Output=T> + Copy> Mul<$Mat<T>> for $Vec<T> {
             type Output = Self;
             fn mul(self, rhs: $Mat<T>) -> Self::Output {
-                let mut out = rhs.rows[0].clone() * $Vec::broadcast(self[0].clone());
+                let mut out = rhs.rows[0] * $Vec::broadcast(self[0]);
                 for i in 1..$nrows {
-                    out = rhs.rows[i].clone().mul_add($Vec::broadcast(self[i].clone()), out);
+                    out = rhs.rows[i].mul_add($Vec::broadcast(self[i]), out);
                 }
                 out
             }
@@ -95,7 +95,7 @@ macro_rules! mat_impl_mat {
         /// let r = Vec4::new(14, 38, 12, 26);
         /// assert_eq!(m * v, r);
         /// ```
-        impl<T: MulAdd<T,T,Output=T> + Mul<Output=T> + Clone> Mul<$Vec<T>> for $Mat<T> {
+        impl<T: MulAdd<T,T,Output=T> + Mul<Output=T> + Copy> Mul<$Vec<T>> for $Mat<T> {
             type Output = $Vec<T>;
             fn mul(self, v: $Vec<T>) -> Self::Output {
                 // PERF: This transposes the matrix, but we could do better.
@@ -123,12 +123,12 @@ macro_rules! mat_impl_mat {
         /// assert_eq!(m, m * Mat4::identity());
         /// assert_eq!(m, Mat4::identity() * m);
         /// ```
-        impl<T: MulAdd<T,T,Output=T> + Mul<Output=T> + Clone> Mul for $Mat<T> {
+        impl<T: MulAdd<T,T,Output=T> + Mul<Output=T> + Copy> Mul for $Mat<T> {
             type Output = Self;
             fn mul(self, rhs: Self) -> Self::Output {
                 Self {
                     rows: $CVec {
-                        $($get: self.rows.$get.clone() * rhs.clone(),)+
+                        $($get: self.rows.$get * rhs,)+
                     }
                 }
             }
@@ -157,7 +157,7 @@ macro_rules! mat_impl_mat {
         /// assert_eq!(m * Cols4::identity(), m.into());
         /// assert_eq!(Rows4::identity() * b, m.into());
         /// ```
-        impl<T: MulAdd<T,T,Output=T> + Mul<Output=T> + Clone> Mul<Transpose<T>> for $Mat<T> {
+        impl<T: MulAdd<T,T,Output=T> + Mul<Output=T> + Copy> Mul<Transpose<T>> for $Mat<T> {
             type Output = Transpose<T>;
             fn mul(self, rhs: Transpose<T>) -> Self::Output {
                 // PERF: This transposes the matrix, but we could do better.
@@ -228,7 +228,7 @@ macro_rules! mat_impl_mat {
         /// let r = Vec4::new(26, 32, 18, 24);
         /// assert_eq!(v * m, r);
         /// ```
-        impl<T: MulAdd<T,T,Output=T> + Mul<Output=T> + Clone> Mul<$Mat<T>> for $Vec<T> {
+        impl<T: MulAdd<T,T,Output=T> + Mul<Output=T> + Copy> Mul<$Mat<T>> for $Vec<T> {
             type Output = Self;
             fn mul(self, rhs: $Mat<T>) -> Self::Output {
                 // PERF: This transposes the matrix, but we could do better.
@@ -253,12 +253,12 @@ macro_rules! mat_impl_mat {
         /// let r = Vec4::new(14, 38, 12, 26);
         /// assert_eq!(m * v, r);
         /// ```
-        impl<T: MulAdd<T,T,Output=T> + Mul<Output=T> + Clone> Mul<$Vec<T>> for $Mat<T> {
+        impl<T: MulAdd<T,T,Output=T> + Mul<Output=T> + Copy> Mul<$Vec<T>> for $Mat<T> {
             type Output = $Vec<T>;
             fn mul(self, v: $Vec<T>) -> Self::Output {
-                let mut out = self.cols[0].clone() * $Vec::broadcast(v[0].clone());
+                let mut out = self.cols[0] * $Vec::broadcast(v[0]);
                 for i in 1..$ncols {
-                    out = self.cols[i].clone().mul_add($Vec::broadcast(v[i].clone()), out);
+                    out = self.cols[i].mul_add($Vec::broadcast(v[i]), out);
                 }
                 out
             }
@@ -284,12 +284,12 @@ macro_rules! mat_impl_mat {
         /// assert_eq!(m, m * Mat4::identity());
         /// assert_eq!(m, Mat4::identity() * m);
         /// ```
-        impl<T: MulAdd<T,T,Output=T> + Mul<Output=T> + Clone> Mul for $Mat<T> {
+        impl<T: MulAdd<T,T,Output=T> + Mul<Output=T> + Copy> Mul for $Mat<T> {
             type Output = Self;
             fn mul(self, rhs: Self) -> Self::Output {
                 Self {
                     cols: $CVec {
-                        $($get: self.clone() * rhs.cols.$get.clone(),)+
+                        $($get: self * rhs.cols.$get,)+
                     }
                 }
             }
@@ -317,7 +317,7 @@ macro_rules! mat_impl_mat {
         /// assert_eq!(m * Rows4::identity(), m.into());
         /// assert_eq!(Cols4::identity() * b, m.into());
         /// ```
-        impl<T: MulAdd<T,T,Output=T> + Mul<Output=T> + Clone> Mul<Transpose<T>> for $Mat<T> {
+        impl<T: MulAdd<T,T,Output=T> + Mul<Output=T> + Copy> Mul<Transpose<T>> for $Mat<T> {
             type Output = Transpose<T>;
             fn mul(self, rhs: Transpose<T>) -> Self::Output {
                 // PERF: This transposes the matrix, but we could do better.
@@ -460,28 +460,28 @@ macro_rules! mat_impl_mat {
         }
 
         impl<T> Mul<T> for $Mat<T> 
-            where T: Clone + Zero + Add<Output=T> + Mul<Output=T>
+            where T: Copy + Zero + Add<Output=T> + Mul<Output=T>
         {
             type Output = Self;
             fn mul(self, rhs: T) -> Self::Output {
                 Self {
                     $lines: $CVec::new(
-                        $(self.$lines.$get * rhs.clone()),+
+                        $(self.$lines.$get * rhs),+
                     )
                 }
             }
         }
 
         impl<T> MulAssign for $Mat<T>
-            where T: Clone + Zero + Add<Output=T> + Mul<Output=T> + MulAdd<T,T,Output=T>
+            where T: Copy + Zero + Add<Output=T> + Mul<Output=T> + MulAdd<T,T,Output=T>
         { 
-            fn mul_assign(&mut self, rhs: Self) { *self = self.clone() * rhs; }
+            fn mul_assign(&mut self, rhs: Self) { *self = *self * rhs; }
         }
 
         impl<T> MulAssign<T> for $Mat<T>
-            where T: Clone + Zero + Add<Output=T> + Mul<Output=T>
+            where T: Copy + Zero + Add<Output=T> + Mul<Output=T>
         { 
-            fn mul_assign(&mut self, rhs: T) { *self = self.clone() * rhs; }
+            fn mul_assign(&mut self, rhs: T) { *self = *self * rhs; }
         }
 
 
@@ -536,55 +536,55 @@ macro_rules! mat_impl_mat {
             }
         }
 
-        impl<T> Add<T> for $Mat<T> where T: Clone + Add<Output=T> {
+        impl<T> Add<T> for $Mat<T> where T: Copy + Add<Output=T> {
             type Output = Self;
             fn add(self, rhs: T) -> Self::Output {
                 Self {
                     $lines: $CVec::new(
-                        $(self.$lines.$get + rhs.clone()),+
+                        $(self.$lines.$get + rhs),+
                     )
                 }
             }
         }
-        impl<T> Sub<T> for $Mat<T> where T: Clone + Sub<Output=T> {
+        impl<T> Sub<T> for $Mat<T> where T: Copy + Sub<Output=T> {
             type Output = Self;
             fn sub(self, rhs: T) -> Self::Output {
                 Self {
                     $lines: $CVec::new(
-                        $(self.$lines.$get - rhs.clone()),+
+                        $(self.$lines.$get - rhs),+
                     )
                 }
             }
         }
-        impl<T> Div<T> for $Mat<T> where T: Clone + Div<Output=T> {
+        impl<T> Div<T> for $Mat<T> where T: Copy + Div<Output=T> {
             type Output = Self;
             fn div(self, rhs: T) -> Self::Output {
                 Self {
                     $lines: $CVec::new(
-                        $(self.$lines.$get / rhs.clone()),+
+                        $(self.$lines.$get / rhs),+
                     )
                 }
             }
         }
-        impl<T> Rem<T> for $Mat<T> where T: Clone + Rem<Output=T> {
+        impl<T> Rem<T> for $Mat<T> where T: Copy + Rem<Output=T> {
             type Output = Self;
             fn rem(self, rhs: T) -> Self::Output {
                 Self {
                     $lines: $CVec::new(
-                        $(self.$lines.$get % rhs.clone()),+
+                        $(self.$lines.$get % rhs),+
                     )
                 }
             }
         }
 
-        impl<T: Add<Output=T> + Clone> AddAssign    for $Mat<T> { fn add_assign(&mut self, rhs: Self) { *self = self.clone() + rhs; } }
-        impl<T: Add<Output=T> + Clone> AddAssign<T> for $Mat<T> { fn add_assign(&mut self, rhs: T   ) { *self = self.clone() + rhs; } }
-        impl<T: Sub<Output=T> + Clone> SubAssign    for $Mat<T> { fn sub_assign(&mut self, rhs: Self) { *self = self.clone() - rhs; } }
-        impl<T: Sub<Output=T> + Clone> SubAssign<T> for $Mat<T> { fn sub_assign(&mut self, rhs: T   ) { *self = self.clone() - rhs; } }
-        impl<T: Div<Output=T> + Clone> DivAssign    for $Mat<T> { fn div_assign(&mut self, rhs: Self) { *self = self.clone() / rhs; } }
-        impl<T: Div<Output=T> + Clone> DivAssign<T> for $Mat<T> { fn div_assign(&mut self, rhs: T   ) { *self = self.clone() / rhs; } }
-        impl<T: Rem<Output=T> + Clone> RemAssign    for $Mat<T> { fn rem_assign(&mut self, rhs: Self) { *self = self.clone() % rhs; } }
-        impl<T: Rem<Output=T> + Clone> RemAssign<T> for $Mat<T> { fn rem_assign(&mut self, rhs: T   ) { *self = self.clone() % rhs; } }
+        impl<T: Add<Output=T> + Copy> AddAssign    for $Mat<T> { fn add_assign(&mut self, rhs: Self) { *self = *self + rhs; } }
+        impl<T: Add<Output=T> + Copy> AddAssign<T> for $Mat<T> { fn add_assign(&mut self, rhs: T   ) { *self = *self + rhs; } }
+        impl<T: Sub<Output=T> + Copy> SubAssign    for $Mat<T> { fn sub_assign(&mut self, rhs: Self) { *self = *self - rhs; } }
+        impl<T: Sub<Output=T> + Copy> SubAssign<T> for $Mat<T> { fn sub_assign(&mut self, rhs: T   ) { *self = *self - rhs; } }
+        impl<T: Div<Output=T> + Copy> DivAssign    for $Mat<T> { fn div_assign(&mut self, rhs: Self) { *self = *self / rhs; } }
+        impl<T: Div<Output=T> + Copy> DivAssign<T> for $Mat<T> { fn div_assign(&mut self, rhs: T   ) { *self = *self / rhs; } }
+        impl<T: Rem<Output=T> + Copy> RemAssign    for $Mat<T> { fn rem_assign(&mut self, rhs: Self) { *self = *self % rhs; } }
+        impl<T: Rem<Output=T> + Copy> RemAssign<T> for $Mat<T> { fn rem_assign(&mut self, rhs: T   ) { *self = *self % rhs; } }
 
     };
 }
@@ -744,14 +744,14 @@ macro_rules! mat_impl_mat4 {
                 )
             }
             #[cfg(feature="vec3")]
-            pub fn translate_in_place_3d<V: Into<Vec3<T>>>(&mut self, v: V) where T: Clone + Zero + One + AddAssign + Sum {
+            pub fn translate_in_place_3d<V: Into<Vec3<T>>>(&mut self, v: V) where T: Copy + Zero + One + AddAssign + Sum {
                 let Vec3 { x, y, z } = v.into();
                 let t = Vec4 { x, y, z, w: T::zero() };
-                let mut rows = Rows4::from(self.clone()).rows;
-                rows[3][0] += rows[0].clone().dot(t.clone());
-                rows[3][1] += rows[1].clone().dot(t.clone());
-                rows[3][2] += rows[2].clone().dot(t.clone());
-                rows[3][3] += rows[3].clone().dot(t.clone());
+                let mut rows = Rows4::from(*self).rows;
+                rows[3][0] += rows[0].dot(t);
+                rows[3][1] += rows[1].dot(t);
+                rows[3][2] += rows[2].dot(t);
+                rows[3][3] += rows[3].dot(t);
                 *self = Rows4 { rows }.into();
             }
 
