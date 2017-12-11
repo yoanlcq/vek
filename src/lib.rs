@@ -88,7 +88,7 @@
 #![no_std]
 #![doc(
 	test(attr(deny(warnings))),
-	html_root_url = "https://docs.rs/vek/0.3.0",
+	html_root_url = "https://docs.rs/vek/0.4.0",
 	//html_logo_url = "https://yoanlcq.github.io/vek/logo.png",
 	//html_favicon_url = "https://yoanlcq.github.io/vek/favicon.ico",
 )]

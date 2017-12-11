@@ -1437,6 +1437,11 @@ macro_rules! mat_declare_modules {
             use super::*;
             mat_impl_all_mats!{rows}
         }
+        /// Column-major layout is the default.
+        ///
+        /// Rationale:
+        /// - (Matrix * Vector) multiplications are more efficient;
+        /// - This is the layout expected by OpenGL;
         pub use column_major::*;
     }
 }
@@ -1469,15 +1474,24 @@ pub mod repr_simd {
     //!
     //! You can instantiate any matrix type from this module with any type T if
     //! and only if T is one of the "machine types".  
-    //! These include `f32` and `i32`, but not `isize` or
-    //! newtypes (normally, unless they're `#[repr(transparent)]`, but this hasn't been tested).
+    //! These include `f32` and `i32`, but not `isize` or newtypes.
     //!
-    //! *Caution:* The size of a `#[repr_simd]` vector is never guaranteed to be
+    //! # Be careful
+    //!
+    //! The size of a `#[repr_simd]` vector is never guaranteed to be
     //! exactly equal to the sum of its elements (for instance, an SIMD `Vec3<f32>` actually contains
     //! 4 `f32` elements on x86). This has also an impact on `repr_simd` matrices.
     //!
     //! Therefore, be careful when sending these as raw data (as you may want to do with OpenGL).
-    
+    //!
+    //! # So when should I use them?
+    //!
+    //! - When you know the SIMD representation on your target hardware;
+    //! - When you don't mind alignment requirements and extra empty space;
+    //!
+    //! You should avoid using these in general-purpose aggregates.
+    //! You should put these into large arrays to process them efficiently.
+   
     use super::*;
     #[cfg(feature="vec2")]
     use super::vec::repr_simd::{Vec2};

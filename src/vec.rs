@@ -5,6 +5,11 @@
 //! because of this.  
 //! They do have element-wise comparison functions though.
 
+// TODO:
+// - Abuse Into conversions so that repr_c and repr_simd interoperate seamlessly;
+// - Replace Clone by Copy;
+// - Assert size_ofs(); ??? (done by repr(C, packed))
+
 use core::borrow::{Borrow, BorrowMut};
 use core::fmt::{self, Display, Formatter};
 use core::iter::{FromIterator, Product, Sum};
@@ -233,7 +238,7 @@ macro_rules! vec_impl_index {
 /// Generates implementations specific to the given vector type.
 macro_rules! vec_impl_vec {
 
-    (tuple $Vec:ident $vec:ident ($dim:expr) ($fmt:expr) ($($get:tt)+) ($($namedget:tt)+) ($($tupleget:tt)+) $Tuple:ty) => {
+    ($c_or_simd:ident tuple $Vec:ident $vec:ident ($dim:expr) ($fmt:expr) ($($get:tt)+) ($($namedget:tt)+) ($($tupleget:tt)+) $Tuple:ty) => {
 
         impl<T> $Vec<T> {
             /// Creates a vector from each component.
@@ -244,10 +249,10 @@ macro_rules! vec_impl_vec {
         }
 
         vec_impl_vec!{common $Vec $vec ($dim) ($fmt) ($($get)+) ($($namedget)+) ($($tupleget)+) $Tuple}
-
+        vec_impl_vec!{$c_or_simd $Vec $vec ($dim) ($fmt) ($($get)+) ($($namedget)+) ($($tupleget)+) $Tuple}
     };
 
-    (struct $Vec:ident $vec:ident ($dim:expr) ($fmt:expr) ($($get:tt)+) ($($namedget:tt)+) ($($tupleget:tt)+) $Tuple:ty) => {
+    ($c_or_simd:ident struct $Vec:ident $vec:ident ($dim:expr) ($fmt:expr) ($($get:tt)+) ($($namedget:tt)+) ($($tupleget:tt)+) $Tuple:ty) => {
 
         impl<T> $Vec<T> {
             /// Creates a vector from each component.
@@ -258,9 +263,39 @@ macro_rules! vec_impl_vec {
         }
 
         vec_impl_vec!{common $Vec $vec ($dim) ($fmt) ($($get)+) ($($namedget)+) ($($tupleget)+) $Tuple}
-
+        vec_impl_vec!{$c_or_simd $Vec $vec ($dim) ($fmt) ($($get)+) ($($namedget)+) ($($tupleget)+) $Tuple}
     };
 
+    (c $Vec:ident $vec:ident ($dim:expr) ($fmt:expr) ($($get:tt)+) ($($namedget:tt)+) ($($tupleget:tt)+) $Tuple:ty) => {
+
+    };
+    (simd $Vec:ident $vec:ident ($dim:expr) ($fmt:expr) ($($get:tt)+) ($($namedget:tt)+) ($($tupleget:tt)+) $Tuple:ty) => {
+
+        use super::super::repr_c::$vec::$Vec as CVec;
+
+        impl<T> From<CVec<T>> for $Vec<T> {
+            fn from(v: CVec<T>) -> Self {
+                Self::new($(v.$get),+)
+            }
+        }
+
+        impl<T> From<$Vec<T>> for CVec<T> {
+            fn from(v: $Vec<T>) -> Self {
+                Self::new($(v.$get),+)
+            }
+        }
+
+        impl<T> $Vec<T> {
+            pub fn into_repr_c(self) -> CVec<T> {
+                self.into()
+            }
+        }
+        impl<T> CVec<T> {
+            pub fn into_repr_simd(self) -> $Vec<T> {
+                self.into()
+            }
+        }
+    };
     (common $Vec:ident $vec:ident ($dim:expr) ($fmt:expr) ($($get:tt)+) ($($namedget:tt)+) ($($tupleget:tt)+) $Tuple:ty) => {
 
         #[allow(missing_docs)]
@@ -1063,6 +1098,8 @@ macro_rules! vec_impl_vec {
                 Self::broadcast(val)
             }
         }
+
+        // We can't do this :(
         /*
         impl<U, T: From<U>> From<$Vec<U>> for $Vec<T> {
             fn from(v: $Vec<U>) -> Self {
@@ -1599,7 +1636,7 @@ macro_rules! vec_impl_color_rgb {
 
 /// Calls `vec_impl_vec!{}` on each appropriate vector type.
 macro_rules! vec_impl_all_vecs {
-    ($(#[$attrs:meta])+) => {
+    ($c_or_simd:ident $(#[$repr_attrs:meta])+) => {
 
         #[cfg(feature="vec2")]
         /// Vector type suited for 2D spatial coordinates.
@@ -1609,9 +1646,9 @@ macro_rules! vec_impl_all_vecs {
             #[allow(missing_docs)]
             #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-            $(#[$attrs])+
+            $(#[$repr_attrs])+
             pub struct Vec2<T> { pub x:T, pub y:T }
-            vec_impl_vec!(struct Vec2   vec2      (2) ("({}, {})") (x y) (x y) (0 1) (T,T));
+            vec_impl_vec!($c_or_simd struct Vec2   vec2      (2) ("({}, {})") (x y) (x y) (0 1) (T,T));
             vec_impl_spatial!(Vec2);
             vec_impl_spatial_2d!(Vec2);
 
@@ -1645,9 +1682,9 @@ macro_rules! vec_impl_all_vecs {
             #[allow(missing_docs)]
             #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-            $(#[$attrs])+
+            $(#[$repr_attrs])+
             pub struct Vec3<T> { pub x:T, pub y:T, pub z:T }
-            vec_impl_vec!(struct Vec3     vec3     (3) ("({}, {}, {})") (x y z) (x y z) (0 1 2) (T,T,T));
+            vec_impl_vec!($c_or_simd struct Vec3     vec3     (3) ("({}, {}, {})") (x y z) (x y z) (0 1 2) (T,T,T));
             vec_impl_spatial!(Vec3);
             vec_impl_spatial_3d!(Vec3);
 
@@ -1693,7 +1730,7 @@ macro_rules! vec_impl_all_vecs {
             #[allow(missing_docs)]
             #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-            $(#[$attrs])+
+            $(#[$repr_attrs])+
             pub struct Vec4<T> {
                 pub x:T, pub y:T, pub z:T,
                 /// In homogeneous 3D-space coordinates, `w` is often set to 
@@ -1704,7 +1741,7 @@ macro_rules! vec_impl_all_vecs {
                 /// a point stretching infinitely towards another).
                 pub w: T
             }
-            vec_impl_vec!(struct Vec4   vec4    (4) ("({}, {}, {}, {})") (x y z w) (x y z w) (0 1 2 3) (T,T,T,T));
+            vec_impl_vec!($c_or_simd struct Vec4   vec4    (4) ("({}, {}, {}, {})") (x y z w) (x y z w) (0 1 2 3) (T,T,T,T));
             vec_impl_spatial!(Vec4);
             vec_impl_spatial_4d!(Vec4);
 
@@ -1745,9 +1782,9 @@ macro_rules! vec_impl_all_vecs {
             /// If you find yourself needing them, use other crates such as `llvmint` or `x86intrin`.
             #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-            $(#[$attrs])+
+            $(#[$repr_attrs])+
             pub struct Vec8<T>(pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T);
-            vec_impl_vec!(tuple Vec8     vec8   (8) ("({}, {}, {}, {}, {}, {}, {}, {})") (0 1 2 3 4 5 6 7) (m0 m1 m2 m3 m4 m5 m6 m7) (0 1 2 3 4 5 6 7) (T,T,T,T,T,T,T,T));
+            vec_impl_vec!($c_or_simd tuple Vec8     vec8   (8) ("({}, {}, {}, {}, {}, {}, {}, {})") (0 1 2 3 4 5 6 7) (m0 m1 m2 m3 m4 m5 m6 m7) (0 1 2 3 4 5 6 7) (T,T,T,T,T,T,T,T));
             vec_impl_spatial!(Vec8);
         }
         #[cfg(feature="vec8")]
@@ -1767,9 +1804,9 @@ macro_rules! vec_impl_all_vecs {
             /// If you find yourself needing them, use other crates such as `llvmint` or `x86intrin`.
             #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-            $(#[$attrs])+
+            $(#[$repr_attrs])+
             pub struct Vec16<T>(pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T);
-            vec_impl_vec!(tuple Vec16   vec16   (16) ("({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})") (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15) (m0 m1 m2 m3 m4 m5 m6 m7 m8 m9 m10 m11 m12 m13 m14 m15) (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15) (T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T));
+            vec_impl_vec!($c_or_simd tuple Vec16   vec16   (16) ("({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})") (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15) (m0 m1 m2 m3 m4 m5 m6 m7 m8 m9 m10 m11 m12 m13 m14 m15) (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15) (T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T));
             vec_impl_spatial!(Vec16);
         }
         #[cfg(feature="vec16")]
@@ -1789,9 +1826,9 @@ macro_rules! vec_impl_all_vecs {
             /// If you find yourself needing them, use other crates such as `llvmint` or `x86intrin`.
             #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-            $(#[$attrs])+
+            $(#[$repr_attrs])+
             pub struct Vec32<T>(pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T);
-            vec_impl_vec!(tuple Vec32   vec32   (32) ("({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})") (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31) (m0 m1 m2 m3 m4 m5 m6 m7 m8 m9 m10 m11 m12 m13 m14 m15 m16 m17 m18 m19 m20 m21 m22 m23 m24 m25 m26 m27 m28 m29 m30 m31) (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31) (T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T));
+            vec_impl_vec!($c_or_simd tuple Vec32   vec32   (32) ("({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})") (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31) (m0 m1 m2 m3 m4 m5 m6 m7 m8 m9 m10 m11 m12 m13 m14 m15 m16 m17 m18 m19 m20 m21 m22 m23 m24 m25 m26 m27 m28 m29 m30 m31) (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31) (T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T));
             vec_impl_spatial!(Vec32);
         }
         #[cfg(feature="vec32")]
@@ -1812,9 +1849,9 @@ macro_rules! vec_impl_all_vecs {
             /// If you find yourself needing them, use other crates such as `llvmint` or `x86intrin`.
             #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-            $(#[$attrs])+
+            $(#[$repr_attrs])+
             pub struct Vec64<T>(pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T, pub T);
-            vec_impl_vec!(tuple Vec64   vec64   (64) ("({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})") (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63) (m0 m1 m2 m3 m4 m5 m6 m7 m8 m9 m10 m11 m12 m13 m14 m15 m16 m17 m18 m19 m20 m21 m22 m23 m24 m25 m26 m27 m28 m29 m30 m31 m32 m33 m34 m35 m36 m37 m38 m39 m40 m41 m42 m43 m44 m45 m46 m47 m48 m49 m50 m51 m52 m53 m54 m55 m56 m57 m58 m59 m60 m61 m62 m63) (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63) (T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T));
+            vec_impl_vec!($c_or_simd tuple Vec64   vec64   (64) ("({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})") (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63) (m0 m1 m2 m3 m4 m5 m6 m7 m8 m9 m10 m11 m12 m13 m14 m15 m16 m17 m18 m19 m20 m21 m22 m23 m24 m25 m26 m27 m28 m29 m30 m31 m32 m33 m34 m35 m36 m37 m38 m39 m40 m41 m42 m43 m44 m45 m46 m47 m48 m49 m50 m51 m52 m53 m54 m55 m56 m57 m58 m59 m60 m61 m62 m63) (0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63) (T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T,T));
             vec_impl_spatial!(Vec64);
         }
         #[cfg(feature="vec64")]
@@ -1835,9 +1872,9 @@ macro_rules! vec_impl_all_vecs {
             #[allow(missing_docs)]
             #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-            $(#[$attrs])+
+            $(#[$repr_attrs])+
             pub struct Extent3<T> { pub w:T, pub h:T, pub d:T }
-            vec_impl_vec!(struct Extent3 extent3 (3) ("({}, {}, {})") (w h d) (w h d) (0 1 2) (T,T,T));
+            vec_impl_vec!($c_or_simd struct Extent3 extent3 (3) ("({}, {}, {})") (w h d) (w h d) (0 1 2) (T,T,T));
             vec_impl_spatial!(Extent3);
 
             #[cfg(feature="vec3")]
@@ -1865,9 +1902,9 @@ macro_rules! vec_impl_all_vecs {
             #[allow(missing_docs)]
             #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-            $(#[$attrs])+
+            $(#[$repr_attrs])+
             pub struct Extent2<T> { pub w:T, pub h:T }
-            vec_impl_vec!(struct Extent2 extent2 (2) ("({}, {})") (w h) (w h) (0 1) (T,T));
+            vec_impl_vec!($c_or_simd struct Extent2 extent2 (2) ("({}, {})") (w h) (w h) (0 1) (T,T));
             vec_impl_spatial!(Extent2);
 
             #[cfg(feature="vec2")]
@@ -1891,9 +1928,9 @@ macro_rules! vec_impl_all_vecs {
             #[allow(missing_docs)]
             #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-            $(#[$attrs])+
+            $(#[$repr_attrs])+
             pub struct Rgba<T> { pub r:T, pub g:T, pub b:T, pub a:T }
-            vec_impl_vec!(struct Rgba   rgba    (4) ("rgba({}, {}, {}, {})") (r g b a) (r g b a) (0 1 2 3) (T,T,T,T));
+            vec_impl_vec!($c_or_simd struct Rgba   rgba    (4) ("rgba({}, {}, {}, {})") (r g b a) (r g b a) (0 1 2 3) (T,T,T,T));
             vec_impl_color_rgba!{Rgba}
 
             #[cfg(feature="vec4")]
@@ -1923,9 +1960,9 @@ macro_rules! vec_impl_all_vecs {
             #[allow(missing_docs)]
             #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-            $(#[$attrs])+
+            $(#[$repr_attrs])+
             pub struct Rgb<T> { pub r:T, pub g:T, pub b:T }
-            vec_impl_vec!(struct Rgb     rgb     (3) ("rgb({}, {}, {})") (r g b) (r g b) (0 1 2) (T,T,T));
+            vec_impl_vec!($c_or_simd struct Rgb     rgb     (3) ("rgb({}, {}, {})") (r g b) (r g b) (0 1 2) (T,T,T));
             vec_impl_color_rgb!{Rgb}
 
             #[cfg(feature="vec3")]
@@ -1952,9 +1989,9 @@ macro_rules! vec_impl_all_vecs {
             #[allow(missing_docs)]
             #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-            $(#[$attrs])+
+            $(#[$repr_attrs])+
             pub struct Uvw<T> { pub u:T, pub v:T, pub w:T }
-            vec_impl_vec!(struct Uvw     uvw     (3) ("({}, {}, {})") (u v w) (u v w) (0 1 2) (T,T,T));
+            vec_impl_vec!($c_or_simd struct Uvw     uvw     (3) ("({}, {}, {})") (u v w) (u v w) (0 1 2) (T,T,T));
 
             #[cfg(feature="vec3")]
             impl<T> From<Vec3<T>> for Uvw<T> {
@@ -1974,9 +2011,9 @@ macro_rules! vec_impl_all_vecs {
             #[allow(missing_docs)]
             #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq/*, Ord, PartialOrd*/)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-            $(#[$attrs])+
+            $(#[$repr_attrs])+
             pub struct Uv<T> { pub u:T, pub v:T }
-            vec_impl_vec!(struct Uv   uv      (2) ("({}, {})") (u v) (u v) (0 1) (T,T));
+            vec_impl_vec!($c_or_simd struct Uv   uv      (2) ("({}, {})") (u v) (u v) (0 1) (T,T));
 
             #[cfg(feature="vec2")]
             impl<T> From<Vec2<T>> for Uv<T> {
@@ -1998,7 +2035,8 @@ pub mod repr_c {
     
     use super::*;
     vec_impl_all_vecs!{
-        #[repr(C)]
+        c
+        #[repr(C, packed)]
         #[cfg_attr(all(nightly, feature="repr_align", any(target_arch="x86", target_arch="x86_64")), repr(align(16)))]
         #[cfg_attr(all(nightly, feature="repr_align", target_arch="arm"), repr(align(64)))]
         // XXX ^^^^ Not sure about the alignment on ARM ??
@@ -2012,16 +2050,28 @@ pub mod repr_simd {
     //!
     //! You can instantiate any vector type of this module with any type as long as
     //! it is a "machine type", like `f32` and `i32`, but not `isize` or newtypes
-    //! (normally, unless they're marked `#[repr(transparent)]`, but that hasn't been tested yet).
     //!
-    //! *Caution:* The size of a `#[repr_simd]` vector is never guaranteed to be
+    //! # Be careful
+    //!
+    //! The size of a `#[repr_simd]` vector is never guaranteed to be
     //! exactly equal to the sum of its elements (for instance, an SIMD `Vec3<f32>` actually contains
     //! 4 `f32` elements on x86). This has also an impact on `repr_simd` matrices.
     //!
     //! Therefore, be careful when sending these as raw data (as you may want to do with OpenGL).
+    //!
+    //! # So when should I use them?
+    //!
+    //! - When you know the SIMD representation on your target hardware;
+    //! - When you don't mind alignment requirements and extra empty space;
+    //!
+    //! You should avoid using these in general-purpose aggregates.
+    //! You should put these into large arrays to process them efficiently.
     
     use super::*;
-    vec_impl_all_vecs!{#[repr(packed, simd)]}
+    vec_impl_all_vecs!{
+        simd
+        #[repr(simd, packed)]
+    }
 }
 
 #[cfg(all(nightly, feature="repr_simd"))]
