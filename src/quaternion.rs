@@ -1,13 +1,25 @@
-//! This module is still a work-in-progress.
-
-// TODO document why euler angles are not supported
+//! `Quaternion`s are a convenient representation for rotations in 3D spaces.
 
 use num_traits::{Zero, One, Float};
+use approx::ApproxEq;
 use core::ops::*;
 use core::iter::Sum;
 use ops::*;
 
 // TODO:
+// - Review matrices.
+//   - Test rotations.
+//   - Test from quaternions.
+//   - Test other transforms... even scale and translate to demonstrate.
+//   - Add 3D shearing.
+//   - Add scaling/scaled/scale craziness.
+// - Others
+//   XXX: Actually this looks like left-hand rule! This is what I get with both linmath and GEA book!
+//   The direction of rotations follow the right-hand rule: if your thumb points
+//   in the direction of the rotation axis, positive rotations will be in the direction
+//   of your curved fingers.
+//   Matrix multiplication order. If you wanna reverse the order, you have to transpose.
+//
 // is_zero
 // is_identity
 // from_arc(v3,v3)
@@ -16,24 +28,72 @@ use ops::*;
 
 macro_rules! impl_mul_by_vec {
     ($Vec3:ident $Vec4:ident) => {
+        /// 3D vectors can be rotated by being premultiplied by a quaternion, **assuming the
+        /// quaternion is normalized**.
+        /// On `Vec4`s, the `w` element is preserved, so you can safely rotate 
+        /// points and directions.
+        ///
+        /// ```
+        /// # extern crate vek;
+        /// # #[macro_use] extern crate approx;
+        /// # use vek::{Quaternion, Vec4};
+        /// use std::f32::consts::PI;
+        ///
+        /// # fn main() {
+        /// let v = Vec4::unit_x();
+        ///
+        /// let q = Quaternion::<f32>::identity();
+        /// assert_relative_eq!(q * v, v);
+        ///
+        /// let q = Quaternion::rotation_y(PI);
+        /// assert_relative_eq!(q * v, -v);
+        ///
+        /// let q = Quaternion::rotation_y(PI * 0.5);
+        /// assert_relative_eq!(q * v, -Vec4::unit_z());
+        ///
+        /// let q = Quaternion::rotation_y(PI * 1.5);
+        /// assert_relative_eq!(q * v, Vec4::unit_z());
+        ///
+        /// let angles = 32;
+        /// for i in 0..angles {
+        ///     let theta = PI * 2. * (i as f32) / (angles as f32);
+        ///
+        ///     // See what rotating unit vectors do for all values of theta
+        ///
+        ///     let v = Vec4::unit_x();
+        ///     let q = Quaternion::rotation_y(theta);
+        ///     assert_relative_eq!(q * v, Vec4::new(theta.cos(), 0., -theta.sin(), 0.));
+        ///
+        ///     let v = Vec4::unit_z();
+        ///     let q = Quaternion::rotation_x(theta);
+        ///     assert_relative_eq!(q * v, Vec4::new(0., -theta.sin(), theta.cos(), 0.));
+        ///
+        ///     let v = Vec4::unit_y();
+        ///     let q = Quaternion::rotation_z(theta);
+        ///     assert_relative_eq!(q * v, Vec4::new(-theta.sin(), theta.cos(), 0., 0.));
+        /// }
+        /// # }
+        /// ```
+        impl<T: Float + Sum> Mul<$Vec4<T>> for Quaternion<T> {
+            type Output = $Vec4<T>;
+            fn mul(self, rhs: $Vec4<T>) -> Self::Output {
+                let $Vec4 { x, y, z, w } = rhs;
+                let $Vec3 { x, y, z }  = self * $Vec3 { x, y, z };
+                $Vec4 { x, y, z, w }
+            }
+        }
+        /// 3D vectors can be rotated by being premultiplied by a quaternion, **assuming the
+        /// quaternion is normalized**.
         impl<T: Float + Sum> Mul<$Vec3<T>> for Quaternion<T> {
             type Output = $Vec3<T>;
             fn mul(self, rhs: $Vec3<T>) -> Self::Output {
                 let $Vec3 { x, y, z } = rhs;
-                let v = Self { x, y, z, w: T::zero() }; // XXX: Is it correct to set w to zero here ??
-                let r = v * self.conjugate().normalized();
-                (self * r).into()
+                let v = Self { x, y, z, w: T::zero() };
+                let qi = self.conjugate(); // We want the inverse, and assume self is normalized.
+                (self * v * qi).into()
             }
         }
-        impl<T: Float + Sum> Mul<$Vec4<T>> for Quaternion<T> {
-            type Output = $Vec4<T>;
-            fn mul(self, rhs: $Vec4<T>) -> Self::Output {
-                let $Vec4 { x, y, z, .. } = rhs;
-                let v = Self { x, y, z, w: T::zero() }; // XXX: Is it correct to set w to zero here ??
-                let r = v * self.conjugate().normalized();
-                (self * r).into()
-            }
-        }
+
     };
 }
 
@@ -42,18 +102,22 @@ macro_rules! quaternion_vec3_vec4 {
 
         impl_mul_by_vec!{$Vec3 $Vec4}
 
+        /// A `Quaternion` can be created directly from a `Vec4`'s `x`, `y`, `z` and `w` elements.
+        /// **You are responsible for ensuring that the resulting `Quaternion` is normalized.**
         impl<T> From<$Vec4<T>> for Quaternion<T> {
             fn from(v: $Vec4<T>) -> Self {
                 let $Vec4 { x, y, z, w } = v;
                 Self { x, y, z, w }
             }
         }
+        /// A `Vec4` can be created directly from a `Quaternion`'s `x`, `y`, `z` and `w` elements.
         impl<T> From<Quaternion<T>> for $Vec4<T> {
             fn from(v: Quaternion<T>) -> Self {
                 let Quaternion { x, y, z, w } = v;
                 Self { x, y, z, w }
             }
         }
+        /// A `Vec3` can be created directly from a `Quaternion`'s `x`, `y` and `z` elements.
         impl<T> From<Quaternion<T>> for $Vec3<T> {
             fn from(v: Quaternion<T>) -> Self {
                 let Quaternion { x, y, z, .. } = v;
@@ -68,10 +132,25 @@ macro_rules! quaternion_complete_mod {
 
         use vec::$mod::*;
 
-        #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+        /// `Quaternion`s are a convenient representation for rotations in 3D spaces.
+        ///
+        /// **IMPORTANT**: Quaternions are only valid as rotations as long as they are
+        /// **normalized** (i.e their magnitude is 1). Most operations assume
+        /// this, instead of normalizing inputs behind your back, so be careful.
+        ///
+        /// They essentially consist of a vector part (`x`, `y`, `z`), and scalar part (`w`).
+        /// For unit quaternions, the vector part is the unit axis of rotation scaled by the sine of
+        /// the half-angle of the rotation, and the scalar part is the cosine of the half-angle.
+        #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
         #[$attrs]
         pub struct Quaternion<T> { pub x: T, pub y: T, pub z: T, pub w: T }
 
+        /// The default value for a `Quaternion` is the identity.
+        ///
+        /// ```
+        /// # use vek::Quaternion;
+        /// assert_eq!(Quaternion::<f32>::identity(), Quaternion::default());
+        /// ```
         impl<T: Zero + One> Default for Quaternion<T> {
             fn default() -> Self {
                 Self::identity()
@@ -79,13 +158,28 @@ macro_rules! quaternion_complete_mod {
         }
 
         impl<T> Quaternion<T> {
+            /// Creates a new `Quaternion` with `x`, `y`, `z` and `w` elements in order.
+            ///
+            /// **You are responsible for ensuring that the resulting `Quaternion` is normalized.**
             pub fn from_xyzw(x: T, y: T, z: T, w: T) -> Self {
                 Self { x, y, z, w }
             }
-            pub fn from_scalar_and_vec3<V: Into<Vec3<T>>>(s: T, v: V) -> Self {
-                let Vec3 { x, y, z } = v.into();
-                Self { x, y, z, w: s }
+            /// Creates a new `Quaternion` from a scalar-and-vector pair.
+            ///
+            /// **You are responsible for ensuring that the resulting `Quaternion` is normalized.**
+            pub fn from_scalar_and_vec3<V: Into<Vec3<T>>>(pair: (T, V)) -> Self {
+                let Vec3 { x, y, z } = pair.1.into();
+                Self { x, y, z, w: pair.0 }
             }
+            /// Converts this `Quaternion` into a scalar-and-vector pair.
+            pub fn into_scalar_and_vec3(self) -> (T, Vec3<T>) {
+                let Self { x, y, z, w } = self;
+                (w, Vec3 { x, y, z })
+            }
+            /// Creates a new `Quaternion` with all elements set to zero.
+            ///
+            /// Be careful: since it has a magnitude equal to zero, it is not
+            /// valid to use for most operations.
             pub fn zero() -> Self where T: Zero {
                 Self { 
                     x: T::zero(),
@@ -94,6 +188,25 @@ macro_rules! quaternion_complete_mod {
                     w: T::zero(),
                 }
             }
+            /// Creates the identity `Quaternion`.
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::Quaternion;
+            /// use std::f32::consts::PI;
+            ///
+            /// # fn main() {
+            /// let id = Quaternion::<f32>::identity();
+            /// assert_eq!(id, Default::default());
+            /// assert_relative_eq!(id, id.conjugate());
+            /// assert_relative_eq!(id, id.inverse());
+            ///
+            /// let q = Quaternion::rotation_y(PI);
+            /// assert_relative_eq!(id * q, q);
+            /// assert_relative_eq!(q * id, q);
+            /// # }
+            /// ```
             pub fn identity() -> Self where T: Zero + One {
                 Self { 
                     x: T::zero(),
@@ -102,6 +215,25 @@ macro_rules! quaternion_complete_mod {
                     w: T::one(),
                 }
             }
+            /// Gets this `Quaternion`'s conjugate (copy with negated vector part).
+            ///
+            /// On normalized `Quaternion`s, the conjugate also happens to be the inverse.
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::Quaternion;
+            /// use std::f32::consts::PI;
+            ///
+            /// # fn main() {
+            /// let p = Quaternion::rotation_x(PI);
+            /// let q = Quaternion::rotation_z(PI);
+            /// assert_relative_eq!((p*q).conjugate(), q.conjugate() * p.conjugate());
+            ///
+            /// // Rotation quaternions are normalized, so their conjugate is also their inverse.
+            /// assert_relative_eq!(q.conjugate(), q.inverse());
+            /// # }
+            /// ```
             pub fn conjugate(self) -> Self where T: Neg<Output=T> {
                 Self {
                     x: -self.x,
@@ -110,23 +242,48 @@ macro_rules! quaternion_complete_mod {
                     w:  self.w,
                 }
             }
-            // inner_product
+            /// Gets this `Quaternion`'s inverse, i.e the one that reverses its effect.
+            ///
+            /// On normalized `Quaternion`s, the inverse happens to be the conjugate.
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::Quaternion;
+            /// use std::f32::consts::PI;
+            ///
+            /// # fn main() {
+            /// let rot = Quaternion::rotation_y(PI);
+            /// let inv = rot.inverse();
+            /// assert_relative_eq!(rot*inv, Quaternion::identity());
+            /// assert_relative_eq!(inv*rot, Quaternion::identity());
+            ///
+            /// let p = Quaternion::rotation_x(PI);
+            /// let q = Quaternion::rotation_z(PI);
+            /// assert_relative_eq!((p*q).inverse(), q.inverse() * p.inverse());
+            /// # }
+            /// ```
+            pub fn inverse(self) -> Self where T: Neg<Output=T> + Copy + Sum + Mul<Output=T> + Div<Output=T> {
+                self.conjugate() / self.into_vec4().magnitude_squared()
+            }
+            /// Gets the dot product between two quaternions.
             pub fn dot(self, q: Self) -> T 
                 where T: Copy + Sum + Mul<Output=T>
             {
                 self.into_vec4().dot(q.into_vec4())
             }
+            /// Gets a normalized copy of this quaternion.
             pub fn normalized(self) -> Self where T: Float + Sum {
                 self.into_vec4().normalized().into()
             }
 
+            /// Creates a `Quaternion` from an angle and axis.
             pub fn rotation_3d<V: Into<Vec3<T>>>(angle_radians: T, axis: V) -> Self
                 where T: Float
             {
                 let axis = axis.into();
                 let two = T::one() + T::one();
-                let v = axis * (angle_radians/two).sin();
-                let Vec3 { x, y, z } = v;
+                let Vec3 { x, y, z } = axis * (angle_radians/two).sin();
                 let w = (angle_radians/two).cos();
                 Self { x, y, z, w }
             }
@@ -166,7 +323,7 @@ macro_rules! quaternion_complete_mod {
 
             /*
             pub fn into_axis_angle(self) -> (T, Vec3<T>) {
-                // Q57
+                // Q57 of matrix-quaternion FAQ
             }
              */
 
@@ -181,31 +338,44 @@ macro_rules! quaternion_complete_mod {
             }
         }
         
+        /// The `Lerp` implementation for `Quaternion` is the "Normalized LERP".
         impl<T> Lerp<T> for Quaternion<T>
-            where T: Copy + Zero + One + Mul<Output=T> + Sub<Output=T> + Add<Output=T> + MulAdd<T,T,Output=T> + Clamp
+            where T: Copy + Zero + One + Mul<Output=T> + Sub<Output=T> + Add<Output=T> + MulAdd<T,T,Output=T> + Clamp + Sum + Float
         {
             fn lerp_unclamped_precise(from: Self, to: Self, factor: T) -> Self {
-                Vec4::lerp_unclamped_precise(from.into(), to.into(), factor).into()
+                Self::lerp_unclamped_precise_unnormalized(from, to, factor).normalized()
             }
             fn lerp_unclamped(from: Self, to: Self, factor: T) -> Self {
-                Vec4::lerp_unclamped(from.into(), to.into(), factor).into()
+                Self::lerp_unclamped_unnormalized(from, to, factor).normalized()
             }
         }
         impl<T> Quaternion<T>
             where T: Copy + Zero + One + Mul<Output=T> + Sub<Output=T> + Add<Output=T> + MulAdd<T,T,Output=T> + Clamp + Sum + Float
         {
-            pub fn nlerp(from: Self, to: Self, factor: T) -> Self {
-                Self::lerp(from, to, factor).normalized()
+            /// Performs linear interpolation without normalizing the result.
+            /// For an implementation that normalizes the result (which is commonly wanted), see
+            /// the `Lerp` implementation.
+            pub fn lerp_unnormalized(from: Self, to: Self, factor: T) -> Self {
+                Self::lerp_unclamped_unnormalized(from, to, factor.clamped01())
             }
-            pub fn nlerp_precise(from: Self, to: Self, factor: T) -> Self {
-                Self::lerp_precise(from, to, factor).normalized()
+            /// Performs linear interpolation without normalizing the result,
+            /// using an implementation that supposedly yields a more precise result.
+            pub fn lerp_precise_unnormalized(from: Self, to: Self, factor: T) -> Self {
+                Self::lerp_unclamped_precise_unnormalized(from, to, factor.clamped01())
             }
-            pub fn nlerp_unclamped(from: Self, to: Self, factor: T) -> Self {
-                Self::lerp_unclamped(from, to, factor).normalized()
+            /// Performs linear interpolation without normalizing the result and without
+            /// implicitly constraining `factor` to be between 0 and 1.
+            pub fn lerp_unclamped_unnormalized(from: Self, to: Self, factor: T) -> Self {
+                Vec4::lerp_unclamped(from.into(), to.into(), factor).into()
             }
-            pub fn nlerp_unclamped_precise(from: Self, to: Self, factor: T) -> Self {
-                Self::lerp_unclamped_precise(from, to, factor).normalized()
+            /// Performs linear interpolation without normalizing the result and without
+            /// implicitly constraining `factor` to be between 0 and 1,
+            /// using an implementation that supposedly yields a more precise result.
+            pub fn lerp_unclamped_precise_unnormalized(from: Self, to: Self, factor: T) -> Self {
+                Vec4::lerp_unclamped_precise(from.into(), to.into(), factor).into()
             }
+            /// Performs spherical linear interpolation without implictly constraining `factor` to
+            /// be between 0 and 1.
             // From GLM's source code.
             pub fn slerp_unclamped(from: Self, mut to: Self, factor: T) -> Self 
                 where T: Neg<Output=T>
@@ -220,11 +390,13 @@ macro_rules! quaternion_complete_mod {
 
                 // Perform a linear interpolation when cosTheta is close to 1 to avoid side effect of sin(angle) becoming a zero denominator
                 if cos_theta > T::one() - T::epsilon() {
-                    return Vec4::lerp(from.into(), to.into(), factor).into();
+                    return Self::lerp(from, to, factor);
                 }
                 let angle = cos_theta.acos();
                 (from * ((T::one() - factor) * angle).sin() + to * (factor * angle).sin()) / angle.sin()
             }
+            /// Perform spherical linear interpolation, constraining `factor` to
+            /// be between 0 and 1.
             pub fn slerp(from: Self, to: Self, factor: T) -> Self {
                 Self::slerp_unclamped(from, to, factor.clamped01())
             }
@@ -278,24 +450,35 @@ macro_rules! quaternion_complete_mod {
             }
         }
 
+        /// The `Mul` implementation for `Quaternion`s is concatenation, a.k.a Grassman product.
+        ///
+        /// ```
+        /// # extern crate vek;
+        /// # #[macro_use] extern crate approx;
+        /// # use vek::{Quaternion, Vec4};
+        /// use std::f32::consts::PI;
+        ///
+        /// # fn main() {
+        /// let v = Vec4::unit_x();
+        /// let p = Quaternion::rotation_y(PI/2.);
+        /// let q = Quaternion::rotation_z(PI/2.);
+        /// assert_relative_eq!((p*q)*v, p*(q*v));
+        /// assert_relative_eq!(p*q*v, Vec4::unit_y());
+        /// assert_relative_eq!(q*p*v, -Vec4::unit_z());
+        /// # }
+        /// ```
         impl<T> Mul for Quaternion<T> 
             where T: Copy + Mul<Output=T> + Sub<Output=T> + Zero + Sum
         {
             type Output = Self;
             fn mul(self, rhs: Self) -> Self::Output {
-                let p = self.into_vec3();
-                let q =  rhs.into_vec3();
-                let r = p.cross(q);
-                let w = p * rhs.w;
-                let r = r + w;
-                let w = q * self.w;
-                let r = r + w;
-                Self {
-                    x: r.x,
-                    y: r.y,
-                    z: r.z,
-                    w: self.w * rhs.w - self.dot(rhs)
-                }
+                let ((ps, pv), (qs, qv)) = (
+                    self.into_scalar_and_vec3(), 
+                    rhs.into_scalar_and_vec3()
+                );
+                let Vec3 { x, y, z } = qv*ps + pv*qs + pv.cross(qv);
+                let w = ps*qs - pv.dot(qv);
+                Self { x, y, z, w }
             }
         }
 
@@ -325,6 +508,37 @@ macro_rules! quaternion_complete_mod {
             R[3][3] = 1.f;
         }
         */
+
+
+        impl<T: ApproxEq> ApproxEq for Quaternion<T> where T::Epsilon: Copy {
+            type Epsilon = T::Epsilon;
+
+            fn default_epsilon() -> T::Epsilon {
+                T::default_epsilon()
+            }
+
+            fn default_max_relative() -> T::Epsilon {
+                T::default_max_relative()
+            }
+
+            fn default_max_ulps() -> u32 {
+                T::default_max_ulps()
+            }
+
+            fn relative_eq(&self, other: &Self, epsilon: T::Epsilon, max_relative: T::Epsilon) -> bool {
+                   T::relative_eq(&self.w, &other.w, epsilon, max_relative)
+                && T::relative_eq(&self.x, &other.x, epsilon, max_relative)
+                && T::relative_eq(&self.y, &other.y, epsilon, max_relative)
+                && T::relative_eq(&self.z, &other.z, epsilon, max_relative)
+            }
+
+            fn ulps_eq(&self, other: &Self, epsilon: T::Epsilon, max_ulps: u32) -> bool {
+                   T::ulps_eq(&self.w, &other.w, epsilon, max_ulps)
+                && T::ulps_eq(&self.x, &other.x, epsilon, max_ulps)
+                && T::ulps_eq(&self.y, &other.y, epsilon, max_ulps)
+                && T::ulps_eq(&self.z, &other.z, epsilon, max_ulps)
+            }
+        }
     }
 }
 

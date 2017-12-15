@@ -18,6 +18,7 @@ use core::cmp;
 use core::ops::*;
 use core::slice::{self, /*SliceIndex*/}; // NOTE: Will want to use SliceIndex once it's stabilized
 use num_traits::{Zero, One, NumCast, Signed, Float};
+use approx::ApproxEq;
 use ops::*;
 
 macro_rules! vec_impl_cmp {
@@ -466,7 +467,7 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// let v = Vec4::new(0_f32, 1_f32, 1.8_f32, 3.14_f32);
+            /// let v = Vec4::new(0_f32, 1., 1.8, 3.14);
             /// let i = v.convert(|x| x.round() as i32);
             /// assert_eq!(i, Vec4::new(0, 1, 2, 3));
             /// ```
@@ -477,7 +478,7 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// let v = Vec4::new(0_f32, 1_f32, 2_f32, 3_f32);
+            /// let v = Vec4::new(0_f32, 1., 2., 3.);
             /// let i: Vec4<i32> = v.numcast().unwrap();
             /// assert_eq!(i, Vec4::new(0, 1, 2, 3));
             /// ```
@@ -625,7 +626,7 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// assert_eq!(-5_f32, Vec4::new(0_f32, 5_f32, -5_f32, 8_f32).reduce_partial_min());
+            /// assert_eq!(-5_f32, Vec4::new(0_f32, 5., -5., 8.).reduce_partial_min());
             /// ```
             pub fn reduce_partial_min(self) -> T where T: PartialOrd {
                 let first = unsafe { ptr::read(self.get_unchecked(0)) };
@@ -636,7 +637,7 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// assert_eq!(8_f32, Vec4::new(0_f32, 5_f32, -5_f32, 8_f32).reduce_partial_max());
+            /// assert_eq!(8_f32, Vec4::new(0_f32, 5., -5., 8.).reduce_partial_max());
             /// ```
             pub fn reduce_partial_max(self) -> T where T: PartialOrd {
                 let first = unsafe { ptr::read(self.get_unchecked(0)) };
@@ -665,7 +666,7 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// assert_eq!(2.5_f32, Vec4::new(1_f32, 2_f32, 3_f32, 4_f32).average());
+            /// assert_eq!(2.5_f32, Vec4::new(1_f32, 2., 3., 4.).average());
             /// ```
             pub fn average(self) -> T where T: Sum + Div<T, Output=T> + From<u8> {
                 self.sum() / T::from($dim as _)
@@ -713,7 +714,7 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// let v = Vec4::new(0_f32, 1_f32, 1.8_f32, 3.14_f32);
+            /// let v = Vec4::new(0_f32, 1., 1.8, 3.14);
             /// assert_eq!(v.ceil(), Vec4::new(0f32, 1f32, 2f32, 4f32));
             /// ```
             pub fn ceil(self) -> Self where T: Float {
@@ -723,7 +724,7 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// let v = Vec4::new(0_f32, 1_f32, 1.8_f32, 3.14_f32);
+            /// let v = Vec4::new(0_f32, 1., 1.8, 3.14);
             /// assert_eq!(v.floor(), Vec4::new(0f32, 1f32, 1f32, 3f32));
             /// ```
             pub fn floor(self) -> Self where T: Float {
@@ -733,7 +734,7 @@ macro_rules! vec_impl_vec {
             ///
             /// ```
             /// # use vek::vec::Vec4;
-            /// let v = Vec4::new(0_f32, 1_f32, 1.8_f32, 3.14_f32);
+            /// let v = Vec4::new(0_f32, 1., 1.8, 3.14);
             /// assert_eq!(v.round(), Vec4::new(0f32, 1f32, 2f32, 3f32));
             /// ```
             pub fn round(self) -> Self where T: Float {
@@ -934,6 +935,42 @@ macro_rules! vec_impl_vec {
         // NOPE: Vectors can't implement these items :
         // - fn classify(self) -> FpCategory;
         // - fn integer_decode(self) -> (u64, i16, i8);
+
+
+        impl<T: ApproxEq> ApproxEq for $Vec<T> where T::Epsilon: Copy {
+            type Epsilon = T::Epsilon;
+
+            fn default_epsilon() -> T::Epsilon {
+                T::default_epsilon()
+            }
+
+            fn default_max_relative() -> T::Epsilon {
+                T::default_max_relative()
+            }
+
+            fn default_max_ulps() -> u32 {
+                T::default_max_ulps()
+            }
+
+            fn relative_eq(&self, other: &Self, epsilon: T::Epsilon, max_relative: T::Epsilon) -> bool {
+                for (l, r) in self.iter().zip(other.iter()) {
+                    if !T::relative_eq(l, r, epsilon, max_relative) {
+                        return false;
+                    }
+                }
+                true
+            }
+
+            fn ulps_eq(&self, other: &Self, epsilon: T::Epsilon, max_ulps: u32) -> bool {
+                for (l, r) in self.iter().zip(other.iter()) {
+                    if !T::ulps_eq(l, r, epsilon, max_ulps) {
+                        return false;
+                    }
+                }
+                true
+            }
+        }
+
 
         // OPS
 
@@ -1313,13 +1350,13 @@ macro_rules! vec_impl_spatial_3d {
                 pub fn up        () -> Self where T: Zero + One {  Self::unit_y() }
                 /// Get the unit vector which has `y` set to -1.
                 pub fn down      () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_y() }
-                /// In a left-handed coordinate system, get the unit vector which has `z` set to 1.
+                /// Get the unit vector which has `z` set to 1 ("forward" in a left-handed coordinate system).
                 pub fn forward_lh() -> Self where T: Zero + One {  Self::unit_z() }
-                /// In a right-handed coordinate system, get the unit vector which has `z` set to -1.
+                /// Get the unit vector which has `z` set to -1 ("forward" in a right-handed coordinate system).
                 pub fn forward_rh() -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_z() }
-                /// In a left-handed coordinate system, get the unit vector which has `z` set to -1.
+                /// Get the unit vector which has `z` set to -1 ("back" in a left-handed coordinate system).
                 pub fn back_lh   () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_z() }
-                /// In a right-handed coordinate system, get the unit vector which has `z` set to 1.
+                /// Get the unit vector which has `z` set to 1 ("back" in a right-handed coordinate system).
                 pub fn back_rh   () -> Self where T: Zero + One {  Self::unit_z() }
             }
         )+
@@ -1350,29 +1387,29 @@ macro_rules! vec_impl_spatial_4d {
                     let Vec3 { x, y, z } = v.into();
                     Self::new_direction(x, y, z)
                 }
-                /// Get the unit vector which has `x` set to 1.
+                /// Get the unit direction vector which has `x` set to 1.
                 pub fn unit_x    () -> Self where T: Zero + One { Self::new(T::one(), T::zero(), T::zero(), T::zero()) }
-                /// Get the unit vector which has `y` set to 1.
+                /// Get the unit direction vector which has `y` set to 1.
                 pub fn unit_y    () -> Self where T: Zero + One { Self::new(T::zero(), T::one(), T::zero(), T::zero()) }
-                /// Get the unit vector which has `z` set to 1.
+                /// Get the unit direction vector which has `z` set to 1.
                 pub fn unit_z    () -> Self where T: Zero + One { Self::new(T::zero(), T::zero(), T::one(), T::zero()) }
-                /// Get the unit vector which has `w` set to 1.
+                /// Get the vector which has `w` set to 1 and all other elements to zero.
                 pub fn unit_w    () -> Self where T: Zero + One { Self::new(T::zero(), T::zero(), T::zero(), T::one()) }
-                /// Get the unit vector which has `x` set to -1.
+                /// Get the unit direction vector which has `x` set to -1.
                 pub fn left      () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_x() }
-                /// Get the unit vector which has `x` set to 1.
+                /// Get the unit direction vector which has `x` set to 1.
                 pub fn right     () -> Self where T: Zero + One {  Self::unit_x() }
-                /// Get the unit vector which has `y` set to 1.
+                /// Get the unit direction vector which has `y` set to 1.
                 pub fn up        () -> Self where T: Zero + One {  Self::unit_y() }
-                /// Get the unit vector which has `y` set to -1.
+                /// Get the unit direction vector which has `y` set to -1.
                 pub fn down      () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_y() }
-                /// In a left-handed coordinate system, get the unit vector which has `z` set to 1.
+                /// Get the unit direction vector which has `z` set to 1 ("forward" in a left-handed coordinate system).
                 pub fn forward_lh() -> Self where T: Zero + One {  Self::unit_z() }
-                /// In a right-handed coordinate system, get the unit vector which has `z` set to -1.
+                /// Get the unit direction vector which has `z` set to -1 ("forward" in a right-handed coordinate system).
                 pub fn forward_rh() -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_z() }
-                /// In a left-handed coordinate system, get the unit vector which has `z` set to -1.
+                /// Get the unit direction vector which has `z` set to -1 ("back" in a left-handed coordinate system).
                 pub fn back_lh   () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_z() }
-                /// In a right-handed coordinate system, get the unit vector which has `z` set to 1.
+                /// Get the unit direction vector which has `z` set to 1 ("back" in a right-handed coordinate system).
                 pub fn back_rh   () -> Self where T: Zero + One {  Self::unit_z() }
             }
         )+

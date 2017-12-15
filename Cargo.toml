@@ -22,7 +22,8 @@ travis-ci = { repository = "yoanlcq/vek" }
 appveyor  = { repository = "yoanlcq/vek" }
 
 [features]
-default = ["serde", "repr_simd", "vec2", "vec3", "rgba", "rgb", "extent3", "extent2", "mat2", "mat3", "quaternion", "geom", "bezier"]
+default = ["mat2", "mat3", "quaternion"]
+#default = ["serde", "repr_simd", "vec2", "vec3", "rgba", "rgb", "extent3", "extent2", "mat2", "mat3", "quaternion", "geom", "bezier"]
 repr_align = []
 repr_simd = []
 vec2 = []
@@ -49,10 +50,11 @@ bezier = ["geom", "vec3", "mat3"]
 rustc_version = "0.2.1"
 
 [dependencies]
-# clippy = { version = "0.0.166", optional = true }
-image = { version = "0.17.0", optional = true, default-features = false }
+approx = "0.1.1"
 num-traits = "0.1.40"
 num-integer = "0.1.35"
+# clippy = { version = "0.0.166", optional = true }
+image = { version = "0.17.0", optional = true, default-features = false }
 num-bigint = { version = "0.1.40", optional = true }
 serde = { version = "1.0.15", optional = true, features = ["derive"] }
 fix = { version = "0.1.0", optional = true }

@@ -47,11 +47,11 @@
 //! use std::f32::consts::PI;
 //!
 //! # fn main() {
-//! let point = Vec4::new_point(1_f32, 2_f32, 3_f32); // (1, 2, 3, 1)
-//! let direction = Vec4::new_direction(1_f32, 2_f32, 3_f32); // (1, 2, 3, 0)
+//! let point = Vec4::new_point(1_f32, 2., 3.); // (1, 2, 3, 1)
+//! let direction = Vec4::new_direction(1_f32, 2., 3.); // (1, 2, 3, 0)
 //! let model = Mat4::rotation_3d(PI, direction)
-//!     .translated_3d(Vec4::unit_x() * 3_f32)
-//!     .scaled_3d(2_f32);
+//!     .translated_3d(Vec4::unit_x() * 3.)
+//!     .scaled_3d(2.);
 //! println!("Rotated point: {}", model * point);
 //!
 //! let four = Vec4::broadcast(2_f32).sqrt().product();
@@ -60,7 +60,7 @@
 //! # }
 //! ```
 //!
-//! Because tuples can be converted into vectors, you may directly use tuples
+//! Because vectors implement `From` tuples, you may directly use tuples
 //! in operations that are generic over relevant parameters.
 //!
 //! In the docs and the code, matrix elements are written as `mij`,
@@ -185,6 +185,8 @@ extern crate x86intrin;
 
 extern crate num_traits;
 extern crate num_integer;
+#[macro_use]
+extern crate approx;
 
 pub mod mat;
 pub use mat::*;

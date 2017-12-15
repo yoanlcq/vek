@@ -6,6 +6,7 @@ use core::iter::Sum;
 use core::fmt::{self, Display, Formatter};
 use core::ops::*;
 use num_traits::{Zero, One, Float};
+use approx::ApproxEq;
 use ops::MulAdd;
 use vec;
 #[cfg(feature="geom")]
@@ -594,6 +595,40 @@ macro_rules! mat_impl_mat {
         impl<T: Div<Output=T> + Copy> DivAssign<T> for $Mat<T> { fn div_assign(&mut self, rhs: T   ) { *self = *self / rhs; } }
         impl<T: Rem<Output=T> + Copy> RemAssign    for $Mat<T> { fn rem_assign(&mut self, rhs: Self) { *self = *self % rhs; } }
         impl<T: Rem<Output=T> + Copy> RemAssign<T> for $Mat<T> { fn rem_assign(&mut self, rhs: T   ) { *self = *self % rhs; } }
+
+        impl<T: ApproxEq> ApproxEq for $Mat<T> where T::Epsilon: Copy {
+            type Epsilon = T::Epsilon;
+
+            fn default_epsilon() -> T::Epsilon {
+                T::default_epsilon()
+            }
+
+            fn default_max_relative() -> T::Epsilon {
+                T::default_max_relative()
+            }
+
+            fn default_max_ulps() -> u32 {
+                T::default_max_ulps()
+            }
+
+            fn relative_eq(&self, other: &Self, epsilon: T::Epsilon, max_relative: T::Epsilon) -> bool {
+                for (l, r) in self.$lines.iter().zip(other.$lines.iter()) {
+                    if !ApproxEq::relative_eq(l, r, epsilon, max_relative) {
+                        return false;
+                    }
+                }
+                true
+            }
+
+            fn ulps_eq(&self, other: &Self, epsilon: T::Epsilon, max_ulps: u32) -> bool {
+                for (l, r) in self.$lines.iter().zip(other.$lines.iter()) {
+                    if !ApproxEq::ulps_eq(l, r, epsilon, max_ulps) {
+                        return false;
+                    }
+                }
+                true
+            }
+        }
 
     };
 }
