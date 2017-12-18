@@ -5,9 +5,7 @@
 //! because of this.  
 //! They do have element-wise comparison functions though.
 
-// TODO:
-// - Abuse Into conversions so that repr_c and repr_simd interoperate seamlessly;
-// - Get rid of mem::uninitialized()
+// TODO: Get rid of mem::uninitialized()
 
 use core::borrow::{Borrow, BorrowMut};
 use core::fmt::{self, Display, Formatter};
@@ -415,12 +413,36 @@ macro_rules! vec_impl_vec {
                 ($(self.$get),+)
             }
 
+            /// Are elements of this vector tightly packed in memory ?
+            // NOTE: Not public, because it is supposed to always be true.
+            // If it's not, we'll have to handle an exotic target.
+            pub(crate) fn is_packed(&self) -> bool {
+                let ptr = self as *const _ as *const T;
+                let mut i = -1isize;
+                $(
+                    i += 1;
+                    if unsafe { ptr.offset(i) } != &self.$get as *const _ {
+                        return false;
+                    }
+                )+
+                true
+            }
             /// Converts this into a raw pointer of read-only data.
             pub fn as_ptr(&self) -> *const T {
+                // This ought to be true and is checked by tests.
+                // Still, let's be careful about exotic architectures
+                // or alignment requirement of elements.
+                // This panic case is not documented because it is never supposed to happen in the
+                // first place (otherwise, we missed something).
+                // Also, it would have to be mentioned in all APIs that use
+                // as_ptr(), such as as_slice and impl Index.
+                assert!(self.is_packed());
                 self as *const _ as *const T
             }
             /// Converts this into a raw pointer.
             pub fn as_mut_ptr(&mut self) -> *mut T {
+                // See rationale in as_mut_ptr()
+                assert!(self.is_packed());
                 self as *mut _ as *mut T
             }
 
@@ -667,6 +689,33 @@ macro_rules! vec_impl_vec {
             /// ```
             /// # use vek::vec::Vec4;
             /// assert_eq!(2.5_f32, Vec4::new(1_f32, 2., 3., 4.).average());
+            /// ```
+            ///
+            /// You should avoid using it on `u8` vectors, not only because integer
+            /// overflows cause panics in debug mode, but also because of integer division, the result
+            /// may not be the one you expect.
+            ///
+            /// ```should_panic
+            /// # use vek::vec::Vec4;
+            /// let red = Vec4::new(255u8, 1, 0, 0);
+            /// let grey_level = red.average();
+            /// assert_eq!(grey_level, 128);
+            /// ```
+            ///
+            /// You may want to convert the elements to bigger integers
+            /// (or floating-point) instead:
+            ///
+            /// ```
+            /// # use vek::vec::Vec4;
+            /// let red = Vec4::new(255u8, 1, 128, 128);
+            ///
+            /// let red = red.convert(|c| c as u16);
+            /// let grey_level = red.average() as u8;
+            /// assert_eq!(grey_level, 128);
+            ///
+            /// let red = red.convert(|c| c as f32);
+            /// let grey_level = red.average().round() as u8;
+            /// assert_eq!(grey_level, 128);
             /// ```
             pub fn average(self) -> T where T: Sum + Div<T, Output=T> + From<u8> {
                 self.sum() / T::from($dim as _)
@@ -1174,56 +1223,49 @@ macro_rules! vec_impl_vec {
 macro_rules! vec_impl_spatial {
     ($Vec:ident) => {
         impl<T> $Vec<T> {
-            /// Dot product.
+            /// Dot product between this vector and another.
             pub fn dot(self, v: Self) -> T where T: Sum + Mul<Output=T> {
                 (self * v).sum()
             }
-            /// The squared magnitude of a vector is its length multiplied by itself.
+            /// The squared magnitude of a vector is its spatial length, squared.
+            /// It is slightly cheaper to compute than `magnitude` because it avoids a square root.
             pub fn magnitude_squared(self) -> T where T: Copy + Sum + Mul<Output=T> {
                 self.dot(self)
             }
-            /// The magnitude of a vector is its length.
-            pub fn magnitude(self) -> T where T: Sum + Float + Mul<Output=T> {
+            /// The magnitude of a vector is its spatial length.
+            pub fn magnitude(self) -> T where T: Sum + Float {
                 self.magnitude_squared().sqrt()
             }
             /// Squared distance between two point vectors.
+            /// It is slightly cheaper to compute than `distance` because it avoids a square root.
             pub fn distance_squared(self, v: Self) -> T where T: Copy + Sum + Sub<Output=T> + Mul<Output=T> {
                 (self - v).magnitude_squared()
             }
             /// Distance between two point vectors.
-            pub fn distance(self, v: Self) -> T where T: Sum + Float + Mul<Output=T> + Sub<Output=T> {
+            pub fn distance(self, v: Self) -> T where T: Sum + Float {
                 (self - v).magnitude()
             }
             /// Get a copy of this direction vector such that its length equals 1.
-            pub fn normalized(self) -> Self where T: Sum + Float + Mul<Output=T> + Div<T, Output=T> {
+            pub fn normalized(self) -> Self where T: Sum + Float {
                 self / self.magnitude()
             }
             /// Divide this vector's components such that its length equals 1.
-            pub fn normalize(&mut self) where T: Sum + Float + Mul<Output=T> + Div<T, Output=T> {
+            pub fn normalize(&mut self) where T: Sum + Float {
                 *self = self.normalized();
             }
+            /// Is this vector normalized ? (Uses `ApproxEq`)
+            pub fn is_normalized(self) -> bool where T: ApproxEq + Sum + Float {
+                self.magnitude_squared().relative_eq(&T::one(), T::default_epsilon(), T::default_max_relative())
+            }
             /// Get the smallest angle, in radians, between two direction vectors.
-            pub fn angle_radians(self, v: Self) -> T where T: Sum + Float + Mul<Output=T> + Div<T, Output=T> {
+            pub fn angle_radians(self, v: Self) -> T where T: Sum + Float {
                 self.normalized().dot(v.normalized()).acos()
             }
             /// Get the smallest angle, in degrees, between two direction vectors.
             pub fn angle_degrees(self, v: Self) -> T
-                where T: From<u16> + Sum + Float + Mul<Output=T> + Div<T, Output=T>
+                where T: From<u16> + Sum + Float
             {
                 <T as From<u16>>::from(360_u16) * self.angle_radians(v)
-            }
-            pub fn slerp_unclamped(from: Self, to: Self, factor: T) -> Self
-                where T: Sum + Float + Mul<Output=T> + Div<T, Output=T> + Clamp
-            {
-                let cos_theta = from.dot(to).clamped(-T::one(), T::one());
-                let theta = cos_theta.acos() * factor;
-                let rel = (to - from*cos_theta).normalized();
-                (from * theta.cos()) + (rel * theta.sin())
-            }
-            pub fn slerp(from: Self, to: Self, factor: T) -> Self
-                where T: Sum + Float + Mul<Output=T> + Div<T, Output=T> + Clamp
-            {
-                Self::slerp_unclamped(from, to, factor.clamped01())
             }
             /// The reflection direction for this vector on a surface which normal is given.
             pub fn reflect(self, surface_normal: Self) -> Self 
@@ -1267,10 +1309,11 @@ macro_rules! vec_impl_spatial {
 }
 
 
+#[allow(unused_macros)]
 macro_rules! vec_impl_spatial_2d {
     ($Vec:ident) => {
         impl<T> $Vec<T> {
-            /// A signed value which tells in which half-space of segment `ab` this point lies.
+            /// A signed value which tells in which half-space of the line segment `ab` this point lies.
             ///
             /// Returns:
             ///
@@ -1287,16 +1330,31 @@ macro_rules! vec_impl_spatial_2d {
                 let d2 = (by - ay) * (cx - ax);
                 d1 - d2
             }
-            /// The signed area of the triangle (a, b, c).
+            /// The signed area of the triangle defined by points `(a, b, c)`.
             pub fn signed_triangle_area(a: Self, b: Self, c: Self) -> T where T: Float {
                 let two = T::one() + T::one();
                 c.determine_side(a, b)/two
             }
-            /// The area of the triangle (a, b, c).
+            /// The area of the triangle defined by points `(a, b, c)`.
             pub fn triangle_area(a: Self, b: Self, c: Self) -> T where T: Float {
                 Self::signed_triangle_area(a, b, c).abs()
             }
             /// Gets a 2D-rotated copy of this vector.
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::Vec2;
+            /// use std::f32::consts::PI;
+            ///
+            /// # fn main() {
+            /// assert_relative_eq!(Vec2::unit_x().rotated_z(0_f32), Vec2::unit_x());
+            /// assert_relative_eq!(Vec2::unit_x().rotated_z(PI/2.), Vec2::unit_y());
+            /// assert_relative_eq!(Vec2::unit_x().rotated_z(PI), -Vec2::unit_x());
+            /// assert_relative_eq!(Vec2::unit_x().rotated_z(PI*1.5), -Vec2::unit_y());
+            /// assert_relative_eq!(Vec2::unit_x().rotated_z(PI*2.), Vec2::unit_x(), epsilon = 0.000001);
+            /// # }
+            /// ```
             pub fn rotated_z(self, angle_radians: T) -> Self where T: Float {
                 let c = angle_radians.cos();
                 let s = angle_radians.sin();
@@ -1320,22 +1378,91 @@ macro_rules! vec_impl_spatial_2d {
 }
 
 
+#[allow(unused_macros)]
 macro_rules! vec_impl_spatial_3d {
     ($($Vec:ident)+) => {
         $(
             impl<T> $Vec<T> {
                 /// The cross-product of this vector with another.
-                pub fn cross(self, v: Self) 
+                ///
+                /// On two noncolinear vectors, the result is perpendicular to the plane they
+                /// define. 
+                ///
+                /// The result's facing direction depends on the handedness of your
+                /// coordinate system:
+                /// If we let `f` a forward vector and `u` an up vector, then we have :
+                ///
+                /// - Right-handed: `f.cross(u)` points to the right.
+                /// - Left-handed: `f.cross(u)` points to the left.
+                ///
+                /// There's a trick to remember this which involves your hand:
+                /// spread your fingers such that your middle finger points upwards
+                /// and your index finger points forwards, then your thumb points
+                /// in the direction of `f.cross(u)`.
+                ///
+                /// ```
+                /// # extern crate vek;
+                /// # #[macro_use] extern crate approx;
+                /// # use vek::Vec3;
+                /// # fn main() {
+                /// let i = Vec3::<f32>::unit_x();
+                /// let j = Vec3::<f32>::unit_y();
+                /// let k = Vec3::<f32>::unit_z();
+                /// assert_relative_eq!(i.cross(j), k);
+                /// # }
+                /// ```
+                pub fn cross(self, b: Self) 
                     -> Self where T: Copy + Mul<Output=T> + Sub<Output=T>
                 {
-                    let s = self.into_tuple();
-                    let v = v.into_tuple();
+                    let a = self;
                     Self::new(
-                        s.1*v.2 - s.2*v.1,
-                        s.2*v.0 - s.0*v.2,
-                        s.0*v.1 - s.1*v.0
+                        a.y*b.z - a.z*b.y,
+                        a.z*b.x - a.x*b.z,
+                        a.x*b.y - a.y*b.x
                     )
                 }
+                /// Performs spherical linear interpolation between this vector and another,
+                /// without implicitly constraining `factor` to be between 0 and 1.
+                ///
+                /// The vectors are not required to be normalized; their length
+                /// is also linearly interpolated in the process.
+                ///
+                /// ```
+                /// # extern crate vek;
+                /// # #[macro_use] extern crate approx;
+                /// # use vek::Vec3;
+                /// # fn main() {
+                /// let u = Vec3::<f32>::unit_x();
+                /// let v = Vec3::<f32>::unit_y() * 2.;
+                /// let slerp = Vec3::slerp(u, v, 0.5);
+                /// assert_relative_eq!(slerp.magnitude(), 1.5);
+                /// assert_relative_eq!(slerp.x, slerp.y);
+                /// # }
+                /// ```
+                pub fn slerp_unclamped(from: Self, to: Self, factor: T) -> Self
+                    where T: Sum + Float + Clamp + Lerp<T>
+                {
+                    // From GLM, gtx/rotate_vector.inl
+                    let (mag_from, mag_to) = (from.magnitude(), to.magnitude());
+                    let (from, to) = (from/mag_from, to/mag_to);
+                    let cos_alpha = from.dot(to);
+                    let alpha = cos_alpha.acos();
+                    let sin_alpha = alpha.sin();
+                    let t1 = ((T::one() - factor) * alpha).sin() / sin_alpha;
+                    let t2 = (factor * alpha).sin() / sin_alpha;
+                    (from * t1 + to * t2) * Lerp::lerp_unclamped(mag_from, mag_to, factor)
+                }
+                /// Performs spherical linear interpolation between this vector and another,
+                /// implicitly constraining `factor` to be between 0 and 1.
+                ///
+                /// The vectors are not required to be normalized; their length
+                /// is also interpolated in the process.
+                pub fn slerp(from: Self, to: Self, factor: T) -> Self
+                    where T: Sum + Float + Clamp + Lerp<T>
+                {
+                    Self::slerp_unclamped(from, to, factor.clamped01())
+                }
+
                 /// Get the unit vector which has `x` set to 1.
                 pub fn unit_x    () -> Self where T: Zero + One { Self::new(T::one(), T::zero(), T::zero()) }
                 /// Get the unit vector which has `y` set to 1.
@@ -1416,6 +1543,7 @@ macro_rules! vec_impl_spatial_4d {
     }
 }
 
+#[cfg(feature="image")]
 macro_rules! vec_impl_pixel_rgb {
     ($Vec:ident) => {
         extern crate image;
@@ -1517,6 +1645,7 @@ macro_rules! vec_impl_pixel_rgb {
 }
 
 
+#[cfg(feature="image")]
 macro_rules! vec_impl_pixel_rgba {
     ($Vec:ident) => {
         extern crate image;
@@ -1618,6 +1747,7 @@ macro_rules! vec_impl_pixel_rgba {
     }
 }
 
+#[cfg(feature="rgba")]
 macro_rules! vec_impl_color_rgba {
     ($Vec:ident) => {
 
@@ -1660,6 +1790,23 @@ macro_rules! vec_impl_color_rgba {
             pub fn yellow  () -> Self { Self::new_opaque(T::full(), T::full(), T::zero()) }
             pub fn gray(value: T) -> Self where T: Copy { Self::from(Rgba::new_opaque(value, value, value)) }
             pub fn grey(value: T) -> Self where T: Copy { Self::from(Rgba::new_opaque(value, value, value)) }
+            pub fn gray_level_via_numcast_f64(self) -> Option<T> where T: NumCast { self.grey_level_via_numcast_f64() }
+            pub fn grey_level_via_numcast_f64(self) -> Option<T> where T: NumCast {
+                let $Vec::<f64> { r, g, b, .. } = self.numcast()?;
+                let avg = (r + g + b) / 3.;
+                T::from(avg)
+            }
+
+            /// Returns this color with RGB elements inverted. Alpha is preserved.
+            ///
+            /// ```
+            /// # use vek::Rgba;
+            /// let opaque_orange = Rgba::new(255_u8, 128, 0, 255_u8);
+            /// assert_eq!(opaque_orange.inverted(), Rgba::new(0, 127, 255, 255));
+            /// assert_eq!(Rgba::black().inverted(), Rgba::white());
+            /// assert_eq!(Rgba::white().inverted(), Rgba::black());
+            /// assert_eq!(Rgba::red().inverted(), Rgba::cyan());
+            /// ```
             pub fn inverted(mut self) -> Self where T: Sub<Output=T> {
                 self.r = T::full() - self.r;
                 self.g = T::full() - self.g;
@@ -1670,6 +1817,7 @@ macro_rules! vec_impl_color_rgba {
     };
 }
 
+#[cfg(feature="rgb")]
 macro_rules! vec_impl_color_rgb {
     ($Vec:ident) => {
 
@@ -1687,6 +1835,22 @@ macro_rules! vec_impl_color_rgb {
             pub fn yellow  () -> Self { Self::new(T::full(), T::full(), T::zero()) }
             pub fn gray(value: T) -> Self where T: Copy { Self::new(value, value, value) }
             pub fn grey(value: T) -> Self where T: Copy { Self::new(value, value, value) }
+            pub fn gray_level_via_numcast_f64(self) -> Option<T> where T: NumCast { self.grey_level_via_numcast_f64() }
+            pub fn grey_level_via_numcast_f64(self) -> Option<T> where T: NumCast {
+                let $Vec::<f64> { r, g, b, .. } = self.numcast()?;
+                let avg = (r + g + b) / 3.;
+                T::from(avg)
+            }
+            /// Returns this color with RGB elements inverted.
+            ///
+            /// ```
+            /// # use vek::Rgb;
+            /// let orange = Rgb::new(255_u8, 128, 0);
+            /// assert_eq!(orange.inverted(), Rgb::new(0, 127, 255));
+            /// assert_eq!(Rgb::black().inverted(), Rgb::white());
+            /// assert_eq!(Rgb::white().inverted(), Rgb::black());
+            /// assert_eq!(Rgb::red().inverted(), Rgb::cyan());
+            /// ```
             pub fn inverted(mut self) -> Self where T: Sub<Output=T> {
                 self.r = T::full() - self.r;
                 self.g = T::full() - self.g;
@@ -1799,7 +1963,7 @@ macro_rules! vec_impl_all_vecs {
                 /// In homogeneous 3D-space coordinates, `w` is often set to 
                 /// `1` for points, and `0` for directions.  
                 ///
-                /// The reason behind this: with floating-point numbers,
+                /// One reason behind this: with floating-point numbers,
                 /// division by zero gives infinity (a direction is then
                 /// a point stretching infinitely towards another).
                 pub w: T
@@ -2092,7 +2256,7 @@ macro_rules! vec_impl_all_vecs {
 }
 
 pub mod repr_c {
-    //! Vector types which are marked `#[repr(packed, C)]`.
+    //! Vector types which are marked `#[repr(C)]`.
     //!
     //! See also the `repr_simd` neighbour module, which is available on Nightly
     //! with the `repr_simd` feature enabled.
@@ -2101,7 +2265,7 @@ pub mod repr_c {
     use super::*;
     vec_impl_all_vecs!{
         c
-        #[repr(C, packed)]
+        #[repr(C)]
         #[cfg_attr(all(nightly, feature="repr_align", any(target_arch="x86", target_arch="x86_64")), repr(align(16)))]
         #[cfg_attr(all(nightly, feature="repr_align", target_arch="arm"), repr(align(64)))]
         // XXX ^^^^ Not sure about the alignment on ARM ??
@@ -2111,13 +2275,56 @@ pub mod repr_c {
 
 #[cfg(all(nightly, feature="repr_simd"))]
 pub mod repr_simd {
-    //! Vector types which are marked `#[repr(packed, simd)]`.
+    //! Vector types which are marked `#[repr(simd)]`.
     
     use super::*;
     vec_impl_all_vecs!{
         simd
-        #[repr(simd, packed)]
+        #[repr(simd)]
     }
 }
 
 pub use self::repr_c::*;
+
+#[cfg(test)]
+mod tests {
+    macro_rules! for_each_type {
+        ($vec:ident $Vec:ident $($T:ident)+) => {
+            mod $vec {
+                mod repr_c {
+                    $(mod $T {
+                        use $crate::vec::repr_c::$Vec;
+                        #[test]
+                        fn is_packed() {
+                            assert!($Vec::<$T>::default().is_packed());
+                        }
+                    })+
+                }
+                #[cfg(feature="repr_simd")]
+                mod repr_simd {
+                    $(mod $T {
+                        use $crate::vec::repr_simd::$Vec;
+                        #[test]
+                        fn is_packed() {
+                            assert!($Vec::<$T>::default().is_packed());
+                        }
+                    })+
+                }
+            }
+        };
+    }
+    // Vertical editing helps here :)
+    #[cfg(feature="vec2")]    for_each_type!{vec2    Vec2    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="vec3")]    for_each_type!{vec3    Vec3    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    /*#[cfg(feature="vec4")]*/for_each_type!{vec4    Vec4    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="vec8")]    for_each_type!{vec8    Vec8    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="vec16")]   for_each_type!{vec16   Vec16   i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="vec32")]   for_each_type!{vec32   Vec32   i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="vec64")]   for_each_type!{vec64   Vec64   i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="rgba")]    for_each_type!{rgba    Rgba    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="rgb")]     for_each_type!{rgb     Rgb     i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="extent3")] for_each_type!{extent3 Extent3 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="extent2")] for_each_type!{extent2 Extent2 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="uv")]      for_each_type!{uv      Uv      i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="uvw")]     for_each_type!{uvw     Uvw     i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+}

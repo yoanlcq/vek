@@ -99,21 +99,6 @@ let xxxx = Vec4::broadcast(x);
 let xxxx = Vec4::from(x);
 ```
 
-
-# Why do element-wise comparison functions return `SomeVec<u8>` and not `SomeVec<bool>` ?
-
-Because `bool` is not a "machine type", SIMD `bool` vector types can't be monomorphized,
-and it's a pain to try to handle this case.
-If you really want a vector of `bool`s for some reason, you can use `convert()`:
-
-```rust
-let v = Vec4::new(0,1,0,1);
-let b = v.convert(|x| x != 0);
-```
-
-This will only work for vectors which are not `#[repr(simd)]`.
-
-
 ## Why can't I index a matrix directly (i.e write `m[1][3]`) ?
 
 Because the actual meaning changes depending on the matrix's storage layout.  
@@ -133,11 +118,11 @@ Here's how you index matrices in `vek` (assuming, for instance, that `i=1` and `
 - Row-major, dynamic indexing: `m.rows[i][j]`;
 - Column-major, static indexing: `(m.cols.w).y`;
 - Column-major, dynamic indexing: `m.cols[j][i]`;
-- Any layout, dynamic indexing: `m[(i, j)]` (or `m[Vec2::new(i, j)]`).
+- Any layout, dynamic indexing: `m[(i, j)]`.
 
 _(Static indexing with `x`, `y`, `z` and `w` is not pretty-looking, but I wanted
 to reuse the vector types because of their representation, alignement requirements, etc.  
-Using tuples or creating dedicated tuple structs don't look like a good idea either)_
+Using tuples and/or creating dedicated tuple structs don't look like good ideas either)_
 
 In the same way, if you want to get a pointer to the matrix's data, for e.g transferring it
 to a graphics API, get the address of the public member explictly instead, which makes clear

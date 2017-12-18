@@ -6,26 +6,6 @@ use core::ops::*;
 use core::iter::Sum;
 use ops::*;
 
-// TODO:
-// - Review matrices.
-//   - Test rotations.
-//   - Test from quaternions.
-//   - Test other transforms... even scale and translate to demonstrate.
-//   - Add 3D shearing.
-//   - Add scaling/scaled/scale craziness.
-// - Others
-//   XXX: Actually this looks like left-hand rule! This is what I get with both linmath and GEA book!
-//   The direction of rotations follow the right-hand rule: if your thumb points
-//   in the direction of the rotation axis, positive rotations will be in the direction
-//   of your curved fingers.
-//   Matrix multiplication order. If you wanna reverse the order, you have to transpose.
-//
-// is_zero
-// is_identity
-// from_arc(v3,v3)
-// Mul against all (non-color) vector types , by ref
-// look_at
-
 macro_rules! impl_mul_by_vec {
     ($Vec3:ident $Vec4:ident) => {
         /// 3D vectors can be rotated by being premultiplied by a quaternion, **assuming the
@@ -45,32 +25,33 @@ macro_rules! impl_mul_by_vec {
         /// let q = Quaternion::<f32>::identity();
         /// assert_relative_eq!(q * v, v);
         ///
-        /// let q = Quaternion::rotation_y(PI);
+        /// let q = Quaternion::rotation_z(PI);
         /// assert_relative_eq!(q * v, -v);
         ///
-        /// let q = Quaternion::rotation_y(PI * 0.5);
-        /// assert_relative_eq!(q * v, -Vec4::unit_z());
+        /// let q = Quaternion::rotation_z(PI * 0.5);
+        /// assert_relative_eq!(q * v, Vec4::unit_y());
         ///
-        /// let q = Quaternion::rotation_y(PI * 1.5);
-        /// assert_relative_eq!(q * v, Vec4::unit_z());
+        /// let q = Quaternion::rotation_z(PI * 1.5);
+        /// assert_relative_eq!(q * v, -Vec4::unit_y());
         ///
         /// let angles = 32;
         /// for i in 0..angles {
         ///     let theta = PI * 2. * (i as f32) / (angles as f32);
         ///
-        ///     // See what rotating unit vectors do for all values of theta
-        ///
-        ///     let v = Vec4::unit_x();
-        ///     let q = Quaternion::rotation_y(theta);
-        ///     assert_relative_eq!(q * v, Vec4::new(theta.cos(), 0., -theta.sin(), 0.));
-        ///
-        ///     let v = Vec4::unit_z();
-        ///     let q = Quaternion::rotation_x(theta);
-        ///     assert_relative_eq!(q * v, Vec4::new(0., -theta.sin(), theta.cos(), 0.));
+        ///     // See what rotating unit vectors do for most angles between 0 and 2*PI.
+        ///     // It's helpful to picture this as a right-handed coordinate system.
         ///
         ///     let v = Vec4::unit_y();
+        ///     let q = Quaternion::rotation_x(theta);
+        ///     assert_relative_eq!(q * v, Vec4::new(0., theta.cos(), theta.sin(), 0.));
+        ///
+        ///     let v = Vec4::unit_z();
+        ///     let q = Quaternion::rotation_y(theta);
+        ///     assert_relative_eq!(q * v, Vec4::new(theta.sin(), 0., theta.cos(), 0.));
+        ///
+        ///     let v = Vec4::unit_x();
         ///     let q = Quaternion::rotation_z(theta);
-        ///     assert_relative_eq!(q * v, Vec4::new(-theta.sin(), theta.cos(), 0., 0.));
+        ///     assert_relative_eq!(q * v, Vec4::new(theta.cos(), theta.sin(), 0., 0.));
         /// }
         /// # }
         /// ```
@@ -142,6 +123,7 @@ macro_rules! quaternion_complete_mod {
         /// For unit quaternions, the vector part is the unit axis of rotation scaled by the sine of
         /// the half-angle of the rotation, and the scalar part is the cosine of the half-angle.
         #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
+        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         #[$attrs]
         pub struct Quaternion<T> { pub x: T, pub y: T, pub z: T, pub w: T }
 
@@ -188,6 +170,10 @@ macro_rules! quaternion_complete_mod {
                     w: T::zero(),
                 }
             }
+            /// Is this quaternion zero ?
+            pub fn is_zero(&self) -> bool where T: Zero + PartialEq {
+                self == &Self::zero()
+            }
             /// Creates the identity `Quaternion`.
             ///
             /// ```
@@ -214,6 +200,10 @@ macro_rules! quaternion_complete_mod {
                     z: T::zero(),
                     w: T::one(),
                 }
+            }
+            /// Is this quaternion zero ?
+            pub fn is_identity(&self) -> bool where T: Zero + One + PartialEq {
+                self == &Self::identity()
             }
             /// Gets this `Quaternion`'s conjugate (copy with negated vector part).
             ///
@@ -275,6 +265,47 @@ macro_rules! quaternion_complete_mod {
             /// Gets a normalized copy of this quaternion.
             pub fn normalized(self) -> Self where T: Float + Sum {
                 self.into_vec4().normalized().into()
+            }
+            /// Is this quaternion normalized ?
+            pub fn is_normalized(self) -> bool where T: ApproxEq + Float + Sum {
+                self.into_vec4().is_normalized()
+            }
+
+            /// Creates a `Quaternion` that would rotate a `from` direction to `to`.
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::{Vec4, Quaternion};
+            ///
+            /// # fn main() {
+            /// let (from, to) = (Vec4::<f32>::unit_x(), Vec4::<f32>::unit_z());
+            /// let q = Quaternion::<f32>::from_arc(from, to);
+            /// assert_relative_eq!(q * from, to);
+            ///
+            /// let (from, to) = (Vec4::<f32>::unit_x(), -Vec4::<f32>::unit_x());
+            /// let q = Quaternion::<f32>::from_arc(from, to);
+            /// assert_relative_eq!(q * from, to);
+            /// # }
+            /// ```
+            pub fn from_arc<V: Into<Vec3<T>>>(from: V, to: V) -> Self 
+                where T: Float + Sum
+            {
+                // From GLM
+                let (from, to) = (from.into(), to.into());
+                let norm_u_norm_v = (from.dot(from) * to.dot(to)).sqrt();
+                let w = norm_u_norm_v + from.dot(to);
+                let (Vec3 { x, y, z }, w) = if w < norm_u_norm_v * T::epsilon() {
+                    // If we are here, it is a 180° rotation, which we have to handle.
+                    if from.x.abs() > from.z.abs() {
+                        (Vec3::new(-from.y, from.x, T::zero()), T::zero())
+                    } else {
+                        (Vec3::new(T::zero(), -from.z, from.y), T::zero())
+                    }
+                } else {
+                    (from.cross(to), w)
+                };
+                Self { x, y, z, w }.normalized()
             }
 
             /// Creates a `Quaternion` from an angle and axis.
@@ -376,6 +407,26 @@ macro_rules! quaternion_complete_mod {
             }
             /// Performs spherical linear interpolation without implictly constraining `factor` to
             /// be between 0 and 1.
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::Quaternion;
+            /// use std::f32::consts::PI;
+            ///
+            /// # fn main() {
+            /// let from = Quaternion::rotation_z(0_f32);
+            /// let to = Quaternion::rotation_z(PI*9./10.);
+            /// 
+            /// let angles = 32;
+            /// for i in 0..angles {
+            ///     let factor = (i as f32) / (angles as f32);
+            ///     let expected = Quaternion::rotation_z(factor * PI*9./10.);
+            ///     let slerp = Quaternion::slerp(from, to, factor);
+            ///     assert_relative_eq!(slerp, expected);
+            /// }
+            /// # }
+            /// ```
             // From GLM's source code.
             pub fn slerp_unclamped(from: Self, mut to: Self, factor: T) -> Self 
                 where T: Neg<Output=T>
@@ -547,13 +598,13 @@ macro_rules! quaternion_complete_mod {
 pub mod repr_simd {
     use super::*;
     use super::super::vec::repr_c::{Vec3 as CVec3, Vec4 as CVec4};
-    quaternion_complete_mod!(repr_simd #[repr(packed,simd)]);
+    quaternion_complete_mod!(repr_simd #[repr(simd)]);
     quaternion_vec3_vec4!(Vec3 Vec4);
     quaternion_vec3_vec4!(CVec3 CVec4);
 }
 pub mod repr_c {
     use super::*;
-    quaternion_complete_mod!(repr_c #[repr(packed,C)]);
+    quaternion_complete_mod!(repr_c #[repr(C)]);
     quaternion_vec3_vec4!(Vec3 Vec4);
 
     #[cfg(all(nightly, feature="repr_simd"))]

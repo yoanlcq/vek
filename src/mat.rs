@@ -2,6 +2,7 @@
 
 use core::mem;
 use core::ptr;
+use core::slice;
 use core::iter::Sum;
 use core::fmt::{self, Display, Formatter};
 use core::ops::*;
@@ -9,6 +10,7 @@ use num_traits::{Zero, One, Float};
 use approx::ApproxEq;
 use ops::MulAdd;
 use vec;
+#[allow(unused_imports)]
 #[cfg(feature="geom")]
 use geom::{FrustumPlanes, Rect};
 #[cfg(feature="quaternion")]
@@ -18,6 +20,49 @@ macro_rules! mat_impl_mat {
     (rows $Mat:ident $CVec:ident $Vec:ident ($nrows:tt x $ncols:tt) ($($get:tt)+)) => {
 
         mat_impl_mat!{common rows $Mat $CVec $Vec ($nrows x $ncols) ($($get)+)}
+
+
+        impl<T> $Mat<T> {
+            /// Gets a const pointer to this matrix's elements.
+            ///
+            /// # Panics
+            /// Panics if the matrix's elements are not tightly packed in memory,
+            /// which may be the case for matrices in the `repr_simd` module.
+            pub fn as_row_ptr(&self) -> *const T {
+                assert!(self.is_packed());
+                self.rows.as_ptr() as *const _ as *const T
+            }
+            /// Gets a mut pointer to this matrix's elements.
+            ///
+            /// # Panics
+            /// Panics if the matrix's elements are not tightly packed in memory,
+            /// which may be the case for matrices in the `repr_simd` module.
+            pub fn as_mut_row_ptr(&mut self) -> *mut T {
+                assert!(self.is_packed());
+                self.rows.as_mut_ptr() as *mut _ as *mut T
+            }
+            /// View this matrix as an immutable slice.
+            ///
+            /// # Panics
+            /// Panics if the matrix's elements are not tightly packed in memory,
+            /// which may be the case for matrices in the `repr_simd` module.
+            pub fn as_row_slice(&self) -> &[T] {
+                unsafe {
+                    slice::from_raw_parts(self.as_row_ptr(), $nrows*$ncols)
+                }
+            }
+            /// View this matrix as a mutable slice.
+            ///
+            /// # Panics
+            /// Panics if the matrix's elements are not tightly packed in memory,
+            /// which may be the case for matrices in the `repr_simd` module.
+            pub fn as_mut_row_slice(&mut self) -> &mut [T] {
+                unsafe {
+                    slice::from_raw_parts_mut(self.as_mut_row_ptr(), $nrows*$ncols)
+                }
+            }
+        }
+
 
         /// Displays this matrix using the following format:  
         ///
@@ -41,6 +86,25 @@ macro_rules! mat_impl_mat {
                     write!(f, " ")?;
                 }
                 write!(f, " )")
+            }
+        }
+
+        /// Index this matrix in a layout-agnostic way with an `(i, j)` (row index, column index) tuple.
+        ///
+        /// Matrices cannot be indexed by `Vec2`s because that would be likely to cause confusion:
+        /// should `x` be the row index (because it's the first element) or the column index
+        /// (because it's a horizontal position) ?
+        impl<T> Index<(usize, usize)> for $Mat<T> {
+            type Output = T;
+            fn index(&self, t: (usize, usize)) -> &Self::Output {
+                let (i, j) = t;
+                &self.rows[i][j]
+            }
+        }
+        impl<T> IndexMut<(usize, usize)> for $Mat<T> {
+            fn index_mut(&mut self, t: (usize, usize)) -> &mut Self::Output {
+                let (i, j) = t;
+                &mut self.rows[i][j]
             }
         }
 
@@ -182,6 +246,48 @@ macro_rules! mat_impl_mat {
 
         mat_impl_mat!{common cols $Mat $CVec $Vec ($nrows x $ncols) ($($get)+)}
 
+        impl<T> $Mat<T> {
+            /// Gets a const pointer to this matrix's elements.
+            ///
+            /// # Panics
+            /// Panics if the matrix's elements are not tightly packed in memory,
+            /// which may be the case for matrices in the `repr_simd` module.
+            pub fn as_col_ptr(&self) -> *const T {
+                assert!(self.is_packed());
+                self.cols.as_ptr() as *const _ as *const T
+            }
+            /// Gets a mut pointer to this matrix's elements.
+            ///
+            /// # Panics
+            /// Panics if the matrix's elements are not tightly packed in memory,
+            /// which may be the case for matrices in the `repr_simd` module.
+            pub fn as_mut_col_ptr(&mut self) -> *mut T {
+                assert!(self.is_packed());
+                self.cols.as_mut_ptr() as *mut _ as *mut T
+            }
+            /// View this matrix as an immutable slice.
+            ///
+            /// # Panics
+            /// Panics if the matrix's elements are not tightly packed in memory,
+            /// which may be the case for matrices in the `repr_simd` module.
+            pub fn as_col_slice(&self) -> &[T] {
+                unsafe {
+                    slice::from_raw_parts(self.as_col_ptr(), $nrows*$ncols)
+                }
+            }
+            /// View this matrix as a mutable slice.
+            ///
+            /// # Panics
+            /// Panics if the matrix's elements are not tightly packed in memory,
+            /// which may be the case for matrices in the `repr_simd` module.
+            pub fn as_mut_col_slice(&mut self) -> &mut [T] {
+                unsafe {
+                    slice::from_raw_parts_mut(self.as_mut_col_ptr(), $nrows*$ncols)
+                }
+            }
+        }
+
+
         /// Displays this matrix using the following format:  
         ///
         /// (`i` being the number of rows and `j` the number of columns)
@@ -209,6 +315,26 @@ macro_rules! mat_impl_mat {
                 write!(f, " )")
             }
         }
+
+        /// Index this matrix in a layout-agnostic way with an `(i, j)` (row index, column index) tuple.
+        ///
+        /// Matrices cannot be indexed by `Vec2`s because that would be likely to cause confusion:
+        /// should `x` be the row index (because it's the first element) or the column index
+        /// (because it's a horizontal position) ?
+        impl<T> Index<(usize, usize)> for $Mat<T> {
+            type Output = T;
+            fn index(&self, t: (usize, usize)) -> &Self::Output {
+                let (i, j) = t;
+                &self.cols[j][i]
+            }
+        }
+        impl<T> IndexMut<(usize, usize)> for $Mat<T> {
+            fn index_mut(&mut self, t: (usize, usize)) -> &mut Self::Output {
+                let (i, j) = t;
+                &mut self.cols[j][i]
+            }
+        }
+
 
         impl<T> $Mat<T> {
             /// Gets the `transpose` parameter to pass to 
@@ -375,11 +501,74 @@ macro_rules! mat_impl_mat {
                     }
                 }
             }
-            /// The matrix's transpose.
+            /// Initializes a new matrix with elements of the diagonal set to `val`
+            /// and the other to zero.
+            ///
+            /// In a way, this is the same as single-argument matrix constructors
+            /// in GLSL and GLM.
             ///
             /// ```
-            /// # use vek::mat::Mat4;
+            /// # use vek::Mat4;
+            /// assert_eq!(Mat4::broadcast_diagonal(0), Mat4::zero());
+            /// assert_eq!(Mat4::broadcast_diagonal(1), Mat4::identity());
+            /// assert_eq!(Mat4::broadcast_diagonal(2), Mat4::new(
+            ///     2,0,0,0,
+            ///     0,2,0,0,
+            ///     0,0,2,0,
+            ///     0,0,0,2,
+            /// ));
+            /// ```
+            pub fn broadcast_diagonal(val: T) -> Self where T: Zero + Copy {
+                let mut out = Self::zero();
+                $(out.$lines.$get.$get = val;)+
+                out
+            }
+            /// Initializes a matrix by its diagonal, setting other elements to zero.
+            pub fn from_diagonal(d: $Vec<T>) -> Self where T: Zero + Copy {
+                let mut out = Self::zero();
+                $(out.$lines.$get.$get = d.$get;)+
+                out
+            }
+            /// Gets the matrix's diagonal into a vector.
             ///
+            /// ```
+            /// # use vek::{Mat4, Vec4};
+            /// assert_eq!(Mat4::<u32>::zero().diagonal(), Vec4::zero());
+            /// assert_eq!(Mat4::<u32>::identity().diagonal(), Vec4::one());
+            ///
+            /// let mut m = Mat4::zero();
+            /// m[(0, 0)] = 1;
+            /// m[(1, 1)] = 2;
+            /// m[(2, 2)] = 3;
+            /// m[(3, 3)] = 4;
+            /// assert_eq!(m.diagonal(), Vec4::new(1, 2, 3, 4));
+            /// assert_eq!(m.diagonal(), Vec4::iota() + 1);
+            pub fn diagonal(self) -> $Vec<T> {
+                $Vec::new($(self.$lines.$get.$get),+)
+            }
+            /// The sum of the diagonal's elements.
+            ///
+            /// ```
+            /// # use vek::Mat4;
+            /// assert_eq!(Mat4::<u32>::zero().trace(), 0);
+            /// assert_eq!(Mat4::<u32>::identity().trace(), 4);
+            /// ```
+            pub fn trace(self) -> T where T: Sum {
+                self.diagonal().sum()
+            }
+            /// The matrix's transpose.
+            ///
+            /// For orthogonal matrices, the transpose is the same as the inverse.
+            /// All pure rotation matrices are orthogonal, and therefore can be inverted
+            /// faster by simply computing their transpose.
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::Mat4;
+            /// use std::f32::consts::PI;
+            ///
+            /// # fn main() {
             /// let m = Mat4::new(
             ///     0, 1, 2, 3,
             ///     4, 5, 6, 7,
@@ -394,6 +583,14 @@ macro_rules! mat_impl_mat {
             /// );
             /// assert_eq!(m.transposed(), t);
             /// assert_eq!(m, m.transposed().transposed());
+            ///
+            /// let m = Mat4::rotation_x(PI/7.);
+            /// assert_relative_eq!(m * m.transposed(), Mat4::identity());
+            /// assert_relative_eq!(m.transposed() * m, Mat4::identity());
+            /// // This is supposed to hold true, but our inversion implementation
+            /// // loses to much precision in some elements.
+            /// // assert_relative_eq!(m.transposed(), m.inverted());
+            /// # }
             /// ```
             pub fn transposed(self) -> Self {
                 // PERF: This implementation sucks!!
@@ -461,11 +658,36 @@ macro_rules! mat_impl_mat {
                     )
                 }
             }
+            /// Convenience for getting the number of rows of this matrix.
             pub fn row_count(&self) -> usize {
                 $nrows
             }
+            /// Convenience for getting the number of columns of this matrix.
             pub fn col_count(&self) -> usize {
                 $ncols
+            }
+            /// Are all elements of this matrix tightly packed together in memory ?
+            /// 
+            /// This might not be the case for matrices in the `repr_simd` module
+            /// (it depends on the target architecture).
+            pub fn is_packed(&self) -> bool {
+                let ptr = self as *const _ as *const T;
+                let mut i = -1isize;
+                // Maybe some of the tests are overkill
+                if !self.$lines.is_packed() {
+                    return false;
+                }
+                $(
+                    i += 1;
+                    if !self.$lines.$get.is_packed() {
+                        return false;
+                    }
+                    const_assert_eq!($nrows, $ncols);
+                    if unsafe { ptr.offset(i*($nrows+1)) } != &self.$lines.$get.$get as *const _ {
+                        return false;
+                    }
+                )+
+                true
             }
         }
 
@@ -637,8 +859,6 @@ macro_rules! mat_impl_mat {
 macro_rules! mat_impl_mat4 {
     (rows) => {
 
-        mat_impl_mat4!{common rows}
-
         impl<T> Mat4<T> {
             /// Creates a new 4x4 matrix from elements in a layout-agnostic way.
             ///
@@ -661,11 +881,9 @@ macro_rules! mat_impl_mat4 {
                 }
             }
         }
+        mat_impl_mat4!{common rows}
     };
     (cols) => {
-
-        mat_impl_mat4!{common cols}
-
         impl<T> Mat4<T> {
             /// Creates a new 4x4 matrix from elements in a layout-agnostic way.
             ///
@@ -688,6 +906,7 @@ macro_rules! mat_impl_mat4 {
                 }
             }
         }
+        mat_impl_mat4!{common cols}
     };
     (common $lines:ident) => {
 
@@ -700,12 +919,33 @@ macro_rules! mat_impl_mat4 {
             //
 
             /// Inverts this matrix, blindly assuming that it is invertible.
+            /// See `inverted()` for more info.
             pub fn invert(&mut self) where T: Float {
                 *self = self.inverted()
             }
             /// Returns this matrix's inverse, blindly assuming that it is invertible.
+            ///
+            /// All affine matrices have inverses; Your matrices may be affine
+            /// as long as they consist of any combination of pure rotations,
+            /// translations, scales and shears.
+            ///
+            // FIXME: Make this actually pass
+            // ```
+            // # extern crate vek;
+            // # #[macro_use] extern crate approx;
+            // # use vek::Mat4;
+            // use std::f32::consts::PI;
+            //
+            // # fn main() {
+            // let a = Mat4::rotation_x(PI*4./5.);
+            // let b = a.inverted();
+            // assert_relative_eq!(a*b, Mat4::identity());
+            // assert_relative_eq!(b*a, Mat4::identity());
+            // # }
+            // ```
             // Taken verbatim from datenwolf's linmath.h
             // As mentioned in the original, it assumes that the matrix is invertible.
+            // It appears to lose quite a bunch of precision though. There should be a better way.
             pub fn inverted(self) -> Self where T: Float
             {
                 let mut m = Rows4::from(self).rows;
@@ -748,10 +988,14 @@ macro_rules! mat_impl_mat4 {
                 Rows4 { rows: m }.into()
             }
 
-            pub fn orthonormalize(&mut self) where T: Float + Sum + SubAssign {
+            #[allow(dead_code)]
+            fn orthonormalize(&mut self) where T: Float + Sum + SubAssign {
                 *self = self.orthonormalized();
             }
-            pub fn orthonormalized(self) -> Self where T: Float + Sum + SubAssign {
+            #[allow(dead_code)]
+            /// XXX I don't know exactly what this does. Make it public when I do.
+            // Taken verbatim from linmath.h - I don't know exactly what it does.
+            fn orthonormalized(self) -> Self where T: Float + Sum + SubAssign {
                 let mut r = Rows4::from(self).rows;
 
                 r[2] = r[2].normalized();
@@ -771,13 +1015,39 @@ macro_rules! mat_impl_mat4 {
                 Rows4 { rows: r }.into()
             }
 
+
+            //
+            // MULTIPLY BY
+            //
+
+            /// Shortcut for `self * Vec4::from_point(rhs)`.
+            #[cfg(feature="vec3")]
+            pub fn mul_point<V: Into<Vec3<T>>>(self, rhs: V) -> Vec4<T>
+                where T: Float + MulAdd<T,T,Output=T>
+            {
+                self * Vec4::from_point(rhs)
+            }
+            /// Shortcut for `self * Vec4::from_direction(rhs)`.
+            #[cfg(feature="vec3")]
+            pub fn mul_direction<V: Into<Vec3<T>>>(self, rhs: V) -> Vec4<T>
+                where T: Float + MulAdd<T,T,Output=T>
+            {
+                self * Vec4::from_direction(rhs)
+            }
+
             //
             // TRANSFORMS
             //
 
             #[cfg(feature="vec2")]
+            pub fn translate_2d<V: Into<Vec2<T>>>(&mut self, v: V)
+                where T: Float + MulAdd<T,T,Output=T>
+            {
+                *self = self.translated_2d(v);
+            }
+            #[cfg(feature="vec2")]
             pub fn translated_2d<V: Into<Vec2<T>>>(self, v: V) -> Self
-                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+                where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::translation_2d(v) * self
             }
@@ -792,8 +1062,14 @@ macro_rules! mat_impl_mat4 {
                 )
             }
             #[cfg(feature="vec3")]
+            pub fn translate_3d<V: Into<Vec3<T>>>(&mut self, v: V)
+                where T: Float + MulAdd<T,T,Output=T>
+            {
+                *self = self.translated_3d(v);
+            }
+            #[cfg(feature="vec3")]
             pub fn translated_3d<V: Into<Vec3<T>>>(self, v: V) -> Self
-                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+                where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::translation_3d(v) * self
             }
@@ -807,8 +1083,10 @@ macro_rules! mat_impl_mat4 {
                     T::zero(), T::zero(), T::zero(), T::one(),
                 )
             }
+            #[allow(dead_code)]
+            /// XXX: This was from linmath.h. I'm not confident what this does. Make it pub when I do.
             #[cfg(feature="vec3")]
-            pub fn translate_in_place_3d<V: Into<Vec3<T>>>(&mut self, v: V) where T: Copy + Zero + One + AddAssign + Sum {
+            fn translate_in_place_3d<V: Into<Vec3<T>>>(&mut self, v: V) where T: Copy + Zero + One + AddAssign + Sum {
                 let Vec3 { x, y, z } = v.into();
                 let t = Vec4 { x, y, z, w: T::zero() };
                 let mut rows = Rows4::from(*self).rows;
@@ -820,8 +1098,14 @@ macro_rules! mat_impl_mat4 {
             }
 
             #[cfg(feature="vec3")]
+            pub fn scale_3d<V: Into<Vec3<T>>>(&mut self, v: V)
+                where T: Float + MulAdd<T,T,Output=T>
+            {
+                *self = self.scaled_3d(v);
+            }
+            #[cfg(feature="vec3")]
             pub fn scaled_3d<V: Into<Vec3<T>>>(self, v: V) -> Self
-                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+                where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::scaling_3d(v) * self
             }
@@ -835,8 +1119,14 @@ macro_rules! mat_impl_mat4 {
                     T::zero(), T::zero(), T::zero(), T::one()
                 )
             }
+            // TODO NOTE: These follow the right-hand rule, in right-handed spaces.
+            pub fn rotate_x(&mut self, angle_radians: T)
+                where T: Float + MulAdd<T,T,Output=T>
+            {
+                *self = self.rotated_x(angle_radians);
+            }
             pub fn rotated_x(self, angle_radians: T) -> Self 
-                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+                where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::rotation_x(angle_radians) * self
             }
@@ -850,8 +1140,13 @@ macro_rules! mat_impl_mat4 {
                     T::zero(), T::zero(), T::zero(), T::one()
                 )
             }
+            pub fn rotate_y(&mut self, angle_radians: T)
+                where T: Float + MulAdd<T,T,Output=T>
+            {
+                *self = self.rotated_y(angle_radians);
+            }
             pub fn rotated_y(self, angle_radians: T) -> Self
-                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+                where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::rotation_y(angle_radians) * self
             }
@@ -865,8 +1160,13 @@ macro_rules! mat_impl_mat4 {
                     T::zero(), T::zero(), T::zero(), T::one()
                 )
             }
+            pub fn rotate_z(&mut self, angle_radians: T)
+                where T: Float + MulAdd<T,T,Output=T>
+            {
+                *self = self.rotated_z(angle_radians);
+            }
             pub fn rotated_z(self, angle_radians: T) -> Self
-                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+                where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::rotation_z(angle_radians) * self
             }
@@ -881,11 +1181,60 @@ macro_rules! mat_impl_mat4 {
                 )
             }
             #[cfg(feature="vec3")]
+            pub fn rotate_3d<V: Into<Vec3<T>>>(&mut self, angle_radians: T, axis: V)
+                where T: Float + MulAdd<T,T,Output=T> + Sum
+            {
+                *self = self.rotated_3d(angle_radians, axis);
+            }
+            #[cfg(feature="vec3")]
             pub fn rotated_3d<V: Into<Vec3<T>>>(self, angle_radians: T, axis: V) -> Self
-                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy + Sum
+                where T: Float + MulAdd<T,T,Output=T> + Sum
             {
                 Self::rotation_3d(angle_radians, axis) * self
             }
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::{Mat4, Vec4};
+            /// use std::f32::consts::PI;
+            ///
+            /// # fn main() {
+            /// let v = Vec4::unit_x();
+            ///
+            /// let q = Mat4::rotation_y(PI);
+            /// assert_relative_eq!(q * v, -v);
+            ///
+            /// let q = Mat4::rotation_y(PI * 0.5);
+            /// assert_relative_eq!(q * v, -Vec4::unit_z());
+            ///
+            /// let q = Mat4::rotation_y(PI * 1.5);
+            /// assert_relative_eq!(q * v, Vec4::unit_z());
+            ///
+            /// let angles = 32;
+            /// for i in 0..angles {
+            ///     let theta = PI * 2. * (i as f32) / (angles as f32);
+            ///
+            ///     // See what rotating unit vectors do for most angles between 0 and 2*PI.
+            ///     // It's helpful to picture this as a right-handed coordinate system.
+            ///
+            ///     let v = Vec4::unit_y();
+            ///     let m = Mat4::rotation_x(theta);
+            ///     assert_relative_eq!(m * v, Vec4::new(0., theta.cos(), theta.sin(), 0.));
+            ///
+            ///     let v = Vec4::unit_z();
+            ///     let m = Mat4::rotation_y(theta);
+            ///     assert_relative_eq!(m * v, Vec4::new(theta.sin(), 0., theta.cos(), 0.));
+            ///
+            ///     let v = Vec4::unit_x();
+            ///     let m = Mat4::rotation_z(theta);
+            ///     assert_relative_eq!(m * v, Vec4::new(theta.cos(), theta.sin(), 0., 0.));
+            ///
+            ///     assert_relative_eq!(Mat4::rotation_x(theta), Mat4::rotation_3d(theta, Vec4::unit_x()));
+            ///     assert_relative_eq!(Mat4::rotation_y(theta), Mat4::rotation_3d(theta, Vec4::unit_y()));
+            ///     assert_relative_eq!(Mat4::rotation_z(theta), Mat4::rotation_3d(theta, Vec4::unit_z()));
+            /// }
+            /// # }
+            /// ```
             #[cfg(feature="vec3")]
             pub fn rotation_3d<V: Into<Vec3<T>>>(angle_radians: T, axis: V) -> Self where T: Float + Sum {
                 let Vec3 { x, y, z } = axis.into().normalized();
@@ -904,58 +1253,302 @@ macro_rules! mat_impl_mat4 {
             // VIEW
             //
 
+            /// Builds a "look at" view transform for left-handed spaces
+            /// from an eye position, a target position, and up vector.
+            /// Commonly used for cameras.
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::{Mat4, Vec4};
+            /// # fn main() {
+            /// let eye = Vec4::new(1_f32, 0., 1., 1.);
+            /// let target = Vec4::new(2_f32, 0., 2., 1.);
+            /// let view = Mat4::<f32>::look_at_view_lh(eye, target, Vec4::up());
+            /// assert_relative_eq!(view * eye, Vec4::unit_w());
+            /// assert_relative_eq!(view * target, Vec4::new(0_f32, 0., 2_f32.sqrt(), 1.));
+            /// # }
+            /// ```
             #[cfg(feature="vec3")]
-            pub fn look_at<V: Into<Vec3<T>>>(eye: V, center: V, up: V) -> Self
+            pub fn look_at_view_lh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
                 where T: Float + Sum + AddAssign
             {
-                let (eye, center, up) = (eye.into(), center.into(), up.into());
-                let f = (center - eye).normalized();
-                let s = f.cross(up).normalized();
-                let t = s.cross(f);
-                let mut out = Self::new(
-                    s.x, t.x, -f.x, T::zero(),
-                    s.y, t.y, -f.y, T::zero(),
-                    s.z, t.z, -f.z, T::zero(),
+                // From GLM
+                let (eye, target, up) = (eye.into(), target.into(), up.into());
+                let f = (target - eye).normalized();
+                let s = up.cross(f).normalized();
+                let u = f.cross(s);
+                Self::new(
+                    s.x, s.y, s.z, -s.dot(eye),
+                    u.x, u.y, u.z, -u.dot(eye),
+                    f.x, f.y, f.z, -f.dot(eye),
                     T::zero(), T::zero(), T::zero(), T::one()
-                );
-                out.translate_in_place_3d(-eye);
-                out
+                )
             }
+
+            /// Builds a "look at" model transform for left-handed spaces
+            /// from an eye position, a target position, and up vector.
+            /// Preferred for transforming objects.
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::{Mat4, Vec4};
+            /// # fn main() {
+            /// let eye = Vec4::new(1_f32, 0., 1., 1.);
+            /// let target = Vec4::new(2_f32, 0., 2., 1.);
+            /// let model = Mat4::<f32>::look_at_model_lh(eye, target, Vec4::up());
+            /// assert_relative_eq!(model * Vec4::unit_w(), eye);
+            /// let d = 2_f32.sqrt();
+            /// assert_relative_eq!(model * Vec4::new(0_f32, 0., d, 1.), target);
+            ///
+            /// // A "model" look-at essentially undoes a "view" look-at
+            /// let view = Mat4::look_at_view_lh(eye, target, Vec4::up());
+            /// assert_relative_eq!(view * model, Mat4::identity());
+            /// assert_relative_eq!(model * view, Mat4::identity());
+            /// # }
+            /// ```
+            #[cfg(feature="vec3")]
+            pub fn look_at_model_lh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
+                where T: Float + Sum + AddAssign
+            {
+                // Advanced 3D Game Programming with DirectX 10.0, p. 173
+                let (eye, target, up) = (eye.into(), target.into(), up.into());
+                let f = (target - eye).normalized();
+                let s = up.cross(f).normalized();
+                let u = f.cross(s);
+                Self::new(
+                    s.x, u.x, f.x, eye.x,
+                    s.y, u.y, f.y, eye.y,
+                    s.z, u.z, f.z, eye.z,
+                    T::zero(), T::zero(), T::zero(), T::one()
+                )
+            }
+
+            /// Builds a "look at" model transform for right-handed spaces
+            /// from an eye position, a target position, and up vector.
+            /// Preferred for transforming objects.
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::mat::row_major::Mat4;
+            /// # use vek::Vec4;
+            /// # fn main() {
+            /// let eye = Vec4::new(1_f32, 0., 1., 1.);
+            /// let target = Vec4::new(2_f32, 0., 2., 1.);
+            /// let model = Mat4::<f32>::look_at_model_rh(eye, target, Vec4::up());
+            /// assert_relative_eq!(model * Vec4::unit_w(), Vec4::new(1_f32, 0., 1., 1.));
+            /// assert_relative_eq!(model * Vec4::new(0_f32, 0., -2_f32.sqrt(), 1.), Vec4::new(2_f32, 0., 2., 1.));
+            ///
+            /// // A "model" look-at essentially undoes a "view" look-at
+            /// let view = Mat4::<f32>::look_at_view_rh(eye, target, Vec4::up());
+            /// assert_relative_eq!(view * model, Mat4::identity());
+            /// assert_relative_eq!(model * view, Mat4::identity());
+            /// # }
+            /// ```
+            #[cfg(feature="vec3")]
+            pub fn look_at_model_rh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
+                where T: Float + Sum + AddAssign + MulAdd<T,T,Output=T>
+            {
+                let (eye, target, up) = (eye.into(), target.into(), up.into());
+                let f = (target - eye).normalized();
+                let s = f.cross(up).normalized();
+                let u = s.cross(f);
+                Self::new(
+                    s.x, u.x, -f.x, eye.x,
+                    s.y, u.y, -f.y, eye.y,
+                    s.z, u.z, -f.z, eye.z,
+                    T::zero(), T::zero(), T::zero(), T::one()
+                )
+            }
+
+            /// Builds a "look at" view transform for right-handed spaces
+            /// from an eye position, a target position, and up vector.
+            /// Commonly used for cameras.
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::{Mat4, Vec4};
+            /// # fn main() {
+            /// let eye = Vec4::new(1_f32, 0., 1., 1.);
+            /// let target = Vec4::new(2_f32, 0., 2., 1.);
+            /// let view = Mat4::<f32>::look_at_view_rh(eye, target, Vec4::up());
+            /// assert_relative_eq!(view * eye, Vec4::unit_w());
+            /// assert_relative_eq!(view * target, Vec4::new(0_f32, 0., -2_f32.sqrt(), 1.));
+            /// # }
+            /// ```
+            #[cfg(feature="vec3")]
+            pub fn look_at_view_rh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
+                where T: Float + Sum + AddAssign
+            {
+                // From GLM
+                let (eye, target, up) = (eye.into(), target.into(), up.into());
+                let f = (target - eye).normalized();
+                let s = f.cross(up).normalized();
+                let u = s.cross(f);
+                Self::new(
+                     s.x,  s.y,  s.z, -s.dot(eye),
+                     u.x,  u.y,  u.z, -u.dot(eye),
+                    -f.x, -f.y, -f.z,  f.dot(eye),
+                    T::zero(), T::zero(), T::zero(), T::one()
+                )
+            }
+
+
 
             //
             // PROJECTIONS
             //
 
             #[cfg(feature="geom")]
-            pub fn orthographic (o: FrustumPlanes<T>) -> Self
-                where T: Copy + Zero + One 
-                       + Add<Output=T> + Sub<Output=T> + Neg<Output=T>
-                       + Mul<Output=T> + Div<Output=T>
-            {
-                let FrustumPlanes { left: l, right: r, bottom: b, top: t, near: n, far: f } = o;
+            pub fn orthographic_without_depth_planes (o: FrustumPlanes<T>) -> Self where T: Float {
                 let two = T::one() + T::one();
-                Self::new(
-                    two/(r-l), T::zero(), T::zero(), T::zero(),
-                    T::zero(), two/(t-b), T::zero(), T::zero(),
-                    T::zero(), T::zero(), two/(f-n), T::zero(),
-                    -(r+l)/(r-l), -(t+b)/(t-b), -(f+n)/(f-n), T::one()
-                )
+                let FrustumPlanes { left, right, top, bottom, .. } = o;
+                let mut m = Self::identity();
+                m[(0, 0)] = two / (right - left);
+                m[(1, 1)] = two / (top - bottom);
+                m[(0, 3)] = - (right + left) / (right - left);
+                m[(1, 3)] = - (top + bottom) / (top - bottom);
+                m
             }
-            pub fn perspective (fov_y_radians: T, aspect_ratio: T, near: T, far: T) -> Self 
+            #[cfg(feature="geom")]
+            pub fn orthographic_lh_zo (o: FrustumPlanes<T>) -> Self where T: Float {
+                let FrustumPlanes { near, far, .. } = o;
+                let mut m = Self::orthographic_without_depth_planes(o);
+                m[(2, 2)] = T::one() / (far - near);
+                m[(2, 3)] = - near / (far - near);
+                m
+            }
+            #[cfg(feature="geom")]
+            pub fn orthographic_lh_no (o: FrustumPlanes<T>) -> Self where T: Float {
+                let two = T::one() + T::one();
+                let FrustumPlanes { near, far, .. } = o;
+                let mut m = Self::orthographic_without_depth_planes(o);
+                m[(2, 2)] = two / (far - near);
+                m[(2, 3)] = - (far + near) / (far - near);
+                m
+            }
+            #[cfg(feature="geom")]
+            pub fn orthographic_rh_zo (o: FrustumPlanes<T>) -> Self where T: Float {
+                let FrustumPlanes { near, far, .. } = o;
+                let mut m = Self::orthographic_without_depth_planes(o);
+                m[(2, 2)] = - T::one() / (far - near);
+                m[(2, 3)] = - near / (far - near);
+                m
+            }
+            #[cfg(feature="geom")]
+            pub fn orthographic_rh_no (o: FrustumPlanes<T>) -> Self where T: Float {
+                let two = T::one() + T::one();
+                let FrustumPlanes { near, far, .. } = o;
+                let mut m = Self::orthographic_without_depth_planes(o);
+                m[(2, 2)] = - two / (far - near);
+                m[(2, 3)] = - (far + near) / (far - near);
+                m
+            }
+
+            #[cfg(feature="geom")]
+            pub fn frustum_lh_zo (o: FrustumPlanes<T>) -> Self where T: Float {
+                let two = T::one() + T::one();
+                let FrustumPlanes { left, right, top, bottom, near, far } = o;
+                let mut m = Self::zero();
+                m[(0, 0)] = (two * near) / (right - left);
+                m[(1, 1)] = (two * near) / (top - bottom);
+                m[(0, 2)] = (right + left) / (right - left);
+                m[(1, 2)] = (top + bottom) / (top - bottom);
+                m[(2, 2)] = far / (far - near);
+                m[(3, 2)] = T::one();
+                m[(2, 3)] = -(far * near) / (far - near);
+                m
+            }
+            #[cfg(feature="geom")]
+            pub fn frustum_lh_no (o: FrustumPlanes<T>) -> Self where T: Float {
+                let two = T::one() + T::one();
+                let FrustumPlanes { near, far, .. } = o;
+                let mut m = Self::frustum_lh_zo(o);
+                m[(2, 2)] = (far + near) / (far - near);
+                m[(2, 3)] = -(two * far * near) / (far - near);
+                m
+            }
+            #[cfg(feature="geom")]
+            pub fn frustum_rh_zo (o: FrustumPlanes<T>) -> Self where T: Float {
+                let mut m = Self::frustum_lh_zo(o);
+                m[(2, 2)] = -m[(2, 2)];
+                m[(3, 2)] = -m[(3, 2)];
+                m
+            }
+            #[cfg(feature="geom")]
+            pub fn frustum_rh_no (o: FrustumPlanes<T>) -> Self where T: Float {
+                let mut m = Self::frustum_lh_no(o);
+                m[(2, 2)] = -m[(2, 2)];
+                m[(3, 2)] = -m[(3, 2)];
+                m
+            }
+
+            /// Creates a perspective projection matrix for right-handed spaces, with zero-to-one depth clip planes.
+            pub fn perspective_rh_zo (fov_y_radians: T, aspect_ratio: T, near: T, far: T) -> Self 
                 where T: Float
             {
-                assert!(fov_y_radians > T::zero());
+                assert!((aspect_ratio - T::epsilon()).abs() > T::zero());
                 let two = T::one() + T::one();
-                let a = T::one() / ((fov_y_radians / two).tan());
+                let tan_half_fovy = (fov_y_radians / two).tan();
+                let m00 = T::one() / (aspect_ratio * tan_half_fovy);
+                let m11 = T::one() / tan_half_fovy;
+                let m22 = far / (near - far);
+                let m23 = -(far*near) / (far-near);
+                let m32 = -T::one();
                 Self::new(
-                    a / aspect_ratio, T::zero(), T::zero(), T::zero(),
-                    T::zero(), a, T::zero(), T::zero(),
-                    T::zero(), T::zero(), -((far + near) / (far - near)), T::one(),
-                    T::zero(), T::zero(), -((two * far * near) / (far - near)), T::zero()
+                    m00, T::zero(), T::zero(), T::zero(),
+                    T::zero(), m11, T::zero(), T::zero(),
+                    T::zero(), T::zero(), m22, m23,
+                    T::zero(), T::zero(), m32, T::zero()
                 )
             }
-            // NOTE: Right-handed
-            pub fn perspective_fov (fov_y_radians: T, width: T, height: T, near: T, far: T) -> Self 
+            /// Creates a perspective projection matrix for left-handed spaces, with zero-to-one depth clip planes.
+            pub fn perspective_lh_zo (fov_y_radians: T, aspect_ratio: T, near: T, far: T) -> Self 
+                where T: Float
+            {
+                let mut m = Self::perspective_rh_zo(fov_y_radians, aspect_ratio, near, far);
+                m[(2, 2)] = -m[(2, 2)];
+                m[(3, 2)] = -m[(3, 2)];
+                m
+            }
+
+            /// Creates a perspective projection matrix for right-handed spaces, with negative-one-to-one depth clip planes.
+            pub fn perspective_rh_no (fov_y_radians: T, aspect_ratio: T, near: T, far: T) -> Self 
+                where T: Float
+            {
+                assert!((aspect_ratio - T::epsilon()).abs() > T::zero());
+                let two = T::one() + T::one();
+                let tan_half_fovy = (fov_y_radians / two).tan();
+                let m00 = T::one() / (aspect_ratio * tan_half_fovy);
+                let m11 = T::one() / tan_half_fovy;
+                let m22 = -(far + near) / (far - near);
+                let m23 = -(two*far*near) / (far-near);
+                let m32 = -T::one();
+                Self::new(
+                    m00, T::zero(), T::zero(), T::zero(),
+                    T::zero(), m11, T::zero(), T::zero(),
+                    T::zero(), T::zero(), m22, m23,
+                    T::zero(), T::zero(), m32, T::zero()
+                )
+            }
+            /// Creates a perspective projection matrix for left-handed spaces, with negative-one-to-one depth clip planes.
+            pub fn perspective_lh_no (fov_y_radians: T, aspect_ratio: T, near: T, far: T) -> Self 
+                where T: Float
+            {
+                let mut m = Self::perspective_rh_no(fov_y_radians, aspect_ratio, near, far);
+                m[(2, 2)] = -m[(2, 2)];
+                m[(3, 2)] = -m[(3, 2)];
+                m
+            }
+
+            /// Creates a perspective projection matrix for right-handed spaces, with zero-to-one depth clip planes.
+            ///
+            /// # Panics
+            /// `width`, `height` and `fov_y_radians` must all be strictly greater than zero.
+            pub fn perspective_fov_rh_zo (fov_y_radians: T, width: T, height: T, near: T, far: T) -> Self 
                 where T: Float
             {
                 assert!(width > T::zero());
@@ -967,20 +1560,79 @@ macro_rules! mat_impl_mat4 {
                 let h = (rad/two).cos() / (rad/two).sin();
                 let w = h * height / width;
 
+                let m00 = w;
+                let m11 = h;
+                let m22 = far / (near - far);
+                let m23 = -(far * near) / (far - near);
+                let m32 = -T::one();
                 Self::new(
-                    w, T::zero(), T::zero(), T::zero(),
-                    T::zero(), h, T::zero(), T::zero(),
-                    T::zero(), T::zero(), -(far + near) / (far - near), -T::one(),
-                    T::zero(), T::zero(), -(two * far * near) / (far - near), T::zero()
+                    m00, T::zero(), T::zero(), T::zero(),
+                    T::zero(), m11, T::zero(), T::zero(),
+                    T::zero(), T::zero(), m22, m23,
+                    T::zero(), T::zero(), m32, T::zero()
                 )
             }
-            pub fn infinite_perspective (fov_y_radians: T, aspect_ratio: T, near: T) -> Self 
+
+            /// Creates a perspective projection matrix for left-handed spaces, with zero-to-one depth clip planes.
+            ///
+            /// # Panics
+            /// `width`, `height` and `fov_y_radians` must all be strictly greater than zero.
+            pub fn perspective_fov_lh_zo (fov_y_radians: T, width: T, height: T, near: T, far: T) -> Self 
                 where T: Float
             {
-                Self::tweaked_infinite_perspective(fov_y_radians, aspect_ratio, near, T::zero())
+                let mut m = Self::perspective_fov_rh_zo(fov_y_radians, width, height, near, far);
+                m[(2, 2)] = -m[(2, 2)];
+                m[(3, 2)] = -m[(3, 2)];
+                m
             }
 
-            pub fn tweaked_infinite_perspective (fov_y_radians: T, aspect_ratio: T, near: T, epsilon: T) -> Self 
+            /// Creates a perspective projection matrix for right-handed spaces, with negative-one-to-one depth clip planes.
+            ///
+            /// # Panics
+            /// `width`, `height` and `fov_y_radians` must all be strictly greater than zero.
+            pub fn perspective_fov_rh_no (fov_y_radians: T, width: T, height: T, near: T, far: T) -> Self 
+                where T: Float
+            {
+                assert!(width > T::zero());
+                assert!(height > T::zero());
+                assert!(fov_y_radians > T::zero());
+
+                let two = T::one() + T::one();
+                let rad = fov_y_radians;
+                let h = (rad/two).cos() / (rad/two).sin();
+                let w = h * height / width;
+
+                let m00 = w;
+                let m11 = h;
+                let m22 = -(far + near) / (far - near);
+                let m23 = -(two * far * near) / (far - near);
+                let m32 = -T::one();
+                Self::new(
+                    m00, T::zero(), T::zero(), T::zero(),
+                    T::zero(), m11, T::zero(), T::zero(),
+                    T::zero(), T::zero(), m22, m23,
+                    T::zero(), T::zero(), m32, T::zero()
+                )
+            }
+            /// Creates a perspective projection matrix for left-handed spaces, with negative-one-to-one depth clip planes.
+            ///
+            /// # Panics
+            /// `width`, `height` and `fov_y_radians` must all be strictly greater than zero.
+            pub fn perspective_fov_lh_no (fov_y_radians: T, width: T, height: T, near: T, far: T) -> Self 
+                where T: Float 
+            {
+                let mut m = Self::perspective_fov_rh_no(fov_y_radians, width, height, near, far);
+                m[(2, 2)] = -m[(2, 2)];
+                m[(3, 2)] = -m[(3, 2)];
+                m
+            }
+
+
+            /// Creates an infinite perspective projection matrix for right-handed spaces.
+            ///
+	        /// [Link to PDF](http://www.terathon.com/gdc07_lengyel.pdf)
+            // From GLM
+            pub fn tweaked_infinite_perspective_rh (fov_y_radians: T, aspect_ratio: T, near: T, epsilon: T) -> Self 
                 where T: Float
             {
                 let two = T::one() + T::one();
@@ -990,43 +1642,57 @@ macro_rules! mat_impl_mat4 {
                 let bottom = -range;
                 let top = range;
 
+                let m00 = (two * near) / (right - left);
+                let m11 = (two * near) / (top - bottom);
+                let m22 = epsilon - T::one();
+                let m23 = (epsilon - two) * near;
+                let m32 = -T::one();
                 Self::new(
-                    (two * near) / (right - left), T::zero(), T::zero(), T::zero(),
-                    T::zero(), (two * near) / (top - bottom), T::zero(), T::zero(),
-                    T::zero(), T::zero(), epsilon - T::one(), -T::one(),
-                    T::zero(), T::zero(), (epsilon - two) * near, T::zero()
+                    m00, T::zero(), T::zero(), T::zero(),
+                    T::zero(), m11, T::zero(), T::zero(),
+                    T::zero(), T::zero(), m22, m23,
+                    T::zero(), T::zero(), m32, T::zero()
                 )
             }
-            #[cfg(feature="geom")]
-            pub fn frustum (o: FrustumPlanes<T>) -> Self 
-                where T: Copy + Zero + One 
-                       + Add<Output=T> + Sub<Output=T> + Neg<Output=T>
-                       + Mul<Output=T> + Div<Output=T>
-            {
-                let FrustumPlanes { left: l, right: r, bottom: b, top: t, near: n, far: f } = o;
-                let two = T::one() + T::one();
 
-                Self::new(
-                    two*n/(r-l), T::zero(), T::zero(), T::zero(),
-                    T::zero(), two*n/(t-b), T::zero(), T::zero(),
-                    (r+l)/(r-l), (t+b)/(t-b), -(f+n)/(f-n), -T::one(),
-                    T::zero(), T::zero(), -two*(f*n)/(f-n), T::zero()
-                )
+            /// Creates an infinite perspective projection matrix for left-handed spaces.
+            pub fn tweaked_infinite_perspective_lh (fov_y_radians: T, aspect_ratio: T, near: T, epsilon: T) -> Self 
+                where T: Float
+            {
+                let mut m = Self::tweaked_infinite_perspective_rh(fov_y_radians, aspect_ratio, near, epsilon);
+                m[(2, 2)] = -m[(2, 2)];
+                m[(3, 2)] = -m[(3, 2)];
+                m
+            }
+
+            /// Creates an infinite perspective projection matrix for right-handed spaces.
+            pub fn infinite_perspective_rh (fov_y_radians: T, aspect_ratio: T, near: T) -> Self 
+                where T: Float
+            {
+                Self::tweaked_infinite_perspective_rh(fov_y_radians, aspect_ratio, near, T::zero())
+            }
+
+            /// Creates an infinite perspective projection matrix for left-handed spaces.
+            pub fn infinite_perspective_lh (fov_y_radians: T, aspect_ratio: T, near: T) -> Self 
+                where T: Float
+            {
+                Self::tweaked_infinite_perspective_lh(fov_y_radians, aspect_ratio, near, T::zero())
             }
 
             //
             // PICKING
             //
 
-            // GLM's pickMatrix. Creates a projection matrix that can be
-            // used to restrict drawing to a small region of the viewport.
-            //
-            // u16 is chosen as viewport units because f32 has a direct conversion from it.
+            /// GLM's pickMatrix. Creates a projection matrix that can be
+            /// used to restrict drawing to a small region of the viewport.
+            ///
+            /// # Panics
+            /// `delta`'s `x` and `y` are required to be strictly greater than zero.
             #[cfg(all(feature="vec3", feature="vec2", feature="geom"))]
-            pub fn picking_region<V2: Into<Vec2<T>>>(center: V2, delta: V2, viewport: Rect<u16, u16>) -> Self
-                where T: Zero + One + Copy + From<u16> + PartialOrd + Sub<Output=T> + Div<Output=T> + MulAdd<T,T,Output=T> + Mul<Output=T>
+            pub fn picking_region<V2: Into<Vec2<T>>>(center: V2, delta: V2, viewport: Rect<T, T>) -> Self
+                where T: Float + MulAdd<T,T,Output=T>
             {
-                let (center, delta, viewport) = (center.into(), delta.into(), viewport.convert(|p| T::from(p), |e| T::from(e)));
+                let (center, delta) = (center.into(), delta.into());
                 assert!(delta.x > T::zero());
                 assert!(delta.y > T::zero());
                 let two = T::one() + T::one();
@@ -1043,12 +1709,16 @@ macro_rules! mat_impl_mat4 {
                 );
                 Self::scaling_3d(sc) * Self::translation_3d(tr)
             }
+
+            /// Returns a matrix that projects from world-space to screen-space,
+            /// for a depth clip space ranging from -1 to 1 (`GL_DEPTH_NEGATIVE_ONE_TO_ONE`,
+            /// hence the `_no` suffix).
             #[cfg(all(feature="vec3", feature="geom"))]
-            pub fn world_to_viewport<V3>(obj: V3, modelview: Self, proj: Self, viewport: Rect<u16, u16>) -> Vec3<T>
-                where T: Zero + One + Copy + From<u16> + Add<Output=T> + Mul<Output=T> + Div<Output=T> + MulAdd<T,T,Output=T> + DivAssign,
+            pub fn world_to_viewport_no<V3>(obj: V3, modelview: Self, proj: Self, viewport: Rect<T, T>) -> Vec3<T>
+                where T: Float + MulAdd<T,T,Output=T>,
                       V3: Into<Vec3<T>>
             {
-                let viewport = viewport.convert(|p| T::from(p), |e| T::from(e));
+                // GLM's projectNO()
                 let mut tmp = Vec4::from_point(obj.into());
                 tmp = modelview * tmp;
                 tmp = proj * tmp;
@@ -1056,19 +1726,69 @@ macro_rules! mat_impl_mat4 {
                 let two = T::one() + T::one();
                 let half_one = T::one() / two;
 
-                tmp /= tmp.w;
+                tmp = tmp / tmp.w; // Float doesn't imply DivAssign
                 tmp = tmp / two + half_one;
                 tmp.x = tmp.x * viewport.w + viewport.x;
                 tmp.y = tmp.y * viewport.h + viewport.y;
 
                 tmp.into()
             }
+
+            /// Returns a matrix that projects from world-space to screen-space,
+            /// for a depth clip space ranging from 0 to 1 (`GL_DEPTH_ZERO_TO_ONE`,
+            /// hence the `_zo` suffix).
             #[cfg(all(feature="vec3", feature="geom"))]
-            pub fn viewport_to_world<V3>(ray: V3, modelview: Self, proj: Self, viewport: Rect<u16, u16>) -> Vec3<T>
-                where T: Float + From<u16> + MulAdd<T,T,Output=T>,
+            pub fn world_to_viewport_zo<V3>(obj: V3, modelview: Self, proj: Self, viewport: Rect<T, T>) -> Vec3<T>
+                where T: Float + MulAdd<T,T,Output=T>,
                       V3: Into<Vec3<T>>
             {
-                let viewport: Rect<T,T> = viewport.convert(|p| p.into(), |e| e.into());
+                // GLM's projectZO()
+                let mut tmp = Vec4::from_point(obj.into());
+                tmp = modelview * tmp;
+                tmp = proj * tmp;
+
+                let two = T::one() + T::one();
+                let half_one = T::one() / two;
+
+                tmp = tmp / tmp.w; // Float doesn't imply DivAssign
+                tmp.x = tmp.x / two + half_one;
+                tmp.y = tmp.y / two + half_one;
+                tmp.x = tmp.x * viewport.w + viewport.x;
+                tmp.y = tmp.y * viewport.h + viewport.y;
+
+                tmp.into()
+            }
+
+            /// Returns a matrix that unprojects from screen-space to world-space,
+            /// for a depth clip space ranging from 0 to 1 (`GL_DEPTH_ZERO_TO_ONE`,
+            /// hence the `_zo` suffix).
+            #[cfg(all(feature="vec3", feature="geom"))]
+            pub fn viewport_to_world_zo<V3>(ray: V3, modelview: Self, proj: Self, viewport: Rect<T, T>) -> Vec3<T>
+                where T: Float + MulAdd<T,T,Output=T>,
+                      V3: Into<Vec3<T>>
+            {
+                let inverse = (proj * modelview).inverted();
+                let two = T::one() + T::one();
+
+                let mut tmp = Vec4::from_point(ray.into());
+                tmp.x = (tmp.x - viewport.x) / viewport.w;
+                tmp.y = (tmp.y - viewport.y) / viewport.h;
+                tmp.x = tmp.x * two - T::one();
+                tmp.y = tmp.y * two - T::one();
+
+                let mut obj = inverse * tmp;
+                obj = obj / obj.w; // Float doesn't imply DivAssign
+
+                obj.into()
+            }
+            /// Returns a matrix that unprojects from screen-space to world-space,
+            /// for a depth clip space ranging from -1 to 1 (`GL_DEPTH_NEGATIVE_ONE_TO_ONE`,
+            /// hence the `_no` suffix).
+            #[cfg(all(feature="vec3", feature="geom"))]
+            pub fn viewport_to_world_no<V3>(ray: V3, modelview: Self, proj: Self, viewport: Rect<T, T>) -> Vec3<T>
+                where T: Float + MulAdd<T,T,Output=T>,
+                      V3: Into<Vec3<T>>
+            {
                 let inverse = (proj * modelview).inverted();
                 let two = T::one() + T::one();
 
@@ -1078,7 +1798,7 @@ macro_rules! mat_impl_mat4 {
                 tmp = tmp * two - T::one();
 
                 let mut obj = inverse * tmp;
-                let obj = obj / obj.w;
+                obj = obj / obj.w; // Float doesn't imply DivAssign
 
                 obj.into()
             }
@@ -1116,18 +1836,71 @@ macro_rules! mat_impl_mat4 {
             }
         }
 
+        // FIXME: This should logically be for Mat3 instead!!
+        /// Rotation matrices can be obtained from quaternions.
+        /// **This implementation only works properly if the quaternion is normalized**.
+        ///
+        /// ```
+        /// # extern crate vek;
+        /// # #[macro_use] extern crate approx;
+        /// # use vek::{Quaternion, Mat4, Vec4};
+        /// use std::f32::consts::PI;
+        ///
+        /// # fn main() {
+        /// let angles = 32;
+        /// for i in 0..angles {
+        ///     let theta = PI * 2. * (i as f32) / (angles as f32);
+        ///
+        ///     assert_relative_eq!(Mat4::rotation_x(theta), Mat4::from(Quaternion::rotation_x(theta)));
+        ///     assert_relative_eq!(Mat4::rotation_y(theta), Mat4::from(Quaternion::rotation_y(theta)));
+        ///     assert_relative_eq!(Mat4::rotation_z(theta), Mat4::from(Quaternion::rotation_z(theta)));
+        ///
+        ///     assert_relative_eq!(Mat4::rotation_x(theta), Mat4::rotation_3d(theta, Vec4::unit_x()));
+        ///     assert_relative_eq!(Mat4::rotation_y(theta), Mat4::rotation_3d(theta, Vec4::unit_y()));
+        ///     assert_relative_eq!(Mat4::rotation_z(theta), Mat4::rotation_3d(theta, Vec4::unit_z()));
+        ///
+        ///     // See what rotating unit vectors do for most angles between 0 and 2*PI.
+        ///     // It's helpful to picture this as a right-handed coordinate system.
+        ///
+        ///     let v = Vec4::unit_y();
+        ///     let m = Mat4::rotation_x(theta);
+        ///     assert_relative_eq!(m * v, Vec4::new(0., theta.cos(), theta.sin(), 0.));
+        ///
+        ///     let v = Vec4::unit_z();
+        ///     let m = Mat4::rotation_y(theta);
+        ///     assert_relative_eq!(m * v, Vec4::new(theta.sin(), 0., theta.cos(), 0.));
+        ///
+        ///     let v = Vec4::unit_x();
+        ///     let m = Mat4::rotation_z(theta);
+        ///     assert_relative_eq!(m * v, Vec4::new(theta.cos(), theta.sin(), 0., 0.));
+        /// }
+        /// # }
+        /// ```
         #[cfg(feature="quaternion")]
         impl<T> From<Quaternion<T>> for Mat4<T>
             where T: Copy + Zero + One + Mul<Output=T> + Add<Output=T> + Sub<Output=T>
         {
             fn from(q: Quaternion<T>) -> Self {
-                let Quaternion { w: a, x: b, y: c, z: d } = q;
-                let (a2, b2, c2, d2) = (a*a, b*b, c*c, d*d);
-                let two = T::one() + T::one();
+                // From both GEA and Matrix FAQ
+                let Quaternion { x, y, z, w } = q;
+                let one = T::one();
+                let two = one+one;
+                let (x2, y2, z2) = (x*x, y*y, z*z);
+                let m00 = one - two*y2 - two*z2;
+                let m11 = one - two*x2 - two*z2;
+                let m22 = one - two*x2 - two*y2;
+                let m01 = two*x*y + two*z*w;
+                let m10 = two*x*y - two*z*w;
+                let m02 = two*x*z - two*y*w;
+                let m20 = two*x*z + two*y*w;
+                let m12 = two*y*z + two*x*w;
+                let m21 = two*y*z - two*x*w;
+                // NOTE: transpose, because otherwise the rotation goes the opposite way.
+                // See tests.
                 Self::new(
-                    a2 + b2 - c2 - d2, two*(b*c + a*d), two*(b*d - a*c), T::zero(),
-                    two*(b*c - a*d), a2 - b2 + c2 - d2, two*(c*d + a*b), T::zero(),
-                    two*(b*d + a*c), two*(c*d - a*b), a2 - b2 - c2 + d2, T::zero(),
+                    m00, m10, m20, T::zero(),
+                    m01, m11, m21, T::zero(),
+                    m02, m12, m22, T::zero(),
                     T::zero(), T::zero(), T::zero(), T::one()
                 )
             }
@@ -1170,6 +1943,7 @@ macro_rules! mat_impl_mat4 {
     };
 }
 
+#[allow(unused_macros)]
 macro_rules! mat_impl_mat3 {
     (rows) => {
 
@@ -1224,8 +1998,14 @@ macro_rules! mat_impl_mat3 {
     (common $lines:ident) => {
         impl<T> Mat3<T> {
             #[cfg(feature="vec2")]
+            pub fn translate_2d<V: Into<Vec2<T>>>(&mut self, v: V)
+                where T: Float + MulAdd<T,T,Output=T>
+            {
+                *self = self.translated_2d(v);
+            }
+            #[cfg(feature="vec2")]
             pub fn translated_2d<V: Into<Vec2<T>>>(self, v: V) -> Self
-                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+                where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::translation_2d(v) * self
             }
@@ -1239,8 +2019,14 @@ macro_rules! mat_impl_mat3 {
                 )
             }
             #[cfg(feature="vec3")]
-            pub fn scaled_2d<V: Into<Vec3<T>>>(self, v: V) -> Self
-                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+            pub fn scale_3d<V: Into<Vec3<T>>>(&mut self, v: V)
+                where T: Float + MulAdd<T,T,Output=T>
+            {
+                *self = self.scaled_3d(v);
+            }
+            #[cfg(feature="vec3")]
+            pub fn scaled_3d<V: Into<Vec3<T>>>(self, v: V) -> Self
+                where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::scaling_3d(v) * self
             }
@@ -1253,8 +2039,13 @@ macro_rules! mat_impl_mat3 {
                     T::zero(), T::zero(), z
                 )
             }
+            pub fn rotate_x(&mut self, angle_radians: T)
+                where T: Float + MulAdd<T,T,Output=T>
+            {
+                *self = self.rotated_x(angle_radians);
+            }
             pub fn rotated_x(self, angle_radians: T) -> Self
-                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+                where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::rotation_x(angle_radians) * self
             }
@@ -1267,8 +2058,13 @@ macro_rules! mat_impl_mat3 {
                     T::zero(), s, c
                 )
             }
+            pub fn rotate_y(&mut self, angle_radians: T)
+                where T: Float + MulAdd<T,T,Output=T>
+            {
+                *self = self.rotated_y(angle_radians);
+            }
             pub fn rotated_y(self, angle_radians: T) -> Self
-                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+                where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::rotation_y(angle_radians) * self
             }
@@ -1281,8 +2077,13 @@ macro_rules! mat_impl_mat3 {
                     -s, T::zero(), c
                 )
             }
+            pub fn rotate_z(&mut self, angle_radians: T)
+                where T: Float + MulAdd<T,T,Output=T>
+            {
+                *self = self.rotated_z(angle_radians);
+            }
             pub fn rotated_z(self, angle_radians: T) -> Self
-                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+                where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::rotation_z(angle_radians) * self
             }
@@ -1297,11 +2098,57 @@ macro_rules! mat_impl_mat3 {
             }
 
             #[cfg(feature="vec3")]
+            pub fn rotate_3d<V: Into<Vec3<T>>>(&mut self, angle_radians: T, axis: V)
+                where T: Float + MulAdd<T,T,Output=T> + Sum
+            {
+                *self = self.rotated_3d(angle_radians, axis);
+            }
+            #[cfg(feature="vec3")]
             pub fn rotated_3d<V: Into<Vec3<T>>>(self, angle_radians: T, axis: V) -> Self
-                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy + Sum
+                where T: Float + MulAdd<T,T,Output=T> + Sum
             {
                 Self::rotation_3d(angle_radians, axis) * self
             }
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::{Mat4, Mat3, Vec3};
+            /// use std::f32::consts::PI;
+            ///
+            /// # fn main() {
+            /// let angles = 32;
+            /// for i in 0..angles {
+            ///     let theta = PI * 2. * (i as f32) / (angles as f32);
+            ///
+            ///     assert_relative_eq!(Mat3::rotation_x(theta), Mat3::from(Quaternion::rotation_x(theta)));
+            ///     assert_relative_eq!(Mat3::rotation_y(theta), Mat3::from(Quaternion::rotation_y(theta)));
+            ///     assert_relative_eq!(Mat3::rotation_z(theta), Mat3::from(Quaternion::rotation_z(theta)));
+            ///
+            ///     assert_relative_eq!(Mat3::rotation_x(theta), Mat3::rotation_3d(theta, Vec3::unit_x()));
+            ///     assert_relative_eq!(Mat3::rotation_y(theta), Mat3::rotation_3d(theta, Vec3::unit_y()));
+            ///     assert_relative_eq!(Mat3::rotation_z(theta), Mat3::rotation_3d(theta, Vec3::unit_z()));
+            ///
+            ///     assert_relative_eq!(Mat3::rotation_x(theta), Mat3::from(Mat4::rotation_3d(theta, Vec3::unit_x())));
+            ///     assert_relative_eq!(Mat3::rotation_y(theta), Mat3::from(Mat4::rotation_3d(theta, Vec3::unit_y())));
+            ///     assert_relative_eq!(Mat3::rotation_z(theta), Mat3::from(Mat4::rotation_3d(theta, Vec3::unit_z())));
+            ///
+            ///     // See what rotating unit vectors do for most angles between 0 and 2*PI.
+            ///     // It's helpful to picture this as a right-handed coordinate system.
+            ///
+            ///     let v = Vec3::unit_y();
+            ///     let m = Mat3::rotation_x(theta);
+            ///     assert_relative_eq!(m * v, Vec3::new(0., theta.cos(), theta.sin()));
+            ///
+            ///     let v = Vec3::unit_z();
+            ///     let m = Mat3::rotation_y(theta);
+            ///     assert_relative_eq!(m * v, Vec3::new(theta.sin(), 0., theta.cos()));
+            ///
+            ///     let v = Vec3::unit_x();
+            ///     let m = Mat3::rotation_z(theta);
+            ///     assert_relative_eq!(m * v, Vec3::new(theta.cos(), theta.sin(), 0.));
+            /// }
+            /// # }
+            /// ```
             #[cfg(feature="vec3")]
             pub fn rotation_3d<V: Into<Vec3<T>>>(angle_radians: T, axis: V) -> Self where T: Float + Sum {
                 let Vec3 { x, y, z } = axis.into().normalized();
@@ -1366,6 +2213,7 @@ macro_rules! mat_impl_mat3 {
     };
 }
 
+#[allow(unused_macros)]
 macro_rules! mat_impl_mat2 {
     (rows) => {
 
@@ -1415,8 +2263,13 @@ macro_rules! mat_impl_mat2 {
     };
     (common $lines:ident) => {
         impl<T> Mat2<T> {
+            pub fn rotate_z(&mut self, angle_radians: T)
+                where T: Float + MulAdd<T,T,Output=T>
+            {
+                *self = self.rotated_z(angle_radians);
+            }
             pub fn rotated_z(self, angle_radians: T) -> Self
-                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+                where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::rotation_z(angle_radians) * self
             }
@@ -1428,8 +2281,13 @@ macro_rules! mat_impl_mat2 {
                     s,  c
                 )
             }
+            pub fn scale_2d<V: Into<Vec2<T>>>(&mut self, v: V)
+                where T: Float + MulAdd<T,T,Output=T>
+            {
+                *self = self.scaled_2d(v);
+            }
             pub fn scaled_2d<V: Into<Vec2<T>>>(self, v: V) -> Self
-                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+                where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::scaling_2d(v) * self
             }
@@ -1440,8 +2298,13 @@ macro_rules! mat_impl_mat2 {
                     T::zero(), y
                 )
             }
+            pub fn shear_x(&mut self, k: T)
+                where T: Float + MulAdd<T,T,Output=T>
+            {
+                *self = self.sheared_x(k);
+            }
             pub fn sheared_x(self, k: T) -> Self
-                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+                where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::shearing_x(k) * self
             }
@@ -1451,8 +2314,13 @@ macro_rules! mat_impl_mat2 {
                     T::zero(), T::one()
                 )
             }
+            pub fn shear_y(&mut self, k: T)
+                where T: Float + MulAdd<T,T,Output=T>
+            {
+                *self = self.sheared_y(k);
+            }
             pub fn sheared_y(self, k: T) -> Self
-                where T: Float + MulAdd<T,T,Output=T> + Mul<Output=T> + Copy
+                where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::shearing_y(k) * self
             }
@@ -1575,7 +2443,7 @@ macro_rules! mat_declare_modules {
             //! Unlike the column-major layout, row-major matrices are good at being the
             //! right-hand-side of a product with one or more row vectors.
             //!
-            //! Also, their indexing order matches the existing mathematical conventions.
+            //! Also, their natural indexing order matches the existing mathematical conventions.
 
             use super::*;
             mat_impl_all_mats!{rows}
@@ -1590,14 +2458,16 @@ macro_rules! mat_declare_modules {
 }
 
 pub mod repr_c {
-    //! Matrix types which use `#[repr(packed, C)]` vectors exclusively.
+    //! Matrix types which use `#[repr(C)]` vectors exclusively.
     //! 
     //! See also the `repr_simd` neighbour module, which is available on Nightly
     //! with the `repr_simd` feature enabled.
 
     use super::*;
+    #[allow(unused_imports)]
     #[cfg(feature="vec2")]
     use super::vec::repr_c::{Vec2, Vec2 as CVec2};
+    #[allow(unused_imports)]
     #[cfg(feature="vec3")]
     use super::vec::repr_c::{Vec3, Vec3 as CVec3};
     // #[cfg(feature="vec4")] // Commented out, see rationale in Cargo.toml
@@ -1611,15 +2481,19 @@ pub mod repr_c {
 
 #[cfg(all(nightly, feature="repr_simd"))]
 pub mod repr_simd {
-    //! Matrix types which use a `#[repr(packed, C)]` vector of `#[repr(packed, simd)]` vectors.
+    //! Matrix types which use a `#[repr(C)]` vector of `#[repr(simd)]` vectors.
    
     use super::*;
+    #[allow(unused_imports)]
     #[cfg(feature="vec2")]
     use super::vec::repr_simd::{Vec2};
+    #[allow(unused_imports)]
     #[cfg(feature="vec2")]
     use super::vec::repr_c::{Vec2 as CVec2};
+    #[allow(unused_imports)]
     #[cfg(feature="vec3")]
     use super::vec::repr_simd::{Vec3};
+    #[allow(unused_imports)]
     #[cfg(feature="vec3")]
     use super::vec::repr_c::{Vec3 as CVec3};
     // #[cfg(feature="vec4")] // Commented out, see rationale in Cargo.toml
@@ -1634,3 +2508,29 @@ pub mod repr_simd {
 }
 
 pub use self::repr_c::*;
+
+
+#[cfg(test)]
+mod tests {
+    macro_rules! for_each_type {
+        ($mat:ident $Mat:ident $($T:ident)+) => {
+            mod $mat {
+                // repr_c matrices should be packed.
+                // repr_simd matrices are not necessarily expected to.
+                mod repr_c {
+                    $(mod $T {
+                        use $crate::mat::repr_c::$Mat;
+                        #[test]
+                        fn is_packed() {
+                            assert!($Mat::<$T>::default().is_packed());
+                        }
+                    })+
+                }
+            }
+        };
+    }
+    // Vertical editing helps here :)
+    #[cfg(feature="mat2")]    for_each_type!{mat2 Mat2 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="mat3")]    for_each_type!{mat3 Mat3 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    /*#[cfg(feature="mat4")]*/for_each_type!{mat4 Mat4 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+}

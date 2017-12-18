@@ -125,7 +125,7 @@ impl_clamp_integer!{
 
 
 /// The fused multiply-add operation.
-pub trait MulAdd<MulRhs=Self, AddRhs=Self> {
+pub trait MulAdd<MulRhs=Self, AddRhs=Self>/*: Mul<MulRhs, Output=Self> + Add<AddRhs, Output=Self> */ {
 	/// The resulting type after applying the fused multiply-add operation.
 	type Output;
 	/// Returns `(self * mul) + add` as a possibly faster and more precise single operation.

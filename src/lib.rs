@@ -13,6 +13,9 @@
 //! to the target hardware, and the generated assembly is checked to ensure it is optimal.  
 //! As one would expect, SSE-enabled x86 CPUs do benefit from this.
 //!
+//! However, as of today, my focus is on functionality more than optimizations, which
+//! means some operations are not as fast as they ought to be.
+//!
 //! # Overview
 //!
 //! Here is what `vek` has to offer:
@@ -43,6 +46,8 @@
 //! # #![cfg(feature="vec3")]
 //!
 //! # extern crate vek;
+//! #[macro_use] 
+//! extern crate approx;
 //! use vek::{Vec4, Mat4, Lerp};
 //! use std::f32::consts::PI;
 //!
@@ -55,8 +60,12 @@
 //! println!("Rotated point: {}", model * point);
 //!
 //! let four = Vec4::broadcast(2_f32).sqrt().product();
-//! let iota = Vec4::iota() * 2_f32;
-//! println!("Interpolated: {}", Vec4::lerp(iota, Vec4::from(four), 0.5_f32));
+//! assert_relative_eq!(four, 4.);
+//! let four = Vec4::from(four); // Same as broadcast()
+//! let iota = Vec4::iota();
+//! assert_relative_eq!(Vec4::lerp(iota, four, 0.0_f32), iota);
+//! assert_relative_eq!(Vec4::lerp(iota, four, 0.5_f32), Vec4::new(2., 2.5, 3., 3.5));
+//! assert_relative_eq!(Vec4::lerp(iota, four, 1.0_f32), four);
 //! # }
 //! ```
 //!
@@ -74,7 +83,7 @@
 //!
 //! The need for convenient SIMD-enabled types was a major motivation for creating `vek`.
 //! However, since there are a some issues with Nightly Rust's `#[repr(simd)]` features,
-//! we would like to be able to also use regular `#[repr(C, packed)]` vectors.
+//! we would like to be able to also use regular `#[repr(C)]` vectors.
 //!
 //! Therefore, `vek` splits main modules into two sub-modules, `repr_c` and `repr_simd`,
 //! hoping to make everyone happy. This is a trade-off between functionality and
@@ -92,11 +101,6 @@
 //!
 //! Therefore, be extra careful when sending these as raw data, as you may want
 //! to do with OpenGL.
-//!
-//! ## `#[repr(C, packed)]` caveats
-//! 
-//! **Be careful:** Taking a reference to a `#[repr(packed)]` structure's field
-//! [may cause undefined behaviour](https://github.com/rust-lang/rust/issues/27060).
 //!
 //! ## So, which do I pick?
 //!
@@ -120,7 +124,9 @@
 //!   Select which types you want. Restricting your selection drastically decreases compile times.  
 //!   They are all enabled by default so that they appear in the documentation (and that doc-tests work).  
 //! - `geom`, `bezier`  
-//!   Other commonly useful and lightweight goodies such as rectangles and Bézier curves.
+//!   Other commonly useful and lightweight goodies such as rectangles and Bézier curves.  
+//!   The `FrustumPlanes<T>` type, which is required by orthographic and frustum projection
+//!   matrices, is enabled with `geom`.
 //!
 //! ***
 //!
@@ -146,11 +152,11 @@
 #![no_std]
 #![doc(
 	test(attr(deny(warnings))),
-	html_root_url = "https://docs.rs/vek/0.7.0",
+	html_root_url = "https://docs.rs/vek/0.8.0",
 	//html_logo_url = "https://yoanlcq.github.io/vek/logo.png",
 	//html_favicon_url = "https://yoanlcq.github.io/vek/favicon.ico",
 )]
-#![warn(missing_docs)]
+//#![warn(missing_docs)]
 //#![deny(warnings)]
 #![cfg_attr(all(nightly, feature="clippy"), feature(plugin))]
 #![cfg_attr(all(nightly, feature="clippy"), plugin(clippy))]
@@ -161,7 +167,7 @@
 //#![cfg_attr(feature="repr_simd", feature(link_llvm_intrinsics)]
 #![cfg_attr(all(nightly,test), feature(test))]
 
-#![allow(warnings)] // FIXME: Remove before release
+// #![allow(warnings)] // FIXME: Remove before release
 
 #[cfg(all(nightly,test))]
 extern crate test;
@@ -185,8 +191,11 @@ extern crate x86intrin;
 
 extern crate num_traits;
 extern crate num_integer;
-#[macro_use]
+// #[macro_use]
 extern crate approx;
+#[allow(unused_imports)]
+#[macro_use]
+extern crate static_assertions;
 
 pub mod mat;
 pub use mat::*;
@@ -212,3 +221,21 @@ pub use bezier::*;
 pub mod geom;
 #[cfg(feature="geom")]
 pub use geom::*;
+
+
+// TODO:
+// - Matrices:
+//   - Add 3D shearing.
+//   - Add scale_from_point and rotate_about_point
+// - Quaternions:
+//   - to_angle_axis()
+//   - decompose() for Mat4
+//   - foward_*, right(), unit_x() etc for Mat4
+// - Others
+//   Document the assumed handedness for rotations
+//       Handedness is only human perception. The maths are the same.
+//   Document the assumed matrix transform order (matrix * column_vector).
+//       If you wanna reverse the order, you have to transpose everything.
+//   Document the _zo _no stuff
+//   Document what _lh _rh transformations actually do (the tests do it but...)
+//   Document that feature requests are welcome!
