@@ -10,13 +10,15 @@ main() {
         return
     fi
 
-    if [ ! $AVOID_DOC_TESTS ]; then
-        cross test --doc --no-fail-fast --target $TARGET
-        cross test --doc --no-fail-fast --target $TARGET --release
-    fi
+    cross test --target $TARGET
+    cross test --target $TARGET --release
+    #if [ ! $AVOID_DOC_TESTS ]; then
+    #    cross test --doc --no-fail-fast --target $TARGET
+    #    cross test --doc --no-fail-fast --target $TARGET --release
+    #fi
 
-    cross test --lib --no-fail-fast --target $TARGET
-    cross test --lib --no-fail-fast --target $TARGET --release
+    #cross test --lib --no-fail-fast --target $TARGET
+    #cross test --lib --no-fail-fast --target $TARGET --release
 
     #cross run --target $TARGET
     #cross run --target $TARGET --release
