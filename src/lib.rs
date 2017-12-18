@@ -158,6 +158,7 @@
 )]
 //#![warn(missing_docs)]
 //#![deny(warnings)]
+#![deny(incoherent_fundamental_impls)]
 #![cfg_attr(all(nightly, feature="clippy"), feature(plugin))]
 #![cfg_attr(all(nightly, feature="clippy"), plugin(clippy))]
 #![cfg_attr(all(nightly, feature="repr_simd" ), feature(cfg_target_feature))]

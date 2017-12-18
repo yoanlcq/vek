@@ -205,12 +205,13 @@ macro_rules! vec_impl_unop {
                 $(self.$get.$op(&rhs.$get);)+
             }
         }
-        */
+        #[allow(incoherent_fundamental_impls)]
         impl<'a, T> $Op<&'a T> for $Vec<T> where T: $Op<&'a T> {
             fn $op(&mut self, rhs: &'a T) {
                 $(self.$get.$op(rhs);)+
             }
         }
+        */
     }
 }
 
