@@ -2300,7 +2300,7 @@ mod tests {
                         }
                     })+
                 }
-                #[cfg(feature="repr_simd")]
+                #[cfg(all(nightly, feature="repr_simd"))]
                 mod repr_simd {
                     $(mod $T {
                         use $crate::vec::repr_simd::$Vec;
