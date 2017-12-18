@@ -1,8 +1,5 @@
 //! Operations defined by this crate, such as `MulAdd`, `Lerp`, `Clamp`, and `Wrap`.
 
-// TODO panic when lower > upper and document it.
-// TODO fixed doc-tests for `Wrap`.
-
 use core::num::Wrapping;
 use core::ops::*;
 use core::cmp;

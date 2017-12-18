@@ -929,20 +929,24 @@ macro_rules! mat_impl_mat4 {
             /// as long as they consist of any combination of pure rotations,
             /// translations, scales and shears.
             ///
-            // FIXME: Make this actually pass
-            // ```
-            // # extern crate vek;
-            // # #[macro_use] extern crate approx;
-            // # use vek::Mat4;
-            // use std::f32::consts::PI;
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::Mat4;
+            /// use std::f32::consts::PI;
+            ///
+            /// # fn main() {
+            /// let a = Mat4::rotation_x(PI*4./5.);
+            /// let b = a.inverted();
+            /// assert_relative_eq!(a*b, Mat4::identity());
+            /// assert_relative_eq!(b*a, Mat4::identity());
+            /// # }
+            /// ```
+            // FIXME: Make the above doc-test actually pass
+            // TODO: Steal
+            // https://github.com/niswegmann/small-matrix-inverse/blob/master/invert4x4_sse.h
+            // https://lxjk.github.io/2017/09/03/Fast-4x4-Matrix-Inverse-with-SSE-SIMD-Explained.html
             //
-            // # fn main() {
-            // let a = Mat4::rotation_x(PI*4./5.);
-            // let b = a.inverted();
-            // assert_relative_eq!(a*b, Mat4::identity());
-            // assert_relative_eq!(b*a, Mat4::identity());
-            // # }
-            // ```
             // Taken verbatim from datenwolf's linmath.h
             // As mentioned in the original, it assumes that the matrix is invertible.
             // It appears to lose quite a bunch of precision though. There should be a better way.
@@ -1835,7 +1839,6 @@ macro_rules! mat_impl_mat4 {
             }
         }
 
-        // FIXME: This should logically be for Mat3 instead!!
         /// Rotation matrices can be obtained from quaternions.
         /// **This implementation only works properly if the quaternion is normalized**.
         ///
@@ -1875,6 +1878,10 @@ macro_rules! mat_impl_mat4 {
         /// }
         /// # }
         /// ```
+        // NOTE: Logically, this conversion should be implemented for Mat3,
+        // and Mat4 would do it by converting itself from a Mat3.
+        // Here, we have the other way round, and I'm fine with this, because
+        // at best it's better, SIMD-wise, and at worst we don't care that much, seriously.
         #[cfg(feature="quaternion")]
         impl<T> From<Quaternion<T>> for Mat4<T>
             where T: Copy + Zero + One + Mul<Output=T> + Add<Output=T> + Sub<Output=T>

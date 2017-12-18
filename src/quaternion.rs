@@ -548,7 +548,7 @@ macro_rules! quaternion_complete_mod {
         }
 
         /*
-        // NOTE: Only for orthogonal matrices
+        // TODO NOTE: Only for orthogonal matrices
         static inline void mat4o_mul_quat(mat4 R, mat4 M, quat q)
         {
             quat_mul_vec3(R[0], q, M[0]);

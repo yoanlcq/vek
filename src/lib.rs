@@ -239,3 +239,7 @@ pub use geom::*;
 //   Document the _zo _no stuff
 //   Document what _lh _rh transformations actually do (the tests do it but...)
 //   Document that feature requests are welcome!
+// TODO panic when lower > upper and document it.
+// TODO: Have Clamp and PartialClamp traits
+// TODO fixed doc-tests for `Wrap`.
+
