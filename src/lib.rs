@@ -158,6 +158,7 @@
 )]
 //#![warn(missing_docs)]
 //#![deny(warnings)]
+#![allow(unknown_lints)]
 #![deny(incoherent_fundamental_impls)]
 #![cfg_attr(all(nightly, feature="clippy"), feature(plugin))]
 #![cfg_attr(all(nightly, feature="clippy"), plugin(clippy))]
