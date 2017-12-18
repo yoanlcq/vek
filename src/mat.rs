@@ -1201,14 +1201,14 @@ macro_rules! mat_impl_mat4 {
             /// # fn main() {
             /// let v = Vec4::unit_x();
             ///
-            /// let q = Mat4::rotation_y(PI);
+            /// let q = Mat4::rotation_z(PI);
             /// assert_relative_eq!(q * v, -v);
             ///
-            /// let q = Mat4::rotation_y(PI * 0.5);
-            /// assert_relative_eq!(q * v, -Vec4::unit_z());
+            /// let q = Mat4::rotation_z(PI * 0.5);
+            /// assert_relative_eq!(q * v, Vec4::unit_y());
             ///
-            /// let q = Mat4::rotation_y(PI * 1.5);
-            /// assert_relative_eq!(q * v, Vec4::unit_z());
+            /// let q = Mat4::rotation_z(PI * 1.5);
+            /// assert_relative_eq!(q * v, -Vec4::unit_y());
             ///
             /// let angles = 32;
             /// for i in 0..angles {
@@ -2128,9 +2128,13 @@ macro_rules! mat_impl_mat3 {
             ///     assert_relative_eq!(Mat3::rotation_y(theta), Mat3::rotation_3d(theta, Vec3::unit_y()));
             ///     assert_relative_eq!(Mat3::rotation_z(theta), Mat3::rotation_3d(theta, Vec3::unit_z()));
             ///
-            ///     assert_relative_eq!(Mat3::rotation_x(theta), Mat3::from(Mat4::rotation_3d(theta, Vec3::unit_x())));
-            ///     assert_relative_eq!(Mat3::rotation_y(theta), Mat3::from(Mat4::rotation_3d(theta, Vec3::unit_y())));
-            ///     assert_relative_eq!(Mat3::rotation_z(theta), Mat3::from(Mat4::rotation_3d(theta, Vec3::unit_z())));
+            ///     assert_eq!(Mat3::rotation_x(theta), Mat3::from(Mat4::rotation_3d(theta, Vec3::unit_x())));
+            ///     assert_eq!(Mat3::rotation_y(theta), Mat3::from(Mat4::rotation_3d(theta, Vec3::unit_y())));
+            ///     assert_eq!(Mat3::rotation_z(theta), Mat3::from(Mat4::rotation_3d(theta, Vec3::unit_z())));
+            ///
+            ///     assert_eq!(Mat4::rotation_x(theta), Mat4::from(Mat3::rotation_3d(theta, Vec3::unit_x())));
+            ///     assert_eq!(Mat4::rotation_y(theta), Mat4::from(Mat3::rotation_3d(theta, Vec3::unit_y())));
+            ///     assert_eq!(Mat4::rotation_z(theta), Mat4::from(Mat3::rotation_3d(theta, Vec3::unit_z())));
             ///
             ///     // See what rotating unit vectors do for most angles between 0 and 2*PI.
             ///     // It's helpful to picture this as a right-handed coordinate system.
