@@ -169,8 +169,6 @@
 //#![cfg_attr(feature="repr_simd", feature(link_llvm_intrinsics)]
 #![cfg_attr(all(nightly,test), feature(test))]
 
-// #![allow(warnings)] // FIXME: Remove before release
-
 #[cfg(all(nightly,test))]
 extern crate test;
 /*

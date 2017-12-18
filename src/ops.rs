@@ -20,7 +20,7 @@ pub fn partial_max<T: PartialOrd + Sized>(a: T, b: T) -> T {
 
 /// A value that can be constrained to be between two values (inclusive).
 pub trait Clamp<Bound=Self>: Sized {
-	/// `bool` for scalars, or vector of `u32`s for vectors.
+	/// `bool` for scalars, or vector of `bool`s for vectors.
 	type BoolVector;
 	/// Constrains this value to be between `lower` and `upper` (inclusive).
 	///

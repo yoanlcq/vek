@@ -1119,7 +1119,6 @@ macro_rules! mat_impl_mat4 {
                     T::zero(), T::zero(), T::zero(), T::one()
                 )
             }
-            // TODO NOTE: These follow the right-hand rule, in right-handed spaces.
             pub fn rotate_x(&mut self, angle_radians: T)
                 where T: Float + MulAdd<T,T,Output=T>
             {
@@ -2128,13 +2127,13 @@ macro_rules! mat_impl_mat3 {
             ///     assert_relative_eq!(Mat3::rotation_y(theta), Mat3::rotation_3d(theta, Vec3::unit_y()));
             ///     assert_relative_eq!(Mat3::rotation_z(theta), Mat3::rotation_3d(theta, Vec3::unit_z()));
             ///
-            ///     assert_eq!(Mat3::rotation_x(theta), Mat3::from(Mat4::rotation_3d(theta, Vec3::unit_x())));
-            ///     assert_eq!(Mat3::rotation_y(theta), Mat3::from(Mat4::rotation_3d(theta, Vec3::unit_y())));
-            ///     assert_eq!(Mat3::rotation_z(theta), Mat3::from(Mat4::rotation_3d(theta, Vec3::unit_z())));
+            ///     assert_relative_eq!(Mat3::rotation_x(theta), Mat3::from(Mat4::rotation_3d(theta, Vec3::unit_x())));
+            ///     assert_relative_eq!(Mat3::rotation_y(theta), Mat3::from(Mat4::rotation_3d(theta, Vec3::unit_y())));
+            ///     assert_relative_eq!(Mat3::rotation_z(theta), Mat3::from(Mat4::rotation_3d(theta, Vec3::unit_z())));
             ///
-            ///     assert_eq!(Mat4::rotation_x(theta), Mat4::from(Mat3::rotation_3d(theta, Vec3::unit_x())));
-            ///     assert_eq!(Mat4::rotation_y(theta), Mat4::from(Mat3::rotation_3d(theta, Vec3::unit_y())));
-            ///     assert_eq!(Mat4::rotation_z(theta), Mat4::from(Mat3::rotation_3d(theta, Vec3::unit_z())));
+            ///     assert_relative_eq!(Mat4::rotation_x(theta), Mat4::from(Mat3::rotation_3d(theta, Vec3::unit_x())));
+            ///     assert_relative_eq!(Mat4::rotation_y(theta), Mat4::from(Mat3::rotation_3d(theta, Vec3::unit_y())));
+            ///     assert_relative_eq!(Mat4::rotation_z(theta), Mat4::from(Mat3::rotation_3d(theta, Vec3::unit_z())));
             ///
             ///     // See what rotating unit vectors do for most angles between 0 and 2*PI.
             ///     // It's helpful to picture this as a right-handed coordinate system.
