@@ -165,12 +165,15 @@ macro_rules! vec_impl_binop {
             }
         }
 
+        /*
+        #[allow(incoherent_fundamental_impls)]
         impl<'a, T> $Op<&'a T> for $Vec<T> where T: $Op<&'a T, Output=T> {
             type Output = $Vec<T>;
             fn $op(self, rhs: &'a T) -> Self::Output {
                 $Vec::new($(self.$get.$op(rhs)),+)
             }
         }
+        */
         impl<'a, T> $Op<T> for &'a $Vec<T> where &'a T: $Op<T, Output=T>, T: Copy {
             type Output = $Vec<T>;
             fn $op(self, rhs: T) -> Self::Output {
@@ -195,11 +198,14 @@ macro_rules! vec_impl_unop {
                 $(self.$get.$op(rhs.$get);)+
             }
         }
+        /*
+        #[allow(incoherent_fundamental_impls)]
         impl<'a, T> $Op<&'a $Vec<T>> for $Vec<T> where T: $Op<&'a T> {
             fn $op(&mut self, rhs: &'a $Vec<T>) {
                 $(self.$get.$op(&rhs.$get);)+
             }
         }
+        */
         impl<'a, T> $Op<&'a T> for $Vec<T> where T: $Op<&'a T> {
             fn $op(&mut self, rhs: &'a T) {
                 $(self.$get.$op(rhs);)+
