@@ -1810,9 +1810,9 @@ macro_rules! vec_impl_color_rgba {
             /// # use vek::Rgba;
             /// let opaque_orange = Rgba::new(255_u8, 128, 0, 255_u8);
             /// assert_eq!(opaque_orange.inverted(), Rgba::new(0, 127, 255, 255));
-            /// assert_eq!(Rgba::black().inverted(), Rgba::white());
-            /// assert_eq!(Rgba::white().inverted(), Rgba::black());
-            /// assert_eq!(Rgba::red().inverted(), Rgba::cyan());
+            /// assert_eq!(Rgba::<u8>::black().inverted(), Rgba::white());
+            /// assert_eq!(Rgba::<u8>::white().inverted(), Rgba::black());
+            /// assert_eq!(Rgba::<u8>::red().inverted(), Rgba::cyan());
             /// ```
             pub fn inverted(mut self) -> Self where T: Sub<Output=T> {
                 self.r = T::full() - self.r;
@@ -1854,9 +1854,9 @@ macro_rules! vec_impl_color_rgb {
             /// # use vek::Rgb;
             /// let orange = Rgb::new(255_u8, 128, 0);
             /// assert_eq!(orange.inverted(), Rgb::new(0, 127, 255));
-            /// assert_eq!(Rgb::black().inverted(), Rgb::white());
-            /// assert_eq!(Rgb::white().inverted(), Rgb::black());
-            /// assert_eq!(Rgb::red().inverted(), Rgb::cyan());
+            /// assert_eq!(Rgb::<u8>::black().inverted(), Rgb::white());
+            /// assert_eq!(Rgb::<u8>::white().inverted(), Rgb::black());
+            /// assert_eq!(Rgb::<u8>::red().inverted(), Rgb::cyan());
             /// ```
             pub fn inverted(mut self) -> Self where T: Sub<Output=T> {
                 self.r = T::full() - self.r;

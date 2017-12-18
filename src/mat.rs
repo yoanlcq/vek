@@ -1851,9 +1851,9 @@ macro_rules! mat_impl_mat4 {
         /// for i in 0..angles {
         ///     let theta = PI * 2. * (i as f32) / (angles as f32);
         ///
-        ///     assert_relative_eq!(Mat4::rotation_x(theta), Mat4::from(Quaternion::rotation_x(theta)));
-        ///     assert_relative_eq!(Mat4::rotation_y(theta), Mat4::from(Quaternion::rotation_y(theta)));
-        ///     assert_relative_eq!(Mat4::rotation_z(theta), Mat4::from(Quaternion::rotation_z(theta)));
+        ///     assert_relative_eq!(Mat4::rotation_x(theta), Mat4::from(Quaternion::rotation_x(theta), epsilon = 0.000001));
+        ///     assert_relative_eq!(Mat4::rotation_y(theta), Mat4::from(Quaternion::rotation_y(theta), epsilon = 0.000001));
+        ///     assert_relative_eq!(Mat4::rotation_z(theta), Mat4::from(Quaternion::rotation_z(theta), epsilon = 0.000001));
         ///
         ///     assert_relative_eq!(Mat4::rotation_x(theta), Mat4::rotation_3d(theta, Vec4::unit_x()));
         ///     assert_relative_eq!(Mat4::rotation_y(theta), Mat4::rotation_3d(theta, Vec4::unit_y()));
@@ -2112,7 +2112,7 @@ macro_rules! mat_impl_mat3 {
             /// ```
             /// # extern crate vek;
             /// # #[macro_use] extern crate approx;
-            /// # use vek::{Mat4, Mat3, Vec3};
+            /// # use vek::{Mat4, Mat3, Vec3, Quaternion};
             /// use std::f32::consts::PI;
             ///
             /// # fn main() {
