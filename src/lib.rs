@@ -152,8 +152,8 @@
 )]
 //#![warn(missing_docs)]
 //#![deny(warnings)]
-#![allow(unknown_lints)]
-#![deny(incoherent_fundamental_impls)]
+//#![allow(unknown_lints)]
+//#![deny(incoherent_fundamental_impls)]
 #![cfg_attr(all(nightly, feature="clippy"), feature(plugin))]
 #![cfg_attr(all(nightly, feature="clippy"), plugin(clippy))]
 #![cfg_attr(all(nightly, feature="repr_simd" ), feature(cfg_target_feature))]
@@ -165,11 +165,7 @@
 
 #[cfg(all(nightly,test))]
 extern crate test;
-/*
-#[cfg(feature="serde_derive")]
-#[macro_use]
-extern crate serde_derive;
-*/
+
 #[cfg(feature="serde")]
 #[macro_use]
 extern crate serde;
@@ -193,19 +189,16 @@ pub use vec::*;
 pub mod ops;
 pub use ops::*;
 
-#[allow(missing_docs)]
 #[cfg(feature="quaternion")]
 pub mod quaternion;
 #[cfg(feature="quaternion")]
 pub use quaternion::*;
 
-#[allow(missing_docs)]
 #[cfg(feature="bezier")]
 pub mod bezier;
 #[cfg(feature="bezier")]
 pub use bezier::*;
 
-#[allow(missing_docs)]
 #[cfg(feature="geom")]
 pub mod geom;
 #[cfg(feature="geom")]
@@ -225,7 +218,6 @@ pub use geom::*;
 //   Document that feature requests are welcome!
 // NOTE: The point of `fix`, `fpa` and `num-bigint` features was to make them implement vek::ops.
 // NOTE: Clamp: rename to `PartialClamp` trait ? Resolved: NO. This would be a mess for an issue nobody really cares abouts.
-// TODO: Mat: into_*_array()
 // - Matrices:
 //   - Add 3D shearing.
 //   - Add scale_from_point and rotate_about_point

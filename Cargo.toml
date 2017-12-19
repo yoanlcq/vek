@@ -22,6 +22,7 @@ travis-ci = { repository = "yoanlcq/vek" }
 appveyor  = { repository = "yoanlcq/vek" }
 
 [features]
+#default = []
 default = ["serde", "repr_simd", "vec2", "vec3", "rgba", "rgb", "extent3", "extent2", "mat2", "mat3", "quaternion", "geom", "bezier"]
 repr_align = []
 repr_simd = []

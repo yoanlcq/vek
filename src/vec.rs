@@ -5,8 +5,6 @@
 //! because of this.  
 //! They do have element-wise comparison functions though.
 
-// TODO: Get rid of mem::uninitialized()
-
 use core::borrow::{Borrow, BorrowMut};
 use core::fmt::{self, Display, Formatter};
 use core::iter::{FromIterator, Product, Sum};
@@ -24,7 +22,7 @@ macro_rules! vec_impl_cmp {
         // NOTE: Rhs is taken as reference: see how std::cmp::PartialEq is implemented.
         $(#[$attrs])*
         pub fn $cmp<Rhs: AsRef<Self>>(&self, rhs: &Rhs) -> $Vec<bool> where T: $Bounds {
-            let mut out: $Vec<bool> = unsafe { mem::uninitialized() };
+            let mut out: $Vec<bool> = $Vec::broadcast(false);
             let mut iter = self.iter().zip(rhs.as_ref().iter());
             for elem in &mut out {
                 let (a, b) = iter.next().unwrap();
@@ -36,16 +34,15 @@ macro_rules! vec_impl_cmp {
 }
 
 macro_rules! vec_impl_trinop_vec_vec {
-    ($op:ident, $Out:ty, $Rhs1:ty, $Rhs2:ty) => {
+    ($op:ident, $Out:ty, $Rhs1:ty, $Rhs2:ty, ($($get:ident)+)) => {
         type Output = $Out;
         fn $op(self, a: $Rhs1, b: $Rhs2) -> Self::Output {
-            let mut out: $Out = unsafe { mem::uninitialized() };
             let mut iter = self.into_iter().zip(a.into_iter().zip(b.into_iter()));
-            for elem in &mut out {
+            $(
                 let (val, (aa, bb)) = iter.next().unwrap();
-                *elem = val.$op(aa, bb);
-            }
-            out
+                let $get = val.$op(aa, bb);
+            )+
+            Self::Output { $($get,)+ }
         }
     }
 }
@@ -95,14 +92,14 @@ macro_rules! vec_impl_trinop_s_s {
 */
 macro_rules! vec_impl_trinop {
     (impl $Op:ident for $Vec:ident { $op:tt } ($($get:tt)+)) => {
-        impl<           T> $Op< $Vec<T>,     $Vec<T>> for    $Vec<T> where   T: $Op<    T,   T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>,   $Vec<T>,    $Vec<T>} }
-        impl<       'c, T> $Op< $Vec<T>,     $Vec<T>> for &'c $Vec<T> where &'c T: $Op< T,   T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>,   $Vec<T>,    $Vec<T>} }
-        impl<   'b,  T> $Op<    $Vec<T>, &'b $Vec<T>> for    $Vec<T> where   T: $Op<    T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>,     $Vec<T>, &'b $Vec<T>} }
-        impl<   'b, 'c, T> $Op< $Vec<T>, &'b $Vec<T>> for &'c $Vec<T> where &'c T: $Op< T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>,     $Vec<T>, &'b $Vec<T>} }
-        impl<'a,         T> $Op<&'a $Vec<T>,     $Vec<T>> for    $Vec<T> where   T: $Op<&'a T,   T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>,  $Vec<T>} }
-        impl<'a,     'c, T> $Op<&'a $Vec<T>,     $Vec<T>> for &'c $Vec<T> where &'c T: $Op<&'a T,    T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>,  $Vec<T>} }
-        impl<'a, 'b,     T> $Op<&'a $Vec<T>, &'b $Vec<T>> for    $Vec<T> where   T: $Op<&'a T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>, &'b $Vec<T>} }
-        impl<'a, 'b, 'c, T> $Op<&'a $Vec<T>, &'b $Vec<T>> for &'c $Vec<T> where &'c T: $Op<&'a T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>, &'b $Vec<T>} }
+        impl<           T> $Op< $Vec<T>,     $Vec<T>> for    $Vec<T> where   T: $Op<    T,   T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>,   $Vec<T>,    $Vec<T>, ($($get)+)} }
+        impl<       'c, T> $Op< $Vec<T>,     $Vec<T>> for &'c $Vec<T> where &'c T: $Op< T,   T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>,   $Vec<T>,    $Vec<T>, ($($get)+)} }
+        impl<   'b,  T> $Op<    $Vec<T>, &'b $Vec<T>> for    $Vec<T> where   T: $Op<    T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>,     $Vec<T>, &'b $Vec<T>, ($($get)+)} }
+        impl<   'b, 'c, T> $Op< $Vec<T>, &'b $Vec<T>> for &'c $Vec<T> where &'c T: $Op< T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>,     $Vec<T>, &'b $Vec<T>, ($($get)+)} }
+        impl<'a,         T> $Op<&'a $Vec<T>,     $Vec<T>> for    $Vec<T> where   T: $Op<&'a T,   T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>,  $Vec<T>, ($($get)+)} }
+        impl<'a,     'c, T> $Op<&'a $Vec<T>,     $Vec<T>> for &'c $Vec<T> where &'c T: $Op<&'a T,    T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>,  $Vec<T>, ($($get)+)} }
+        impl<'a, 'b,     T> $Op<&'a $Vec<T>, &'b $Vec<T>> for    $Vec<T> where   T: $Op<&'a T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>, &'b $Vec<T>, ($($get)+)} }
+        impl<'a, 'b, 'c, T> $Op<&'a $Vec<T>, &'b $Vec<T>> for &'c $Vec<T> where &'c T: $Op<&'a T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>, &'b $Vec<T>, ($($get)+)} }
 
         /* I give up, it's dumb.
         impl<           T> $Op< T,   T> for  $Vec<T> where   T: $Op<    T,   T, Output=T>, T: Copy { vec_impl_trinop_s_s!{$op, $Vec<T>,  T,  T, a, b} }
@@ -284,7 +281,7 @@ macro_rules! vec_impl_vec {
             }
         }
 
-        /* WISH: Is it right?
+        /* NOTE: This will never be valid: SIMD vectors have alignment requirements.
         impl<T> AsRef<CVec<T>> for $Vec<T> {
             fn as_ref(v: &Self) -> &CVec<T> {
                 unsafe {
@@ -294,7 +291,7 @@ macro_rules! vec_impl_vec {
         }
         impl<T> AsMut<CVec<T>> for $Vec<T> {
             fn as_ref(v: &mut Self) -> &mut CVec<T> {
-                {
+                unsafe {
                     mem::transmute(self)
                 }
             }
@@ -539,15 +536,13 @@ macro_rules! vec_impl_vec {
             pub fn mul_add<V: Into<Self>>(self, mul: V, add: V) -> Self 
                 where T: MulAdd<T,T,Output=T>
             {
-                let mul = mul.into();
-                let add = add.into();
-                let mut out: Self = unsafe { mem::uninitialized() };
+                let (mul, add) = (mul.into(), add.into());
                 let mut iter = self.into_iter().zip(mul.into_iter().zip(add.into_iter()));
-                for elem in &mut out {
+                $(
                     let (val, (mul, add)) = iter.next().unwrap();
-                    *elem = val.mul_add(mul, add);
-                }
-                out
+                    let $get = val.mul_add(mul, add);
+                )+
+                Self { $($get,)+ }
             }
 
             /// Gets an iterator over immutable references of this vector's elements.
@@ -658,8 +653,9 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(-5_f32, Vec4::new(0_f32, 5., -5., 8.).reduce_partial_min());
             /// ```
             pub fn reduce_partial_min(self) -> T where T: PartialOrd {
-                let first = unsafe { ptr::read(self.get_unchecked(0)) };
-                self.into_iter().skip(1).fold(first, partial_min)
+                let mut i = self.into_iter();
+                let first = i.next().unwrap();
+                i.fold(first, partial_min)
             }
             /// Returns the element which has the highest value in this vector, using partial
             /// ordering.
@@ -669,8 +665,9 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(8_f32, Vec4::new(0_f32, 5., -5., 8.).reduce_partial_max());
             /// ```
             pub fn reduce_partial_max(self) -> T where T: PartialOrd {
-                let first = unsafe { ptr::read(self.get_unchecked(0)) };
-                self.into_iter().skip(1).fold(first, partial_max)
+                let mut i = self.into_iter();
+                let first = i.next().unwrap();
+                i.fold(first, partial_max)
             }
 
             /// Returns the product of each of this vector's elements.
@@ -808,14 +805,15 @@ macro_rules! vec_impl_vec {
             /// ```
             pub fn hadd<V>(self, rhs: V) -> Self where V: Into<Self>, T: Add<T, Output=T> {
                 let rhs = rhs.into();
-                let mut out: Self = unsafe { mem::uninitialized() };
                 let mut iter = self.into_iter().chain(rhs.into_iter());
-                for elem in &mut out {
-                    let a = iter.next().unwrap();
-                    let b = iter.next().unwrap();
-                    *elem = a + b;
-                }
-                out
+                $(
+                    let $get = { 
+                        let a = iter.next().unwrap();
+                        let b = iter.next().unwrap();
+                        a + b
+                    };
+                )+
+                Self { $($get,)+ }
             }
 
             vec_impl_cmp!{
@@ -1156,43 +1154,6 @@ macro_rules! vec_impl_vec {
             }
         }
 
-
-        /// Consuming iterator over this module's vector type.
-        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-        pub struct IntoIter<T> {
-            vec: $Vec<T>,
-            i: usize,
-        }
-        
-        impl<T> Iterator for IntoIter<T> {
-            type Item = T;
-            fn next(&mut self) -> Option<Self::Item> {
-                let out = self.vec.get(self.i);
-                self.i += 1;
-                out.map(|x| unsafe { ptr::read_unaligned(x) }) // PERF might want to use read() instead ?
-            }
-            fn size_hint(&self) -> (usize, Option<usize>) {
-                let rem = self.len();
-                (rem, Some(rem))
-            }
-        }
-
-        impl<T> ExactSizeIterator for IntoIter<T> {
-            fn len(&self) -> usize {
-                $dim - self.i
-            }
-        }
-
-
-        impl<T> IntoIterator for $Vec<T> {
-            type Item = T;
-            type IntoIter = IntoIter<T>;
-            fn into_iter(self) -> Self::IntoIter {
-                Self::IntoIter { vec: self, i: 0 }
-            }
-        }
-
         impl<'a, T> IntoIterator for &'a $Vec<T> {
             type Item = &'a T;
             type IntoIter = slice::Iter<'a, T>;
@@ -1207,6 +1168,76 @@ macro_rules! vec_impl_vec {
                 self.as_mut_slice().into_iter()
             }
         }
+
+        /// Consuming iterator over this module's vector type.
+        // Can't (De)Serialize a ManuallyDrop<T>
+        //#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+        pub struct IntoIter<T> {
+            vector: mem::ManuallyDrop<$Vec<T>>,
+            start: usize,
+            end: usize,
+        }
+
+        // Be explicit about doing nothing when dropped!
+        // Ownership of all items is returned via ptr::read().
+        // If we dropped self.vector, this could lead to double frees.
+        // Tu understand this, picture what would happen for a Vec4<Rc<T>>.
+        /*
+         * Don't actually declare this - required for deriving Copy
+        impl<T> Drop for IntoIter<T> {
+            fn drop(&mut self) {}
+        }
+        */
+
+        impl<T> IntoIterator for $Vec<T> {
+            type Item = T;
+            type IntoIter = IntoIter<T>;
+            fn into_iter(self) -> Self::IntoIter {
+                Self::IntoIter {
+                    vector: mem::ManuallyDrop::new(self),
+                    start: 0,
+                    end: $dim,
+                }
+            }
+        }
+        
+        impl<T> Iterator for IntoIter<T> {
+            type Item = T;
+            fn next(&mut self) -> Option<Self::Item> {
+                if self.start == self.end {
+                    return None;
+                }
+                unsafe {
+                    let result = ptr::read(self.vector.get_unchecked(self.start));
+                    self.start += 1;
+                    Some(result)
+                }
+            }
+            fn size_hint(&self) -> (usize, Option<usize>) {
+                let rem = self.len();
+                (rem, Some(rem))
+            }
+        }
+
+        impl<T> ExactSizeIterator for IntoIter<T> {
+            fn len(&self) -> usize {
+                self.end - self.start
+            }
+        }
+
+        impl<T> DoubleEndedIterator for IntoIter<T> {
+            fn next_back(&mut self) -> Option<T> {
+                if self.start == self.end {
+                    return None;
+                }
+                unsafe {
+                    self.end -= 1;
+                    Some(ptr::read(self.vector.get_unchecked(self.end)))
+                }
+            }
+        }
+
         impl<T: Default> FromIterator<T> for $Vec<T> {
             fn from_iter<I>(iter: I) -> Self where I: IntoIterator<Item = T> {
                 let mut out = Self::default();
@@ -1234,7 +1265,15 @@ macro_rules! vec_impl_vec {
         #[cfg_attr(feature = "clippy", allow(type_complexity))]
         impl<T> From<[T; $dim]> for $Vec<T> {
             fn from(array: [T; $dim]) -> Self {
-                Self::new($(unsafe { ptr::read(&array[$tupleget])}),+)
+                let array = mem::ManuallyDrop::new(array);
+                let mut i = -1_isize;
+                $(
+                    i += 1; 
+                    let $get = unsafe {
+                        ptr::read(array.get_unchecked(i as usize))
+                    };
+                )+
+                Self { $($get,)+ }
             }
         }
         /// A vector can be obtained from a single scalar by broadcasting it.
@@ -1576,6 +1615,29 @@ macro_rules! vec_impl_spatial_4d {
                 pub fn back_lh   () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_z() }
                 /// Get the unit direction vector which has `z` set to 1 ("back" in a right-handed coordinate system).
                 pub fn back_rh   () -> Self where T: Zero + One {  Self::unit_z() }
+
+                /// Get the homogeneous point vector which has `x` set to 1.
+                pub fn unit_x_point    () -> Self where T: Zero + One { Self::new(T::one(), T::zero(), T::zero(), T::one()) }
+                /// Get the homogeneous point vector which has `y` set to 1.
+                pub fn unit_y_point    () -> Self where T: Zero + One { Self::new(T::zero(), T::one(), T::zero(), T::one()) }
+                /// Get the homogeneous point vector which has `z` set to 1.
+                pub fn unit_z_point    () -> Self where T: Zero + One { Self::new(T::zero(), T::zero(), T::one(), T::one()) }
+                /// Get the homogeneous point vector which has `x` set to -1.
+                pub fn left_point      () -> Self where T: Zero + One + Neg<Output=T> { Self::new(-T::one(), T::zero(), T::zero(), T::one()) }
+                /// Get the homogeneous point vector which has `x` set to 1.
+                pub fn right_point     () -> Self where T: Zero + One {  Self::unit_x_point() }
+                /// Get the homogeneous point vector which has `y` set to 1.
+                pub fn up_point        () -> Self where T: Zero + One {  Self::unit_y_point() }
+                /// Get the homogeneous point vector which has `y` set to -1.
+                pub fn down_point      () -> Self where T: Zero + One + Neg<Output=T> { Self::new(T::zero(), -T::one(), T::zero(), T::one()) }
+                /// Get the homogeneous point vector which has `z` set to 1 ("forward" in a left-handed coordinate system).
+                pub fn forward_point_lh() -> Self where T: Zero + One {  Self::unit_z_point() }
+                /// Get the homogeneous point vector which has `z` set to -1 ("forward" in a right-handed coordinate system).
+                pub fn forward_point_rh() -> Self where T: Zero + One + Neg<Output=T> { Self::new(T::zero(), T::zero(), -T::one(), T::one()) }
+                /// Get the homogeneous point vector which has `z` set to -1 ("back" in a left-handed coordinate system).
+                pub fn back_point_lh   () -> Self where T: Zero + One + Neg<Output=T> { Self::new(T::zero(), T::zero(), -T::one(), T::one()) }
+                /// Get the homogeneous point vector which has `z` set to 1 ("back" in a right-handed coordinate system).
+                pub fn back_point_rh   () -> Self where T: Zero + One {  Self::unit_z_point() }
             }
         )+
     }
@@ -1615,11 +1677,15 @@ macro_rules! vec_impl_pixel_rgb {
             }
             fn from_slice(slice: &[Self::Subpixel]) -> &Self {
                 assert!(slice.len() >= Self::channel_count() as _);
-                unsafe { &*(slice.as_ptr() as *const _ as *const Self) }
+                let s = unsafe { &*(slice.as_ptr() as *const _ as *const Self) };
+                assert!(s.is_packed());
+                s
             }
             fn from_slice_mut(slice: &mut [Self::Subpixel]) -> &mut Self {
                 assert!(slice.len() >= Self::channel_count() as _);
-                unsafe { &mut *(slice.as_mut_ptr() as *mut _ as *mut Self) }
+                let s = unsafe { &mut *(slice.as_mut_ptr() as *mut _ as *mut Self) };
+                assert!(s.is_packed());
+                s
             }
             fn to_rgb(&self) -> image::Rgb<Self::Subpixel> {
                 image::Rgb { data: [self.r, self.g, self.b] }
@@ -1717,11 +1783,15 @@ macro_rules! vec_impl_pixel_rgba {
             }
             fn from_slice(slice: &[Self::Subpixel]) -> &Self {
                 assert!(slice.len() >= Self::channel_count() as _);
-                unsafe { &*(slice.as_ptr() as *const _ as *const Self) }
+                let s = unsafe { &*(slice.as_ptr() as *const _ as *const Self) };
+                assert!(s.is_packed());
+                s
             }
             fn from_slice_mut(slice: &mut [Self::Subpixel]) -> &mut Self {
                 assert!(slice.len() >= Self::channel_count() as _);
-                unsafe { &mut *(slice.as_mut_ptr() as *mut _ as *mut Self) }
+                let s = unsafe { &mut *(slice.as_mut_ptr() as *mut _ as *mut Self) };
+                assert!(s.is_packed());
+                s
             }
             fn to_rgb(&self) -> image::Rgb<Self::Subpixel> {
                 image::Rgb { data: [self.r, self.g, self.b] }

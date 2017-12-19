@@ -16,6 +16,89 @@ use geom::{FrustumPlanes, Rect};
 #[cfg(feature="quaternion")]
 use quaternion;
 
+macro_rules! def_inv_utils {
+    () => {
+        mod inv_utils {
+            /// Opaque type wrapping a hardware-preferred shuffle mask format for `Vec4`.
+            #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+            pub struct ShuffleMask(u8);
+
+            impl From<(usize, usize, usize, usize)> for ShuffleMask {
+                fn from(tuple: (usize, usize, usize, usize)) -> Self {
+                    let (a,b,c,d) = tuple;
+                    Self::new(a,b,c,d)
+                }
+            }
+            impl From<[usize; 4]> for ShuffleMask {
+                fn from(m: [usize; 4]) -> Self {
+                    Self::new(m[0], m[1], m[2], m[3])
+                }
+            }
+            impl ShuffleMask {
+                #[inline]
+                pub fn new(m0: usize, m1: usize, m2: usize, m3: usize) -> Self {
+                    let (m0, m1, m2, m3) = (m0&3, m1&3, m2&3, m3&3);
+                    ShuffleMask((m0 | (m1<<2) | (m2<<4) | (m3<<6)) as _)
+                }
+                pub fn to_indices(&self) -> (usize, usize, usize, usize) {
+                    let m = self.0 as usize;
+                    (m&3, (m>>2)&3, (m>>4)&3, (m>>6)&3)
+                }
+            }
+
+            use super::{Vec4, Float};
+            pub fn vec4_shuffle<T: Copy, M: Into<ShuffleMask>>(u: Vec4<T>, mask: M) -> Vec4<T> {
+                vec4_shuffle2(u, u, mask)
+            }
+            pub fn vec4_shuffle_0101<T: Copy>(u: Vec4<T>) -> Vec4<T> {
+                vec4_shuffle2_0101(u, u)
+            }
+            pub fn vec4_shuffle_2323<T: Copy>(u: Vec4<T>) -> Vec4<T> {
+                vec4_shuffle2_2323(u, u)
+            }
+            pub fn vec4_shuffle2<T: Copy, M: Into<ShuffleMask>>(lo: Vec4<T>, hi: Vec4<T>, mask: M) -> Vec4<T> {
+                // _mm_shuffle_ps (beware of the order here, too ! Do some tests!!)
+                let (lo0,lo1,hi2,hi3) = mask.into().to_indices();
+                Vec4::new(lo[lo0], lo[lo1], hi[hi2], hi[hi3])
+            }
+            pub fn vec4_interleave_0011<T>(u: Vec4<T>, v: Vec4<T>) -> Vec4<T> {
+                // _mm_unpacklo_ps
+                Vec4::new(u.x, v.x, u.y, v.y)
+            }
+            pub fn vec4_interleave_2233<T>(u: Vec4<T>, v: Vec4<T>) -> Vec4<T> {
+                // _mm_unpackhi_ps
+                Vec4::new(u.z, v.z, u.w, v.w)
+            }
+            pub fn vec4_shuffle2_0101<T>(u: Vec4<T>, v: Vec4<T>) -> Vec4<T> {
+                // _mm_movelh_ps
+                Vec4::new(u.x, u.y, v.x, v.y)
+            }
+            pub fn vec4_shuffle2_2323<T>(u: Vec4<T>, v: Vec4<T>) -> Vec4<T> {
+                // _mm_movehl_ps (beware of parameter order! We could reverse it ourselves just
+                // before calling the intrinsic)
+                Vec4::new(v.z, v.w, u.z, u.w)
+            }
+            pub fn vec4_shuffle_0022<T: Copy>(u: Vec4<T>) -> Vec4<T> {
+                // _mm_moveldup_ps(vec)
+                Vec4::new(u.x, u.x, u.z, u.z)
+            }
+            pub fn vec4_shuffle_1133<T: Copy>(u: Vec4<T>) -> Vec4<T> {
+                // _mm_movehdup_ps(vec)
+                Vec4::new(u.y, u.y, u.w, u.w)
+            }
+            pub fn mat2_mul<T: Float>(u: Vec4<T>, v: Vec4<T>) -> Vec4<T> {
+                u * vec4_shuffle(v, (0,3,0,3)) + vec4_shuffle(u, (1,0,3,2)) * vec4_shuffle(v, (2,1,2,1))
+            }
+            pub fn mat2_adj_mul<T: Float>(u: Vec4<T>, v: Vec4<T>) -> Vec4<T> {
+                vec4_shuffle(u, (3,3,0,0)) * v - vec4_shuffle(u, (1,1,2,2)) * vec4_shuffle(v, (2,3,0,1))
+            }
+            pub fn mat2_mul_adj<T: Float>(u: Vec4<T>, v: Vec4<T>) -> Vec4<T> {
+                u * vec4_shuffle(v, (3,0,3,0)) - vec4_shuffle(u, (1,0,3,2)) * vec4_shuffle(v, (2,1,2,1))
+            }
+        }
+    };
+}
+
 macro_rules! mat_impl_mat {
     (rows $Mat:ident $CVec:ident $Vec:ident ($nrows:tt x $ncols:tt) ($($get:tt)+)) => {
 
@@ -23,12 +106,141 @@ macro_rules! mat_impl_mat {
 
 
         impl<T> $Mat<T> {
-            /*
             /// Converts this matrix into a fixed-size array of elements.
+            ///
+            /// ```
+            /// use vek::mat::repr_c::row_major::Mat4;
+            ///
+            /// let m = Mat4::<u32>::new(
+            ///      0,  1,  2,  3,
+            ///      4,  5,  6,  7,
+            ///      8,  9, 10, 11,
+            ///     12, 13, 14, 15
+            /// );
+            /// let array = [
+            ///      0,  1,  2,  3,
+            ///      4,  5,  6,  7,
+            ///      8,  9, 10, 11,
+            ///     12, 13, 14, 15
+            /// ];
+            /// assert_eq!(m.into_row_array(), array);
+            /// ```
             pub fn into_row_array(self) -> [T; $nrows*$ncols] {
-                unimplemented!{}
+                let m = mem::ManuallyDrop::new(self);
+                let mut cur = 0;
+                unsafe {
+                    let mut array: [T; $nrows*$ncols] = mem::uninitialized();
+                    for i in 0..$nrows {
+                        let row = m.rows.get_unchecked(i);
+                        $(
+                            *array.get_unchecked_mut(cur) = ptr::read(&row.$get);
+                            cur += 1;
+                        )+
+                    }
+                    array
+                }
             }
-            */
+            /// Converts a fixed-size array of elements into a matrix.
+            ///
+            /// ```
+            /// use vek::mat::repr_c::row_major::Mat4;
+            ///
+            /// let m = Mat4::<u32>::new(
+            ///      0,  1,  2,  3,
+            ///      4,  5,  6,  7,
+            ///      8,  9, 10, 11,
+            ///     12, 13, 14, 15
+            /// );
+            /// let array = [
+            ///      0,  1,  2,  3,
+            ///      4,  5,  6,  7,
+            ///      8,  9, 10, 11,
+            ///     12, 13, 14, 15
+            /// ];
+            /// assert_eq!(m, Mat4::from_row_array(array));
+            /// ```
+            pub fn from_row_array(array: [T; $nrows*$ncols]) -> Self {
+                let array = mem::ManuallyDrop::new(array);
+                let mut cur = 0;
+                unsafe {
+                    let mut m: Self = mem::uninitialized();
+                    for i in 0..$nrows {
+                        let row = m.rows.get_unchecked_mut(i);
+                        $(
+                            row.$get = ptr::read(array.get_unchecked(cur));
+                            cur += 1;
+                        )+
+                    }
+                    m
+                }
+            }
+            /// Converts this matrix into a fixed-size array of elements.
+            ///
+            /// ```
+            /// use vek::mat::repr_c::row_major::Mat4;
+            ///
+            /// let m = Mat4::<u32>::new(
+            ///      0,  1,  2,  3,
+            ///      4,  5,  6,  7,
+            ///      8,  9, 10, 11,
+            ///     12, 13, 14, 15
+            /// );
+            /// let array = [
+            ///     0, 4, 8, 12,
+            ///     1, 5, 9, 13,
+            ///     2, 6, 10, 14,
+            ///     3, 7, 11, 15
+            /// ];
+            /// assert_eq!(m.into_col_array(), array);
+            /// ```
+            pub fn into_col_array(self) -> [T; $nrows*$ncols] {
+                let m = mem::ManuallyDrop::new(self);
+                let mut cur = 0;
+                unsafe {
+                    let mut array: [T; $nrows*$ncols] = mem::uninitialized();
+                    $(
+                        for i in 0..$nrows {
+                            *array.get_unchecked_mut(cur) = ptr::read(&m.rows.get_unchecked(i).$get);
+                            cur += 1;
+                        }
+                    )+
+                    array
+                }
+            }
+            /// Converts a fixed-size array of elements into a matrix.
+            ///
+            /// ```
+            /// use vek::mat::repr_c::row_major::Mat4;
+            ///
+            /// let m = Mat4::<u32>::new(
+            ///      0,  1,  2,  3,
+            ///      4,  5,  6,  7,
+            ///      8,  9, 10, 11,
+            ///     12, 13, 14, 15
+            /// );
+            /// let array = [
+            ///     0, 4, 8, 12,
+            ///     1, 5, 9, 13,
+            ///     2, 6, 10, 14,
+            ///     3, 7, 11, 15
+            /// ];
+            /// assert_eq!(m, Mat4::from_col_array(array));
+            /// ```
+            pub fn from_col_array(array: [T; $nrows*$ncols]) -> Self {
+                let array = mem::ManuallyDrop::new(array);
+                let mut cur = 0;
+                unsafe {
+                    let mut m: Self = mem::uninitialized();
+                    $(
+                        for i in 0..$nrows {
+                            m.rows.get_unchecked_mut(i).$get = ptr::read(array.get_unchecked(cur));
+                            cur += 1;
+                        }
+                    )+
+                    m
+                }
+            }
+
             /// Gets a const pointer to this matrix's elements.
             ///
             /// # Panics
@@ -253,12 +465,141 @@ macro_rules! mat_impl_mat {
         mat_impl_mat!{common cols $Mat $CVec $Vec ($nrows x $ncols) ($($get)+)}
 
         impl<T> $Mat<T> {
-            /*
             /// Converts this matrix into a fixed-size array of elements.
+            ///
+            /// ```
+            /// use vek::mat::repr_c::column_major::Mat4;
+            ///
+            /// let m = Mat4::<u32>::new(
+            ///      0,  1,  2,  3,
+            ///      4,  5,  6,  7,
+            ///      8,  9, 10, 11,
+            ///     12, 13, 14, 15
+            /// );
+            /// let array = [
+            ///     0, 4, 8, 12,
+            ///     1, 5, 9, 13,
+            ///     2, 6, 10, 14,
+            ///     3, 7, 11, 15
+            /// ];
+            /// assert_eq!(m.into_col_array(), array);
+            /// ```
             pub fn into_col_array(self) -> [T; $nrows*$ncols] {
-                unimplemented!{}
+                let m = mem::ManuallyDrop::new(self);
+                let mut cur = 0;
+                unsafe {
+                    let mut array: [T; $nrows*$ncols] = mem::uninitialized();
+                    for i in 0..$ncols {
+                        let col = m.cols.get_unchecked(i);
+                        $(
+                            *array.get_unchecked_mut(cur) = ptr::read(&col.$get);
+                            cur += 1;
+                        )+
+                    }
+                    array
+                }
             }
-            */
+            /// Converts a fixed-size array of elements into a matrix.
+            ///
+            /// ```
+            /// use vek::mat::repr_c::column_major::Mat4;
+            ///
+            /// let m = Mat4::<u32>::new(
+            ///      0,  1,  2,  3,
+            ///      4,  5,  6,  7,
+            ///      8,  9, 10, 11,
+            ///     12, 13, 14, 15
+            /// );
+            /// let array = [
+            ///     0, 4, 8, 12,
+            ///     1, 5, 9, 13,
+            ///     2, 6, 10, 14,
+            ///     3, 7, 11, 15
+            /// ];
+            /// assert_eq!(m, Mat4::from_col_array(array));
+            /// ```
+            pub fn from_col_array(array: [T; $nrows*$ncols]) -> Self {
+                let array = mem::ManuallyDrop::new(array);
+                let mut cur = 0;
+                unsafe {
+                    let mut m: Self = mem::uninitialized();
+                    for i in 0..$ncols {
+                        let col = m.cols.get_unchecked_mut(i);
+                        $(
+                            col.$get = ptr::read(array.get_unchecked(cur));
+                            cur += 1;
+                        )+
+                    }
+                    m
+                }
+            }
+            /// Converts this matrix into a fixed-size array of elements.
+            ///
+            /// ```
+            /// use vek::mat::repr_c::column_major::Mat4;
+            ///
+            /// let m = Mat4::<u32>::new(
+            ///      0,  1,  2,  3,
+            ///      4,  5,  6,  7,
+            ///      8,  9, 10, 11,
+            ///     12, 13, 14, 15
+            /// );
+            /// let array = [
+            ///      0,  1,  2,  3,
+            ///      4,  5,  6,  7,
+            ///      8,  9, 10, 11,
+            ///     12, 13, 14, 15
+            /// ];
+            /// assert_eq!(m.into_row_array(), array);
+            /// ```
+            pub fn into_row_array(self) -> [T; $nrows*$ncols] {
+                let m = mem::ManuallyDrop::new(self);
+                let mut cur = 0;
+                unsafe {
+                    let mut array: [T; $nrows*$ncols] = mem::uninitialized();
+                    $(
+                        for i in 0..$ncols {
+                            *array.get_unchecked_mut(cur) = ptr::read(&m.cols.get_unchecked(i).$get);
+                            cur += 1;
+                        }
+                    )+
+                    array
+                }
+            }
+            /// Converts a fixed-size array of elements into a matrix.
+            ///
+            /// ```
+            /// use vek::mat::repr_c::column_major::Mat4;
+            ///
+            /// let m = Mat4::<u32>::new(
+            ///      0,  1,  2,  3,
+            ///      4,  5,  6,  7,
+            ///      8,  9, 10, 11,
+            ///     12, 13, 14, 15
+            /// );
+            /// let array = [
+            ///      0,  1,  2,  3,
+            ///      4,  5,  6,  7,
+            ///      8,  9, 10, 11,
+            ///     12, 13, 14, 15
+            /// ];
+            /// assert_eq!(m, Mat4::from_row_array(array));
+            /// ```
+            pub fn from_row_array(array: [T; $nrows*$ncols]) -> Self {
+                let array = mem::ManuallyDrop::new(array);
+                let mut cur = 0;
+                unsafe {
+                    let mut m: Self = mem::uninitialized();
+                    $(
+                        for i in 0..$ncols {
+                            m.cols.get_unchecked_mut(i).$get = ptr::read(array.get_unchecked(cur));
+                            cur += 1;
+                        }
+                    )+
+                    m
+                }
+            }
+
             /// Gets a const pointer to this matrix's elements.
             ///
             /// # Panics
@@ -493,9 +834,10 @@ macro_rules! mat_impl_mat {
                 Self::identity()
             }
         }
+        // XXX: Now we have two is_zero() which operate differently :(
         impl<T: Zero + PartialEq> Zero for $Mat<T> {
             fn zero() -> Self { Self::zero() }
-            fn is_zero(&self) -> bool { self.is_zero() }
+            fn is_zero(&self) -> bool { self == &Self::zero() }
         }
         impl<T: Zero + One + Copy + MulAdd<T,T,Output=T>> One for $Mat<T> {
             fn one() -> Self { Self::identity() }
@@ -520,9 +862,9 @@ macro_rules! mat_impl_mat {
                     }
                 }
             }
-            /// Are all elements of this matrix equal to zero ?
-            pub fn is_zero(&self) -> bool where T: Zero + PartialEq {
-                self == &Self::zero()
+            /// Are all elements of this matrix equal to zero ? (uses ApproxEq)
+            pub fn is_zero(&self) -> bool where T: Zero, Self: ApproxEq {
+                Self::relative_eq(self, &Self::zero(), Self::default_epsilon(), Self::default_max_relative())
             }
             /// Is this matrix the identity ? (uses ApproxEq)
             pub fn is_identity(&self) -> bool where T: Zero + One, Self: ApproxEq {
@@ -612,82 +954,6 @@ macro_rules! mat_impl_mat {
             /// ```
             pub fn trace(self) -> T where T: Sum {
                 self.diagonal().sum()
-            }
-            /// The matrix's transpose.
-            ///
-            /// For orthogonal matrices, the transpose is the same as the inverse.
-            /// All pure rotation matrices are orthogonal, and therefore can be inverted
-            /// faster by simply computing their transpose.
-            ///
-            /// ```
-            /// # extern crate vek;
-            /// # #[macro_use] extern crate approx;
-            /// # use vek::Mat4;
-            /// use std::f32::consts::PI;
-            ///
-            /// # fn main() {
-            /// let m = Mat4::new(
-            ///     0, 1, 2, 3,
-            ///     4, 5, 6, 7,
-            ///     8, 9, 0, 1,
-            ///     2, 3, 4, 5
-            /// );
-            /// let t = Mat4::new(
-            ///     0, 4, 8, 2,
-            ///     1, 5, 9, 3,
-            ///     2, 6, 0, 4,
-            ///     3, 7, 1, 5
-            /// );
-            /// assert_eq!(m.transposed(), t);
-            /// assert_eq!(m, m.transposed().transposed());
-            ///
-            /// let m = Mat4::rotation_x(PI/7.);
-            /// assert_relative_eq!(m * m.transposed(), Mat4::identity());
-            /// assert_relative_eq!(m.transposed() * m, Mat4::identity());
-            /// // This is supposed to hold true, but our inversion implementation
-            /// // loses to much precision in some elements.
-            /// // assert_relative_eq!(m.transposed(), m.inverted());
-            /// # }
-            /// ```
-            pub fn transposed(self) -> Self {
-                // PERF: This implementation sucks!!
-                let mut out: Self = unsafe { mem::uninitialized() };
-                for y in 0..$nrows {
-                    for x in 0..$ncols {
-                        unsafe {
-                            let e = self.$lines.get_unchecked(y).get_unchecked(x);
-                            *out.$lines.get_unchecked_mut(x).get_unchecked_mut(y) = ptr::read(e);
-                            // ^ ptr::read is safe because we consume the matrix, therefore its
-                            // elements.
-                        }
-                    }
-                }
-                out
-            }
-            /// Transpose this matrix.
-            ///
-            /// ```
-            /// # use vek::mat::Mat4;
-            ///
-            /// let mut m = Mat4::new(
-            ///     0, 1, 2, 3,
-            ///     4, 5, 6, 7,
-            ///     8, 9, 0, 1,
-            ///     2, 3, 4, 5
-            /// );
-            /// let t = Mat4::new(
-            ///     0, 4, 8, 2,
-            ///     1, 5, 9, 3,
-            ///     2, 6, 0, 4,
-            ///     3, 7, 1, 5
-            /// );
-            /// m.transpose();
-            /// assert_eq!(m, t);
-            /// ```
-            pub fn transpose(&mut self) {
-                unsafe {
-                    *self = ptr::read(self).transposed();
-                }
             }
             /// Multiply elements of this matrix with another's.
             ///
@@ -971,6 +1237,84 @@ macro_rules! mat_impl_mat4 {
 
         impl<T> Mat4<T> {
 
+            /// The matrix's transpose.
+            ///
+            /// For orthogonal matrices, the transpose is the same as the inverse.
+            /// All pure rotation matrices are orthogonal, and therefore can be inverted
+            /// faster by simply computing their transpose.
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::Mat4;
+            /// use std::f32::consts::PI;
+            ///
+            /// # fn main() {
+            /// let m = Mat4::new(
+            ///     0, 1, 2, 3,
+            ///     4, 5, 6, 7,
+            ///     8, 9, 0, 1,
+            ///     2, 3, 4, 5
+            /// );
+            /// let t = Mat4::new(
+            ///     0, 4, 8, 2,
+            ///     1, 5, 9, 3,
+            ///     2, 6, 0, 4,
+            ///     3, 7, 1, 5
+            /// );
+            /// assert_eq!(m.transposed(), t);
+            /// assert_eq!(m, m.transposed().transposed());
+            ///
+            /// let m = Mat4::rotation_x(PI/7.);
+            /// assert_relative_eq!(m * m.transposed(), Mat4::identity());
+            /// assert_relative_eq!(m.transposed() * m, Mat4::identity());
+            /// // This is supposed to hold true, but our inversion implementation
+            /// // loses to much precision in some elements.
+            /// // assert_relative_eq!(m.transposed(), m.inverted());
+            /// # }
+            /// ```
+            // NOTE: Implemented on a per-matrix basis to avoid a Clone bound on T
+            pub fn transposed(self) -> Self {
+                let s = self.$lines;
+                Self {
+                    $lines: CVec4::new(
+                        Vec4::new(s.x.x, s.y.x, s.z.x, s.w.x),
+                        Vec4::new(s.x.y, s.y.y, s.z.y, s.w.y),
+                        Vec4::new(s.x.z, s.y.z, s.z.z, s.w.z),
+                        Vec4::new(s.x.w, s.y.w, s.z.w, s.w.w)
+                    )
+                }
+            }
+            /// Transpose this matrix.
+            ///
+            /// ```
+            /// # use vek::mat::Mat4;
+            ///
+            /// let mut m = Mat4::new(
+            ///     0, 1, 2, 3,
+            ///     4, 5, 6, 7,
+            ///     8, 9, 0, 1,
+            ///     2, 3, 4, 5
+            /// );
+            /// let t = Mat4::new(
+            ///     0, 4, 8, 2,
+            ///     1, 5, 9, 3,
+            ///     2, 6, 0, 4,
+            ///     3, 7, 1, 5
+            /// );
+            /// m.transpose();
+            /// assert_eq!(m, t);
+            /// ```
+            // NOTE: Implemented on a per-matrix basis to avoid a Clone bound on T
+            pub fn transpose(&mut self) {
+                mem::swap(&mut self.$lines.x.y, &mut self.$lines.y.x);
+                mem::swap(&mut self.$lines.x.z, &mut self.$lines.z.x);
+                mem::swap(&mut self.$lines.x.w, &mut self.$lines.w.x);
+                mem::swap(&mut self.$lines.y.z, &mut self.$lines.z.y);
+                mem::swap(&mut self.$lines.y.w, &mut self.$lines.w.y);
+                mem::swap(&mut self.$lines.z.w, &mut self.$lines.w.z);
+            }
+
             //
             // BASIC
             //
@@ -1009,6 +1353,49 @@ macro_rules! mat_impl_mat4 {
             // It appears to lose quite a bunch of precision though. There should be a better way.
             pub fn inverted(self) -> Self where T: Float
             {
+                use super::super::inv_utils::*;
+                // XXX: Assumes row-major
+                let m = self.$lines;
+                let a = vec4_shuffle2_0101(m.x, m.y);
+                let b = vec4_shuffle2_2323(m.x, m.y);
+                let c = vec4_shuffle2_0101(m.z, m.w);
+                let d = vec4_shuffle2_2323(m.z, m.w);
+
+                let det_a = Vec4::broadcast(m.x.x * m.y.y - m.x.y * m.y.x);
+                let det_b = Vec4::broadcast(m.x.z * m.y.w - m.x.w * m.y.z);
+                let det_c = Vec4::broadcast(m.z.x * m.w.y - m.z.y * m.w.x);
+                let det_d = Vec4::broadcast(m.z.z * m.w.w - m.z.w * m.w.z);
+
+                let d_c = mat2_adj_mul(d, c);
+                let a_b = mat2_adj_mul(a, b);
+                let x_ = det_d * a - mat2_mul(b, d_c);
+                let w_ = det_a * d - mat2_mul(c, a_b);
+                let y_ = det_b * c - mat2_mul_adj(d, a_b);
+                let z_ = det_c * b - mat2_mul_adj(a, d_c);
+
+                let tr = a_b * vec4_shuffle(d_c, (0,2,1,3));
+                let tr = tr.hadd(tr);
+                let tr = tr.hadd(tr);
+
+                let det_m = det_a * det_d + det_b * det_c - tr;
+
+                let adj_sign_mask = Vec4::new(T::one(), -T::one(), -T::one(), T::one());
+                let r_det_m = adj_sign_mask / det_m;
+
+                let x_ = x_ * r_det_m;
+                let y_ = y_ * r_det_m;
+                let z_ = z_ * r_det_m;
+                let w_ = w_ * r_det_m;
+
+                Self {
+                    $lines: CVec4::new(
+                        vec4_shuffle2(x_, y_, (3,1,3,1)),
+                        vec4_shuffle2(x_, y_, (2,0,2,0)),
+                        vec4_shuffle2(z_, w_, (3,1,3,1)),
+                        vec4_shuffle2(z_, w_, (2,0,2,0))
+                    )
+                }
+                /*
                 let mut m = Rows4::from(self).rows;
                 let s = [
                     m[0][0]*m[1][1] - m[1][0]*m[0][1],
@@ -1047,6 +1434,7 @@ macro_rules! mat_impl_mat4 {
                 m[3][3] = ( m[2][0] * s[3] - m[2][1] * s[1] + m[2][2] * s[0]) * idet;
 
                 Rows4 { rows: m }.into()
+                */
             }
 
             #[allow(dead_code)]
@@ -2191,6 +2579,74 @@ macro_rules! mat_impl_mat3 {
     };
     (common $lines:ident) => {
         impl<T> Mat3<T> {
+            /// The matrix's transpose.
+            ///
+            /// For orthogonal matrices, the transpose is the same as the inverse.
+            /// All pure rotation matrices are orthogonal, and therefore can be inverted
+            /// faster by simply computing their transpose.
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::Mat3;
+            /// use std::f32::consts::PI;
+            ///
+            /// # fn main() {
+            /// let m = Mat3::new(
+            ///     0, 1, 2,
+            ///     4, 5, 6,
+            ///     8, 9, 0
+            /// );
+            /// let t = Mat3::new(
+            ///     0, 4, 8,
+            ///     1, 5, 9,
+            ///     2, 6, 0 
+            /// );
+            /// assert_eq!(m.transposed(), t);
+            /// assert_eq!(m, m.transposed().transposed());
+            ///
+            /// let m = Mat3::rotation_x(PI/7.);
+            /// assert_relative_eq!(m * m.transposed(), Mat3::identity());
+            /// assert_relative_eq!(m.transposed() * m, Mat3::identity());
+            /// # }
+            /// ```
+            // NOTE: Implemented on a per-matrix basis to avoid a Clone bound on T
+            pub fn transposed(self) -> Self {
+                let s = self.$lines;
+                Self {
+                    $lines: CVec3::new(
+                        Vec3::new(s.x.x, s.y.x, s.z.x),
+                        Vec3::new(s.x.y, s.y.y, s.z.y),
+                        Vec3::new(s.x.z, s.y.z, s.z.z)
+                    )
+                }
+            }
+            /// Transpose this matrix.
+            ///
+            /// ```
+            /// # use vek::Mat3;
+            ///
+            /// let mut m = Mat3::new(
+            ///     0, 1, 2,
+            ///     4, 5, 6,
+            ///     8, 9, 0
+            /// );
+            /// let t = Mat3::new(
+            ///     0, 4, 8,
+            ///     1, 5, 9,
+            ///     2, 6, 0
+            /// );
+            /// m.transpose();
+            /// assert_eq!(m, t);
+            /// ```
+            // NOTE: Implemented on a per-matrix basis to avoid a Clone bound on T
+            pub fn transpose(&mut self) {
+                mem::swap(&mut self.$lines.x.y, &mut self.$lines.y.x);
+                mem::swap(&mut self.$lines.x.z, &mut self.$lines.z.x);
+                mem::swap(&mut self.$lines.y.z, &mut self.$lines.z.y);
+            }
+
+
             #[cfg(feature="vec2")]
             pub fn translate_2d<V: Into<Vec2<T>>>(&mut self, v: V)
                 where T: Float + MulAdd<T,T,Output=T>
@@ -2463,6 +2919,57 @@ macro_rules! mat_impl_mat2 {
     };
     (common $lines:ident) => {
         impl<T> Mat2<T> {
+            /// The matrix's transpose.
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # use vek::Mat2;
+            ///
+            /// # fn main() {
+            /// let m = Mat2::new(
+            ///     0, 1,
+            ///     4, 5
+            /// );
+            /// let t = Mat2::new(
+            ///     0, 4,
+            ///     1, 5
+            /// );
+            /// assert_eq!(m.transposed(), t);
+            /// assert_eq!(m, m.transposed().transposed());
+            /// # }
+            /// ```
+            // NOTE: Implemented on a per-matrix basis to avoid a Clone bound on T
+            pub fn transposed(self) -> Self {
+                let s = self.$lines;
+                Self {
+                    $lines: CVec2::new(
+                        Vec2::new(s.x.x, s.y.x),
+                        Vec2::new(s.x.y, s.y.y)
+                    )
+                }
+            }
+            /// Transpose this matrix.
+            ///
+            /// ```
+            /// # use vek::Mat2;
+            ///
+            /// let mut m = Mat2::new(
+            ///     0, 1,
+            ///     4, 5
+            /// );
+            /// let t = Mat2::new(
+            ///     0, 4,
+            ///     1, 5
+            /// );
+            /// m.transpose();
+            /// assert_eq!(m, t);
+            /// ```
+            // NOTE: Implemented on a per-matrix basis to avoid a Clone bound on T
+            pub fn transpose(&mut self) {
+                mem::swap(&mut self.$lines.x.y, &mut self.$lines.y.x);
+            }
+
+
             pub fn rotate_z(&mut self, angle_radians: T)
                 where T: Float + MulAdd<T,T,Output=T>
             {
@@ -2676,6 +3183,8 @@ pub mod repr_c {
     #[cfg(feature="quaternion")]
     use super::quaternion::repr_c::Quaternion;
 
+    def_inv_utils!{}
+
     mat_declare_modules!{}
 }
 
@@ -2703,6 +3212,8 @@ pub mod repr_simd {
 
     #[cfg(feature="quaternion")]
     use super::quaternion::repr_simd::Quaternion;
+
+    def_inv_utils!{}
 
     mat_declare_modules!{}
 }
