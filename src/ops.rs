@@ -406,15 +406,7 @@ pub trait Wrap<Bound=Self>: Sized {
 	/// assert_eq!(  5_i32 .wrapped_between(2, 5), 2);
 	/// assert_eq!(  6_i32 .wrapped_between(2, 5), 3);
 	/// ```
-	fn wrapped_between(self, lower: Bound, upper: Bound) -> Self 
-		where Self: Sub<Output=Self> + Add<Output=Self> + From<Bound>,
-			  Bound: Copy + Sub<Output=Bound> + PartialOrd
-	{
-        assert!(lower < upper);
-		let out = self - Self::from(lower);
-		let out = out.wrapped(upper - lower);
-		out + Self::from(lower)
-	}
+	fn wrapped_between(self, lower: Bound, upper: Bound) -> Self;
 	/// Alias to `wrapped_between` which doesn't take `self`.
     ///
     /// # Panics
@@ -480,12 +472,20 @@ macro_rules! wrap_impl_float {
 			impl Wrap for $T {
 				fn wrapped(self, upper: Self) -> Self {
                     assert!(upper > Self::zero());
-                    assert_relative_ne!(upper, Self::zero());
+                    // assert_relative_ne!(upper, Self::zero());
 					self - (self/upper).floor() * upper
 				}
+				fn wrapped_between(self, lower: Self, upper: Self) -> Self {
+                    assert!(lower < upper);
+                    assert!(lower >= Self::zero());
+                    assert!(upper > Self::zero());
+                    let out = self - lower;
+                    let out = out.wrapped(upper - lower);
+                    out + lower
+                }
                 fn pingpong(self, upper: Self) -> Self {
                     assert!(upper > Self::zero());
-                    assert_relative_ne!(upper, Self::zero());
+                    // assert_relative_ne!(upper, Self::zero());
                     let t = self.wrapped(upper + upper);
                     let upper = || Self::from(upper);
                     upper() - (t - upper()).abs()

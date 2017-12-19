@@ -1058,10 +1058,12 @@ macro_rules! vec_impl_vec {
                 Self::lerp_unclamped(from, to, factor)
             }
         }
-        /* FIXME: impl Wrap for vectors
         impl<T: Wrap + Copy> Wrap<T> for $Vec<T> {
             fn wrapped(self, upper: T) -> Self {
                 self.wrapped(Self::broadcast(upper))
+            }
+            fn wrapped_between(self, lower: T, upper: T) -> Self {
+                self.wrapped_between(Self::broadcast(lower), Self::broadcast(upper))
             }
             fn pingpong(self, upper: T) -> Self {
                 self.pingpong(Self::broadcast(upper))
@@ -1071,11 +1073,13 @@ macro_rules! vec_impl_vec {
             fn wrapped(self, upper: $Vec<T>) -> Self {
                 Self::new($(self.$get.wrapped(upper.$get)),+)
             }
-            fn pingpong(self, upper: $Vec<T>) -> Self {
+            fn wrapped_between(self, lower: Self, upper: Self) -> Self {
+                Self::new($(self.$get.wrapped_between(lower.$get, upper.$get)),+)
+            }
+            fn pingpong(self, upper: Self) -> Self {
                 Self::new($(self.$get.pingpong(upper.$get)),+)
             }
         }
-        */
 
         vec_impl_trinop!{impl MulAdd for $Vec { mul_add } ($($get)+)}
         vec_impl_binop!{impl Add for $Vec { add } ($($get)+)}
