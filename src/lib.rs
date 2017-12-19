@@ -179,7 +179,8 @@ extern crate x86intrin;
 
 extern crate num_traits;
 extern crate num_integer;
-// #[macro_use]
+#[allow(unused_imports)]
+#[macro_use]
 extern crate approx;
 #[allow(unused_imports)]
 #[macro_use]
@@ -211,8 +212,7 @@ pub mod geom;
 pub use geom::*;
 
 
-// TODO: Clamp: rename to `PartialClamp` trait ?
-// TODO: Wrap: fix doc-tests
+// 0.8 roadmap:
 // TODO: Clamp: implement for vecs
 // TODO:
 // - Matrices:
@@ -230,4 +230,5 @@ pub use geom::*;
 //   Document the _zo _no stuff
 //   Document what _lh _rh transformations actually do (the tests do it but...)
 //   Document that feature requests are welcome!
-
+// NOTE: The point of `fix`, `fpa` and `num-bigint` features was to make them implement vek::ops.
+// NOTE: Clamp: rename to `PartialClamp` trait ? Resolved: NO. This would be a mess for an issue nobody really cares abouts.

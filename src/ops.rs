@@ -3,7 +3,7 @@
 use core::num::Wrapping;
 use core::ops::*;
 use core::cmp;
-use num_traits::{Zero, One, FloatConst, Signed};
+use num_traits::{Zero, One, FloatConst};
 
 /// Compares and returns the minimum of two values, using partial ordering.
 pub fn partial_min<T: PartialOrd + Sized>(a: T, b: T) -> T {
@@ -334,13 +334,25 @@ pub trait Wrap<Bound=Self>: Sized {
 	/// values.
 	///
 	/// If you're familiar with Unity, this is the `Mathf.Repeat()` function.
+    ///
+    /// # Panics
+    /// Panics if `upper <= 0`. Reasons include :
+    ///
+    /// - Some types may implement it as `self.wrapped_between(zero, upper)`. 
+    ///   A negative `upper` would violate the `lower <= upper` requirement in this case;
+    /// - On unsigned integers, this just resolves to `self % upper`,
+    ///   and integer division by zero is forbidden. Testing for `i==0` incurs unnecessary overhead.
+    /// - Handling negative `upper` values would double the number of test cases
+    ///   and increases implementation complexity;
 	///
 	/// ```
 	/// use vek::ops::Wrap;
 	///
-	/// # // assert_eq!((-3_i32).wrapped(3), 0);
-	/// # // assert_eq!((-2_i32).wrapped(3), 1);
-	/// # // assert_eq!((-1_i32).wrapped(3), 2);
+	/// assert_eq!((-5_i32).wrapped(3), 1);
+	/// assert_eq!((-4_i32).wrapped(3), 2);
+	/// assert_eq!((-3_i32).wrapped(3), 0);
+	/// assert_eq!((-2_i32).wrapped(3), 1);
+	/// assert_eq!((-1_i32).wrapped(3), 2);
 	/// assert_eq!(0_i32.wrapped(3), 0);
 	/// assert_eq!(1_i32.wrapped(3), 1);
 	/// assert_eq!(2_i32.wrapped(3), 2);
@@ -350,6 +362,9 @@ pub trait Wrap<Bound=Self>: Sized {
 	/// ```
 	fn wrapped(self, upper: Bound) -> Self;
 	/// Alias to `wrapped()` which doesn't take `self`.
+    ///
+    /// # Panics
+    /// Panics if `upper <= 0`. See `wrapped()` for a rationale.
 	fn wrap(val: Self, upper: Bound) -> Self {
 		val.wrapped(upper)
 	}
@@ -368,62 +383,70 @@ pub trait Wrap<Bound=Self>: Sized {
 		val.wrapped_2pi()
 	}
 
-	/// Returns this value, wrapped between `lower` and `upper` (inclusive).
+	/// Returns this value, wrapped between `lower` (inclusive) and `upper` (exclusive).
 	///
+    /// # Panics
+    /// Panics if `lower >= upper`. Swap the values yourself if necessary.
+    /// 
+    /// Also panics if `lower < 0` or `upper <= 0`. See `wrapped()` for a rationale.  
+    /// Forcing `lower` and `upper` to be positive allows implementations to be simpler and faster.
+    ///
 	/// ```
 	/// use vek::ops::Wrap;
 	///
-	/// # // assert_eq!((-4_i32).wrapped_between(2, 5), 2);
-	/// # // assert_eq!((-3_i32).wrapped_between(2, 5), 3);
-	/// # // assert_eq!((-2_i32).wrapped_between(2, 5), 4);
-	/// # // assert_eq!((-1_i32).wrapped_between(2, 5), 2);
-	/// // assert_eq!(0_i32.wrapped_between(2, 5), 3);
-	/// // assert_eq!(1_i32.wrapped_between(2, 5), 4);
-	/// assert_eq!(2_i32.wrapped_between(2, 5), 2);
-	/// assert_eq!(3_i32.wrapped_between(2, 5), 3);
-	/// assert_eq!(4_i32.wrapped_between(2, 5), 4);
+	/// assert_eq!((-4_i32).wrapped_between(2, 5), 2);
+	/// assert_eq!((-3_i32).wrapped_between(2, 5), 3);
+	/// assert_eq!((-2_i32).wrapped_between(2, 5), 4);
+	/// assert_eq!((-1_i32).wrapped_between(2, 5), 2);
+	/// assert_eq!(  0_i32 .wrapped_between(2, 5), 3);
+	/// assert_eq!(  1_i32 .wrapped_between(2, 5), 4);
+	/// assert_eq!(  2_i32 .wrapped_between(2, 5), 2);
+	/// assert_eq!(  3_i32 .wrapped_between(2, 5), 3);
+	/// assert_eq!(  4_i32 .wrapped_between(2, 5), 4);
+	/// assert_eq!(  5_i32 .wrapped_between(2, 5), 2);
+	/// assert_eq!(  6_i32 .wrapped_between(2, 5), 3);
 	/// ```
 	fn wrapped_between(self, lower: Bound, upper: Bound) -> Self 
 		where Self: Sub<Output=Self> + Add<Output=Self> + From<Bound>,
-			  Bound: Copy + Sub<Output=Bound>
+			  Bound: Copy + Sub<Output=Bound> + PartialOrd
 	{
+        assert!(lower < upper);
 		let out = self - Self::from(lower);
 		let out = out.wrapped(upper - lower);
 		out + Self::from(lower)
 	}
 	/// Alias to `wrapped_between` which doesn't take `self`.
+    ///
+    /// # Panics
+    /// Panics if `lower` is greater than `upper`. Swap the values yourself if necessary.
 	fn wrap_between(val: Self, lower: Bound, upper: Bound) -> Self 
 		where Self: Sub<Output=Self> + Add<Output=Self> + From<Bound>,
-			  Bound: Copy + Sub<Output=Bound>
+			  Bound: Copy + Sub<Output=Bound> + PartialOrd
 	{
 		val.wrapped_between(lower, upper)
 	}
-	/// Wraps a value such that it goes back and forth from zero to `upper` as it increases.
+	/// Wraps a value such that it goes back and forth from zero to `upper` (inclusive) as it increases.
 	///
+    /// # Panics
+    /// Panics if `upper <= 0`. See `wrapped()` for a rationale.
 	/// ```
 	/// use vek::ops::Wrap;
 	///
-	/// # // assert_eq!((-4_i32).pingpong(3), 2);
-	/// # // assert_eq!((-3_i32).pingpong(3), 0);
-	/// # // assert_eq!((-2_i32).pingpong(3), 1);
-	/// # // assert_eq!((-1_i32).pingpong(3), 2);
-	/// assert_eq!(0_i32.pingpong(3), 0);
-	/// assert_eq!(1_i32.pingpong(3), 1);
-	/// assert_eq!(2_i32.pingpong(3), 2);
-	/// assert_eq!(3_i32.pingpong(3), 3);
-	/// assert_eq!(4_i32.pingpong(3), 2);
-	/// assert_eq!(5_i32.pingpong(3), 1);
-	/// assert_eq!(6_i32.pingpong(3), 0);
-	/// assert_eq!(7_i32.pingpong(3), 1);
+	/// assert_eq!((-4_i32).pingpong(3), 2);
+	/// assert_eq!((-3_i32).pingpong(3), 3);
+	/// assert_eq!((-2_i32).pingpong(3), 2);
+	/// assert_eq!((-1_i32).pingpong(3), 1);
+	/// assert_eq!(  0_i32 .pingpong(3), 0);
+	/// assert_eq!(  1_i32 .pingpong(3), 1);
+	/// assert_eq!(  2_i32 .pingpong(3), 2);
+	/// assert_eq!(  3_i32 .pingpong(3), 3);
+	/// assert_eq!(  4_i32 .pingpong(3), 2);
+	/// assert_eq!(  5_i32 .pingpong(3), 1);
+	/// assert_eq!(  6_i32 .pingpong(3), 0);
+	/// assert_eq!(  7_i32 .pingpong(3), 1);
 	/// ```
-	fn pingpong(self, upper: Bound) -> Self 
-		where Self: Signed + From<Bound> + Sub<Output=Self>,
-			Bound: Add<Output=Bound> + Copy
-	{
-		let t = self.wrapped(upper + upper);
-		let upper = || Self::from(upper);
-		upper() - (t - upper()).abs()
-	}
+	fn pingpong(self, upper: Bound) -> Self;
+
 	/// Calculates the shortest difference between two given angles, in radians.
 	fn delta_angle(self, target: Self) -> Self
 		where Self: From<Bound> + Sub<Output=Self> + PartialOrd,
@@ -456,37 +479,102 @@ macro_rules! wrap_impl_float {
 		$(
 			impl Wrap for $T {
 				fn wrapped(self, upper: Self) -> Self {
+                    assert!(upper > Self::zero());
+                    assert_relative_ne!(upper, Self::zero());
 					self - (self/upper).floor() * upper
 				}
+                fn pingpong(self, upper: Self) -> Self {
+                    assert!(upper > Self::zero());
+                    assert_relative_ne!(upper, Self::zero());
+                    let t = self.wrapped(upper + upper);
+                    let upper = || Self::from(upper);
+                    upper() - (t - upper()).abs()
+                }
 			}
 		)+
 	}
 }
-macro_rules! wrap_impl_integer {
+macro_rules! wrap_impl_uint {
 	($($T:ty)+) => {
 		$(
 			impl Wrap for $T {
+                // https://stackoverflow.com/a/707426
+	            fn wrapped_between(mut self, lower: Self, upper: Self) -> Self {
+                    assert!(lower < upper);
+                    assert!(lower >= Self::zero());
+                    assert!(upper > Self::zero());
+                    let range_size = upper - lower /*+ Self::one()*/;
+					if self < lower {
+                        self += range_size * ((lower-self)/range_size + Self::one());
+                    }
+                    lower + (self - lower) % range_size
+                }
 				fn wrapped(self, upper: Self) -> Self {
-					self - (self/upper) * upper
+                    assert!(upper > Self::zero());
+                    self % upper
 				}
+                fn pingpong(self, upper: Self) -> Self {
+                    assert!(upper > Self::zero());
+                    let r = self % (upper+upper);
+                    if r < upper {
+                        r
+                    } else {
+                        upper+upper-r
+                    }
+                }
+			}
+		)+
+	}
+}
+macro_rules! wrap_impl_sint {
+	($($T:ty)+) => {
+		$(
+			impl Wrap for $T {
+                // https://stackoverflow.com/a/707426
+	            fn wrapped_between(mut self, lower: Self, upper: Self) -> Self {
+                    assert!(lower < upper);
+                    assert!(lower >= Self::zero());
+                    assert!(upper > Self::zero());
+                    let range_size = upper - lower /*+ Self::one()*/;
+					if self < lower {
+                        self += range_size * ((lower-self)/range_size + Self::one());
+                    }
+                    lower + (self - lower) % range_size
+                }
+				fn wrapped(self, upper: Self) -> Self {
+                    assert!(upper > Self::zero());
+                    self.wrapped_between(Self::zero(), upper)
+				}
+                fn pingpong(self, upper: Self) -> Self {
+                    assert!(upper > Self::zero());
+                    let r = self.wrapped(upper+upper);
+                    if r <= upper {
+                        r
+                    } else {
+                        upper+upper-r
+                    }
+                }
 			}
 		)+
 	}
 }
 
 wrap_impl_float!{f32 f64}
-wrap_impl_integer!{
-	i8 i16 i32 i64 isize u8 u16 u32 u64 usize
-	Wrapping<i8>
-	Wrapping<i16>
-	Wrapping<i32>
-	Wrapping<i64>
-	Wrapping<isize>
+wrap_impl_uint!{
+	u8 u16 u32 u64 usize
 	Wrapping<u8>
 	Wrapping<u16>
 	Wrapping<u32>
 	Wrapping<u64>
 	Wrapping<usize>
+}
+wrap_impl_sint!{
+	i8 i16 i32 i64 isize
+	Wrapping<i8>
+	Wrapping<i16>
+	Wrapping<i32>
+	Wrapping<i64>
+	Wrapping<isize>
 }
 
 /// Trait for types that are suitable for representing a color component value.
@@ -520,3 +608,152 @@ impl ColorComponent for Wrapping<i32>  { fn full() -> Self { Wrapping(ColorCompo
 impl ColorComponent for Wrapping<i64>  { fn full() -> Self { Wrapping(ColorComponent::full()) } }
 //impl ColorComponent for Wrapping<i128> { fn full() -> Self { Wrapping(ColorComponent::full()) } }
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    macro_rules! for_each_unsigned_type {
+        ($($T:ident)+) => {
+            $(mod $T {
+                use super::Wrap;
+                #[test]
+                fn wrapped() {
+                    assert_eq!((0 as $T).wrapped(3 as $T), 0 as $T);
+                    assert_eq!((1 as $T).wrapped(3 as $T), 1 as $T);
+                    assert_eq!((2 as $T).wrapped(3 as $T), 2 as $T);
+                    assert_eq!((3 as $T).wrapped(3 as $T), 0 as $T);
+                    assert_eq!((4 as $T).wrapped(3 as $T), 1 as $T);
+                    assert_eq!((5 as $T).wrapped(3 as $T), 2 as $T);
+                }
+                #[test]
+                fn wrapped_between() {
+                    assert_eq!((0 as $T).wrapped_between(2 as $T, 5 as $T), 3 as $T);
+                    assert_eq!((1 as $T).wrapped_between(2 as $T, 5 as $T), 4 as $T);
+                    assert_eq!((2 as $T).wrapped_between(2 as $T, 5 as $T), 2 as $T);
+                    assert_eq!((3 as $T).wrapped_between(2 as $T, 5 as $T), 3 as $T);
+                    assert_eq!((4 as $T).wrapped_between(2 as $T, 5 as $T), 4 as $T);
+                    assert_eq!((5 as $T).wrapped_between(2 as $T, 5 as $T), 2 as $T);
+                    assert_eq!((6 as $T).wrapped_between(2 as $T, 5 as $T), 3 as $T);
+                }
+                #[test]
+                fn pingpong() {
+                    assert_eq!((0 as $T).pingpong(3 as $T), 0 as $T);
+                    assert_eq!((1 as $T).pingpong(3 as $T), 1 as $T);
+                    assert_eq!((2 as $T).pingpong(3 as $T), 2 as $T);
+                    assert_eq!((3 as $T).pingpong(3 as $T), 3 as $T);
+                    assert_eq!((4 as $T).pingpong(3 as $T), 2 as $T);
+                    assert_eq!((5 as $T).pingpong(3 as $T), 1 as $T);
+                    assert_eq!((6 as $T).pingpong(3 as $T), 0 as $T);
+                    assert_eq!((7 as $T).pingpong(3 as $T), 1 as $T);
+                }
+            })+
+        };
+    }
+
+    macro_rules! for_each_signed_type {
+        ($($T:ident)+) => {
+            $(mod $T {
+                use super::Wrap;
+                #[test]
+                fn wrapped() {
+                    assert_eq!((-5 as $T).wrapped(3 as $T), 1 as $T);
+                    assert_eq!((-4 as $T).wrapped(3 as $T), 2 as $T);
+                    assert_eq!((-3 as $T).wrapped(3 as $T), 0 as $T);
+                    assert_eq!((-2 as $T).wrapped(3 as $T), 1 as $T);
+                    assert_eq!((-1 as $T).wrapped(3 as $T), 2 as $T);
+                    assert_eq!(( 0 as $T).wrapped(3 as $T), 0 as $T);
+                    assert_eq!(( 1 as $T).wrapped(3 as $T), 1 as $T);
+                    assert_eq!(( 2 as $T).wrapped(3 as $T), 2 as $T);
+                    assert_eq!(( 3 as $T).wrapped(3 as $T), 0 as $T);
+                    assert_eq!(( 4 as $T).wrapped(3 as $T), 1 as $T);
+                    assert_eq!(( 5 as $T).wrapped(3 as $T), 2 as $T);
+                }
+                #[test]
+                fn wrapped_between() {
+                    assert_eq!((-4 as $T).wrapped_between(2 as $T, 5 as $T), 2 as $T);
+                    assert_eq!((-3 as $T).wrapped_between(2 as $T, 5 as $T), 3 as $T);
+                    assert_eq!((-2 as $T).wrapped_between(2 as $T, 5 as $T), 4 as $T);
+                    assert_eq!((-1 as $T).wrapped_between(2 as $T, 5 as $T), 2 as $T);
+                    assert_eq!(( 0 as $T).wrapped_between(2 as $T, 5 as $T), 3 as $T);
+                    assert_eq!(( 1 as $T).wrapped_between(2 as $T, 5 as $T), 4 as $T);
+                    assert_eq!(( 2 as $T).wrapped_between(2 as $T, 5 as $T), 2 as $T);
+                    assert_eq!(( 3 as $T).wrapped_between(2 as $T, 5 as $T), 3 as $T);
+                    assert_eq!(( 4 as $T).wrapped_between(2 as $T, 5 as $T), 4 as $T);
+                    assert_eq!(( 5 as $T).wrapped_between(2 as $T, 5 as $T), 2 as $T);
+                    assert_eq!(( 6 as $T).wrapped_between(2 as $T, 5 as $T), 3 as $T);
+                }
+                #[test]
+                fn pingpong() {
+                    assert_eq!((-4 as $T).pingpong(3 as $T), 2 as $T);
+                    assert_eq!((-3 as $T).pingpong(3 as $T), 3 as $T);
+                    assert_eq!((-2 as $T).pingpong(3 as $T), 2 as $T);
+                    assert_eq!((-1 as $T).pingpong(3 as $T), 1 as $T);
+                    assert_eq!(( 0 as $T).pingpong(3 as $T), 0 as $T);
+                    assert_eq!(( 1 as $T).pingpong(3 as $T), 1 as $T);
+                    assert_eq!(( 2 as $T).pingpong(3 as $T), 2 as $T);
+                    assert_eq!(( 3 as $T).pingpong(3 as $T), 3 as $T);
+                    assert_eq!(( 4 as $T).pingpong(3 as $T), 2 as $T);
+                    assert_eq!(( 5 as $T).pingpong(3 as $T), 1 as $T);
+                    assert_eq!(( 6 as $T).pingpong(3 as $T), 0 as $T);
+                    assert_eq!(( 7 as $T).pingpong(3 as $T), 1 as $T);
+                }
+            })+
+        };
+    }
+
+    macro_rules! for_each_float_type {
+        ($($T:ident)+) => {
+            $(mod $T {
+                use super::Wrap;
+                #[test]
+                fn wrapped() {
+                    assert_relative_eq!((-5 as $T).wrapped(3 as $T), 1 as $T);
+                    assert_relative_eq!((-4 as $T).wrapped(3 as $T), 2 as $T);
+                    assert_relative_eq!((-3 as $T).wrapped(3 as $T), 0 as $T);
+                    assert_relative_eq!((-2 as $T).wrapped(3 as $T), 1 as $T);
+                    assert_relative_eq!((-1 as $T).wrapped(3 as $T), 2 as $T);
+                    assert_relative_eq!(( 0 as $T).wrapped(3 as $T), 0 as $T);
+                    assert_relative_eq!(( 1 as $T).wrapped(3 as $T), 1 as $T);
+                    assert_relative_eq!(( 2 as $T).wrapped(3 as $T), 2 as $T);
+                    assert_relative_eq!(( 3 as $T).wrapped(3 as $T), 0 as $T);
+                    assert_relative_eq!(( 4 as $T).wrapped(3 as $T), 1 as $T);
+                    assert_relative_eq!(( 5 as $T).wrapped(3 as $T), 2 as $T);
+                }
+                #[test]
+                fn wrapped_between() {
+                    assert_relative_eq!((-4 as $T).wrapped_between(2 as $T, 5 as $T), 2 as $T);
+                    assert_relative_eq!((-3 as $T).wrapped_between(2 as $T, 5 as $T), 3 as $T);
+                    assert_relative_eq!((-2 as $T).wrapped_between(2 as $T, 5 as $T), 4 as $T);
+                    assert_relative_eq!((-1 as $T).wrapped_between(2 as $T, 5 as $T), 2 as $T);
+                    assert_relative_eq!(( 0 as $T).wrapped_between(2 as $T, 5 as $T), 3 as $T);
+                    assert_relative_eq!(( 1 as $T).wrapped_between(2 as $T, 5 as $T), 4 as $T);
+                    assert_relative_eq!(( 2 as $T).wrapped_between(2 as $T, 5 as $T), 2 as $T);
+                    assert_relative_eq!(( 3 as $T).wrapped_between(2 as $T, 5 as $T), 3 as $T);
+                    assert_relative_eq!(( 4 as $T).wrapped_between(2 as $T, 5 as $T), 4 as $T);
+                    assert_relative_eq!(( 5 as $T).wrapped_between(2 as $T, 5 as $T), 2 as $T);
+                    assert_relative_eq!(( 6 as $T).wrapped_between(2 as $T, 5 as $T), 3 as $T);
+                }
+                #[test]
+                fn pingpong() {
+                    assert_relative_eq!((-4 as $T).pingpong(3 as $T), 2 as $T);
+                    assert_relative_eq!((-3 as $T).pingpong(3 as $T), 3 as $T);
+                    assert_relative_eq!((-2 as $T).pingpong(3 as $T), 2 as $T);
+                    assert_relative_eq!((-1 as $T).pingpong(3 as $T), 1 as $T);
+                    assert_relative_eq!(( 0 as $T).pingpong(3 as $T), 0 as $T);
+                    assert_relative_eq!(( 1 as $T).pingpong(3 as $T), 1 as $T);
+                    assert_relative_eq!(( 2 as $T).pingpong(3 as $T), 2 as $T);
+                    assert_relative_eq!(( 3 as $T).pingpong(3 as $T), 3 as $T);
+                    assert_relative_eq!(( 4 as $T).pingpong(3 as $T), 2 as $T);
+                    assert_relative_eq!(( 5 as $T).pingpong(3 as $T), 1 as $T);
+                    assert_relative_eq!(( 6 as $T).pingpong(3 as $T), 0 as $T);
+                    assert_relative_eq!(( 7 as $T).pingpong(3 as $T), 1 as $T);
+                }
+            })+
+        };
+    }
+
+    for_each_float_type!{f32 f64}
+    for_each_signed_type!{i8 i16 i32 i64 isize}
+    for_each_unsigned_type!{u8 u16 u32 u64 usize}
+}
