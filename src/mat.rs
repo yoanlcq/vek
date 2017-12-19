@@ -23,10 +23,12 @@ macro_rules! mat_impl_mat {
 
 
         impl<T> $Mat<T> {
+            /*
             /// Converts this matrix into a fixed-size array of elements.
             pub fn into_row_array(self) -> [T; $nrows*$ncols] {
                 unimplemented!{}
             }
+            */
             /// Gets a const pointer to this matrix's elements.
             ///
             /// # Panics
@@ -181,21 +183,21 @@ macro_rules! mat_impl_mat {
         /// ```
         /// use vek::mat::row_major::Mat4;
         ///
-        /// let m = Mat4::new(
+        /// let m = Mat4::<u32>::new(
         ///     0, 1, 2, 3,
         ///     4, 5, 6, 7,
         ///     8, 9, 0, 1,
         ///     2, 3, 4, 5
         /// );
-        /// let r = Mat4::new(
+        /// let r = Mat4::<u32>::new(
         ///     26, 32, 18, 24,
         ///     82, 104, 66, 88,
         ///     38, 56, 74, 92,
         ///     54, 68, 42, 56
         /// );
         /// assert_eq!(m * m, r);
-        /// assert_eq!(m, m * Mat4::identity());
-        /// assert_eq!(m, Mat4::identity() * m);
+        /// assert_eq!(m, m * Mat4::<u32>::identity());
+        /// assert_eq!(m, Mat4::<u32>::identity() * m);
         /// ```
         impl<T: MulAdd<T,T,Output=T> + Mul<Output=T> + Copy> Mul for $Mat<T> {
             type Output = Self;
@@ -214,22 +216,22 @@ macro_rules! mat_impl_mat {
         /// use vek::mat::row_major::Mat4 as Rows4;
         /// use vek::mat::column_major::Mat4 as Cols4;
         ///
-        /// let m = Rows4::new(
+        /// let m = Rows4::<u32>::new(
         ///     0, 1, 2, 3,
         ///     4, 5, 6, 7,
         ///     8, 9, 0, 1,
         ///     2, 3, 4, 5
         /// );
         /// let b = Cols4::from(m);
-        /// let r = Cols4::new(
+        /// let r = Cols4::<u32>::new(
         ///     26, 32, 18, 24,
         ///     82, 104, 66, 88,
         ///     38, 56, 74, 92,
         ///     54, 68, 42, 56
         /// );
         /// assert_eq!(m * b, r);
-        /// assert_eq!(m * Cols4::identity(), m.into());
-        /// assert_eq!(Rows4::identity() * b, m.into());
+        /// assert_eq!(m * Cols4::<u32>::identity(), m.into());
+        /// assert_eq!(Rows4::<u32>::identity() * b, m.into());
         /// ```
         impl<T: MulAdd<T,T,Output=T> + Mul<Output=T> + Copy> Mul<Transpose<T>> for $Mat<T> {
             type Output = Transpose<T>;
@@ -251,10 +253,12 @@ macro_rules! mat_impl_mat {
         mat_impl_mat!{common cols $Mat $CVec $Vec ($nrows x $ncols) ($($get)+)}
 
         impl<T> $Mat<T> {
+            /*
             /// Converts this matrix into a fixed-size array of elements.
             pub fn into_col_array(self) -> [T; $nrows*$ncols] {
                 unimplemented!{}
             }
+            */
             /// Gets a const pointer to this matrix's elements.
             ///
             /// # Panics
@@ -413,21 +417,21 @@ macro_rules! mat_impl_mat {
         /// ```
         /// use vek::mat::column_major::Mat4;
         ///
-        /// let m = Mat4::new(
+        /// let m = Mat4::<u32>::new(
         ///     0, 1, 2, 3,
         ///     4, 5, 6, 7,
         ///     8, 9, 0, 1,
         ///     2, 3, 4, 5
         /// );
-        /// let r = Mat4::new(
+        /// let r = Mat4::<u32>::new(
         ///     26, 32, 18, 24,
         ///     82, 104, 66, 88,
         ///     38, 56, 74, 92,
         ///     54, 68, 42, 56
         /// );
         /// assert_eq!(m * m, r);
-        /// assert_eq!(m, m * Mat4::identity());
-        /// assert_eq!(m, Mat4::identity() * m);
+        /// assert_eq!(m, m * Mat4::<u32>::identity());
+        /// assert_eq!(m, Mat4::<u32>::identity() * m);
         /// ```
         impl<T: MulAdd<T,T,Output=T> + Mul<Output=T> + Copy> Mul for $Mat<T> {
             type Output = Self;
@@ -445,22 +449,22 @@ macro_rules! mat_impl_mat {
         /// use vek::mat::row_major::Mat4 as Rows4;
         /// use vek::mat::column_major::Mat4 as Cols4;
         ///
-        /// let m = Cols4::new(
+        /// let m = Cols4::<u32>::new(
         ///     0, 1, 2, 3,
         ///     4, 5, 6, 7,
         ///     8, 9, 0, 1,
         ///     2, 3, 4, 5
         /// );
         /// let b = Rows4::from(m);
-        /// let r = Rows4::new(
+        /// let r = Rows4::<u32>::new(
         ///     26, 32, 18, 24,
         ///     82, 104, 66, 88,
         ///     38, 56, 74, 92,
         ///     54, 68, 42, 56
         /// );
         /// assert_eq!(m * b, r);
-        /// assert_eq!(m * Rows4::identity(), m.into());
-        /// assert_eq!(Cols4::identity() * b, m.into());
+        /// assert_eq!(m * Rows4::<u32>::identity(), m.into());
+        /// assert_eq!(Cols4::<u32>::identity() * b, m.into());
         /// ```
         impl<T: MulAdd<T,T,Output=T> + Mul<Output=T> + Copy> Mul<Transpose<T>> for $Mat<T> {
             type Output = Transpose<T>;
@@ -524,30 +528,29 @@ macro_rules! mat_impl_mat {
             pub fn is_identity(&self) -> bool where T: Zero + One, Self: ApproxEq {
                 Self::relative_eq(self, &Self::identity(), Self::default_epsilon(), Self::default_max_relative())
             }
+            /*
             /// Returns a memberwise-converted copy of this matrix, using the given conversion
             /// closure.
-            // TODO this example
-            // ```
-            // # use vek::vec::Vec4;
-            // let v = Vec4::new(0_f32, 1., 1.8, 3.14);
-            // let i = v.convert(|x| x.round() as i32);
-            // assert_eq!(i, Vec4::new(0, 1, 2, 3));
-            // ```
-            pub fn convert<D,F>(self, f: F) -> $Mat<D> where F: Fn(T) -> D + Copy { // FIXME: There ought to be a way to get rid of this Copy bound
-                $Mat {
-                    $lines: $CVec {
-                        $($get: self.$lines.$get.convert(f),)+
-                    }
-                }
+            ///
+            /// ```
+            /// # use vek::Mat4;
+            /// let m = Mat4::<f32>::identity();
+            /// let m: Mat4<i32> = m.convert(|x| x as _);
+            /// assert_eq!(m, Mat4::identity());
+            /// ```
+            pub fn convert<D,F>(self, f: F) -> $Mat<D> where F: Fn(T) -> D {
+                // This is actually super hard to do!!
+                unimplemented!{}
             }
+            */
             /// Returns a memberwise-converted copy of this matrix, using `NumCast`.
-            // TODO this example
-            // ```ignored
-            // # use vek::vec::Vec4;
-            // let v = Vec4::new(0_f32, 1., 2., 3.);
-            // let i: Vec4<i32> = v.numcast().unwrap();
-            // assert_eq!(i, Vec4::new(0, 1, 2, 3));
-            // ```
+            ///
+            /// ```
+            /// # use vek::Mat4;
+            /// let m = Mat4::<f32>::identity();
+            /// let m: Mat4<i32> = m.numcast().unwrap();
+            /// assert_eq!(m, Mat4::identity());
+            /// ```
             pub fn numcast<D>(self) -> Option<$Mat<D>> where T: NumCast, D: NumCast {
                 Some($Mat {
                     $lines: $CVec {
@@ -2722,6 +2725,16 @@ mod tests {
                             assert!($Mat::<$T>::default().is_packed());
                         }
                     })+
+                }
+                #[cfg(all(nightly, feature="repr_simd"))]
+                mod repr_simd {
+                    mod bool {
+                        use $crate::mat::repr_simd::$Mat;
+                        #[test]
+                        fn can_monomorphize() {
+                            let _m: $Mat<bool> = unsafe { ::core::mem::uninitialized() };
+                        }
+                    }
                 }
             }
         };

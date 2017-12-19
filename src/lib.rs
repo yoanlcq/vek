@@ -212,16 +212,9 @@ pub mod geom;
 pub use geom::*;
 
 
-// 0.8 roadmap:
-// TODO: Clamp: implement for vecs
+// 0.9 roadmap:
+// TODO: Mat4 inverse
 // TODO:
-// - Matrices:
-//   - Add 3D shearing.
-//   - Add scale_from_point and rotate_about_point
-// - Quaternions:
-//   - to_angle_axis()
-//   - decompose() for Mat4
-//   - foward_*, right(), unit_x() etc for Mat4
 // - Others
 //   Document the assumed handedness for rotations
 //       Handedness is only human perception. The maths are the same.
@@ -232,3 +225,12 @@ pub use geom::*;
 //   Document that feature requests are welcome!
 // NOTE: The point of `fix`, `fpa` and `num-bigint` features was to make them implement vek::ops.
 // NOTE: Clamp: rename to `PartialClamp` trait ? Resolved: NO. This would be a mess for an issue nobody really cares abouts.
+// TODO: Mat: into_*_array()
+// - Matrices:
+//   - Add 3D shearing.
+//   - Add scale_from_point and rotate_about_point
+// - Quaternions:
+//   - to_angle_axis()
+//   - decompose() for Mat4
+//   - foward_*, right(), unit_x() etc for Mat4
+

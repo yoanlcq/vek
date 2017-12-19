@@ -1081,6 +1081,26 @@ macro_rules! vec_impl_vec {
             }
         }
 
+        impl<T: Clamp<BoolVector=bool> + Copy> Clamp<T> for $Vec<T> {
+            type BoolVector = $Vec<bool>;
+            fn clamped(self, lower: T, upper: T) -> Self {
+                self.clamped(Self::broadcast(lower), Self::broadcast(upper))
+            }
+            fn is_between(self, lower: T, upper: T) -> Self::BoolVector {
+                self.is_between(Self::broadcast(lower), Self::broadcast(upper))
+            }
+        }
+        impl<T: Clamp<BoolVector=bool>> Clamp<$Vec<T>> for $Vec<T> {
+            type BoolVector = $Vec<bool>;
+            fn clamped(self, lower: Self, upper: Self) -> Self {
+                $Vec::new($(self.$get.clamped(lower.$get, upper.$get)),+)
+            }
+            fn is_between(self, lower: Self, upper: Self) -> Self::BoolVector {
+                $Vec::new($(self.$get.is_between(lower.$get, upper.$get)),+)
+            }
+        }
+
+
         vec_impl_trinop!{impl MulAdd for $Vec { mul_add } ($($get)+)}
         vec_impl_binop!{impl Add for $Vec { add } ($($get)+)}
         vec_impl_binop!{impl Sub for $Vec { sub } ($($get)+)}
@@ -2331,17 +2351,17 @@ mod tests {
         };
     }
     // Vertical editing helps here :)
-    #[cfg(feature="vec2")]    for_each_type!{vec2    Vec2    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="vec3")]    for_each_type!{vec3    Vec3    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    /*#[cfg(feature="vec4")]*/for_each_type!{vec4    Vec4    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="vec8")]    for_each_type!{vec8    Vec8    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="vec16")]   for_each_type!{vec16   Vec16   i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="vec32")]   for_each_type!{vec32   Vec32   i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="vec64")]   for_each_type!{vec64   Vec64   i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="rgba")]    for_each_type!{rgba    Rgba    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="rgb")]     for_each_type!{rgb     Rgb     i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="extent3")] for_each_type!{extent3 Extent3 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="extent2")] for_each_type!{extent2 Extent2 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="uv")]      for_each_type!{uv      Uv      i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="uvw")]     for_each_type!{uvw     Uvw     i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="vec2")]    for_each_type!{vec2    Vec2    bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="vec3")]    for_each_type!{vec3    Vec3    bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    /*#[cfg(feature="vec4")]*/for_each_type!{vec4    Vec4    bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="vec8")]    for_each_type!{vec8    Vec8    bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="vec16")]   for_each_type!{vec16   Vec16   bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="vec32")]   for_each_type!{vec32   Vec32   bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="vec64")]   for_each_type!{vec64   Vec64   bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="rgba")]    for_each_type!{rgba    Rgba    bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="rgb")]     for_each_type!{rgb     Rgb     bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="extent3")] for_each_type!{extent3 Extent3 bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="extent2")] for_each_type!{extent2 Extent2 bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="uv")]      for_each_type!{uv      Uv      bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="uvw")]     for_each_type!{uvw     Uvw     bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
 }
