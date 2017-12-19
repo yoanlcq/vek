@@ -42,8 +42,9 @@ macro_rules! bezier_impl_any {
 }
 
 macro_rules! bezier_impl_quadratic {
-    ($QuadraticBezier:ident $Point:ident $LineSegment:ident) => {
+    ($(#[$attrs:meta])* $QuadraticBezier:ident $Point:ident $LineSegment:ident) => {
         
+        $(#[$attrs])*
         #[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, /*PartialOrd, Ord*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct $QuadraticBezier<T>(pub $Point<T>, pub $Point<T>, pub $Point<T>);
@@ -128,8 +129,9 @@ macro_rules! bezier_impl_quadratic {
 }
 
 macro_rules! bezier_impl_cubic {
-    ($CubicBezier:ident $Point:ident $LineSegment:ident) => {
+    ($(#[$attrs:meta])* $CubicBezier:ident $Point:ident $LineSegment:ident) => {
         
+        $(#[$attrs])*
         #[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, /*PartialOrd, Ord*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct $CubicBezier<T>(pub $Point<T>, pub $Point<T>, pub $Point<T>, pub $Point<T>);
@@ -221,26 +223,41 @@ macro_rules! bezier_impl_cubic {
     }
 }
 
+macro_rules! impl_all_beziers {
+    () => {
+        bezier_impl_quadratic!{
+            /// A 2D curve with one control point.
+            QuadraticBezier2 Vec2 LineSegment2
+        }
+        bezier_impl_quadratic!{
+            /// A 3D curve with one control point.
+            QuadraticBezier3 Vec3 LineSegment3
+        }
+        bezier_impl_cubic!{
+            /// A 2D curve with two control points.
+            CubicBezier2 Vec2 LineSegment2
+        }
+        bezier_impl_cubic!{
+            /// A 3D curve with two control points.
+            CubicBezier3 Vec3 LineSegment3
+        }
+    };
+}
+
 #[cfg(all(nightly, feature="repr_simd"))]
 pub mod repr_simd {
     use super::*;
     use vec::repr_simd::{Vec3, Vec4, Vec2};
     use mat::repr_simd::row_major::{Mat3, Mat4};
     use geom::repr_simd::{LineSegment2, LineSegment3};
-    bezier_impl_quadratic!(QuadraticBezier2 Vec2 LineSegment2);
-    bezier_impl_quadratic!(QuadraticBezier3 Vec3 LineSegment3);
-    bezier_impl_cubic!(CubicBezier2 Vec2 LineSegment2);
-    bezier_impl_cubic!(CubicBezier3 Vec3 LineSegment3);
+    impl_all_beziers!{}
 }
 pub mod repr_c {
     use super::*;
     use  vec::repr_c::{Vec3, Vec4, Vec2};
     use  mat::repr_c::row_major::{Mat3, Mat4};
     use geom::repr_c::{LineSegment2, LineSegment3};
-    bezier_impl_quadratic!(QuadraticBezier2 Vec2 LineSegment2);
-    bezier_impl_quadratic!(QuadraticBezier3 Vec3 LineSegment3);
-    bezier_impl_cubic!(CubicBezier2 Vec2 LineSegment2);
-    bezier_impl_cubic!(CubicBezier3 Vec3 LineSegment3);
+    impl_all_beziers!{}
 }
 
 pub use self::repr_c::*;

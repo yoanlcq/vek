@@ -929,7 +929,7 @@ macro_rules! mat_impl_mat4 {
             /// as long as they consist of any combination of pure rotations,
             /// translations, scales and shears.
             ///
-            /// ```
+            /// ```ignore
             /// # extern crate vek;
             /// # #[macro_use] extern crate approx;
             /// # use vek::Mat4;
@@ -1026,17 +1026,17 @@ macro_rules! mat_impl_mat4 {
 
             /// Shortcut for `self * Vec4::from_point(rhs)`.
             #[cfg(feature="vec3")]
-            pub fn mul_point<V: Into<Vec3<T>>>(self, rhs: V) -> Vec4<T>
+            pub fn mul_point<V: Into<Vec3<T>> + From<Vec4<T>>>(self, rhs: V) -> V
                 where T: Float + MulAdd<T,T,Output=T>
             {
-                self * Vec4::from_point(rhs)
+                V::from(self * Vec4::from_point(rhs))
             }
             /// Shortcut for `self * Vec4::from_direction(rhs)`.
             #[cfg(feature="vec3")]
-            pub fn mul_direction<V: Into<Vec3<T>>>(self, rhs: V) -> Vec4<T>
+            pub fn mul_direction<V: Into<Vec3<T>> + From<Vec4<T>>>(self, rhs: V) -> V
                 where T: Float + MulAdd<T,T,Output=T>
             {
-                self * Vec4::from_direction(rhs)
+                V::from(self * Vec4::from_direction(rhs))
             }
 
             //
@@ -1195,6 +1195,8 @@ macro_rules! mat_impl_mat4 {
             {
                 Self::rotation_3d(angle_radians, axis) * self
             }
+            /// 3D rotation matrix. `axis` is not required to be normalized.
+            ///
             /// ```
             /// # extern crate vek;
             /// # #[macro_use] extern crate approx;
@@ -1253,6 +1255,135 @@ macro_rules! mat_impl_mat4 {
             }
 
             //
+            // CHANGE OF BASIS
+            //
+
+            /// Builds a change of basis matrix that transforms points and directions from
+            /// any space to the canonical one.
+            ///
+            /// `origin` is the origin of the child space.  
+            /// `i`, `j` and `k` are all required to be normalized;
+            /// They are the unit basis vector along the target space x-axis, y-axis and z-axis
+            /// respectively, expressed in canonical-space coordinates.  
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::{Mat4, Vec3};
+            /// # fn main() {
+            ///     let origin = Vec3::new(1_f32, 2., 3.);
+            ///     let i = Vec3::unit_z();
+            ///     let j = Vec3::unit_y();
+            ///     let k = Vec3::unit_x();
+            ///     let m = Mat4::basis_to_local(origin, i, j, k);
+            ///     assert_relative_eq!(m.mul_point(origin), Vec3::zero());
+            ///     assert_relative_eq!(m.mul_point(origin+i), Vec3::unit_x());
+            ///     assert_relative_eq!(m.mul_point(origin+j), Vec3::unit_y());
+            ///     assert_relative_eq!(m.mul_point(origin+k), Vec3::unit_z());
+            ///
+            ///     // `local_to_basis` and `basis_to_local` undo each other
+            ///     let a = Mat4::<f32>::basis_to_local(origin, i, j, k);
+            ///     let b = Mat4::<f32>::local_to_basis(origin, i, j, k);
+            ///     assert_relative_eq!(a*b, Mat4::identity());
+            ///     assert_relative_eq!(b*a, Mat4::identity());
+            /// # }
+            /// ```
+            ///
+            /// Slightly more contrived example:
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::{Mat4, Vec3};
+            /// # fn main() {
+            ///     let origin = Vec3::new(1_f32, 2., 3.);
+            ///     let r = Mat4::rotation_3d(3., Vec3::new(2_f32, 1., 3.));
+            ///     let i = r.mul_direction(Vec3::unit_x());
+            ///     let j = r.mul_direction(Vec3::unit_y());
+            ///     let k = r.mul_direction(Vec3::unit_z());
+            ///     let m = Mat4::basis_to_local(origin, i, j, k);
+            ///     assert_relative_eq!(m.mul_point(origin), Vec3::zero(), epsilon = 0.000001);
+            ///     assert_relative_eq!(m.mul_point(origin+i), Vec3::unit_x(), epsilon = 0.000001);
+            ///     assert_relative_eq!(m.mul_point(origin+j), Vec3::unit_y(), epsilon = 0.000001);
+            ///     assert_relative_eq!(m.mul_point(origin+k), Vec3::unit_z(), epsilon = 0.000001);
+            /// # }
+            /// ```
+            #[cfg(feature="vec3")]
+            pub fn basis_to_local<V: Into<Vec3<T>>>(origin: V, i: V, j: V, k: V) -> Self
+                where T: Zero + One + Neg<Output=T> + Float + Sum
+            {
+                let (origin, i, j, k) = (origin.into(), i.into(), j.into(), k.into());
+                Self::new(
+                    i.x, i.y, i.z, -i.dot(origin),
+                    j.x, j.y, j.z, -j.dot(origin),
+                    k.x, k.y, k.z, -k.dot(origin),
+                    T::zero(), T::zero(), T::zero(), T::one()
+                )
+            }
+            /// Builds a change of basis matrix that transforms points and directions from
+            /// canonical space to another space.
+            ///
+            /// `origin` is the origin of the child space.  
+            /// `i`, `j` and `k` are all required to be normalized;
+            /// They are the unit basis vector along the target space x-axis, y-axis and z-axis
+            /// respectively, expressed in canonical-space coordinates.  
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::{Mat4, Vec3};
+            /// # fn main() {
+            ///     let origin = Vec3::new(1_f32, 2., 3.);
+            ///     let i = Vec3::unit_z();
+            ///     let j = Vec3::unit_y();
+            ///     let k = Vec3::unit_x();
+            ///     let m = Mat4::local_to_basis(origin, i, j, k);
+            ///     assert_relative_eq!(origin,   m.mul_point(Vec3::zero()));
+            ///     assert_relative_eq!(origin+i, m.mul_point(Vec3::unit_x()));
+            ///     assert_relative_eq!(origin+j, m.mul_point(Vec3::unit_y()));
+            ///     assert_relative_eq!(origin+k, m.mul_point(Vec3::unit_z()));
+            ///
+            ///     // `local_to_basis` and `basis_to_local` undo each other
+            ///     let a = Mat4::<f32>::local_to_basis(origin, i, j, k);
+            ///     let b = Mat4::<f32>::basis_to_local(origin, i, j, k);
+            ///     assert_relative_eq!(a*b, Mat4::identity());
+            ///     assert_relative_eq!(b*a, Mat4::identity());
+            /// # }
+            /// ```
+            ///
+            /// Slightly more contrived example:
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::{Mat4, Vec3};
+            /// # fn main() {
+            ///     // Sanity test
+            ///     let origin = Vec3::new(1_f32, 2., 3.);
+            ///     let r = Mat4::rotation_3d(3., Vec3::new(2_f32, 1., 3.));
+            ///     let i = r.mul_direction(Vec3::unit_x());
+            ///     let j = r.mul_direction(Vec3::unit_y());
+            ///     let k = r.mul_direction(Vec3::unit_z());
+            ///     let m = Mat4::local_to_basis(origin, i, j, k);
+            ///     assert_relative_eq!(origin,   m.mul_point(Vec3::zero()));
+            ///     assert_relative_eq!(origin+i, m.mul_point(Vec3::unit_x()));
+            ///     assert_relative_eq!(origin+j, m.mul_point(Vec3::unit_y()));
+            ///     assert_relative_eq!(origin+k, m.mul_point(Vec3::unit_z()));
+            /// # }
+            /// ```
+            #[cfg(feature="vec3")]
+            pub fn local_to_basis<V: Into<Vec3<T>>>(origin: V, i: V, j: V, k: V) -> Self where T: Zero + One {
+                let (origin, i, j, k) = (origin.into(), i.into(), j.into(), k.into());
+                Self::new(
+                    i.x, j.x, k.x, origin.x,
+                    i.y, j.y, k.y, origin.y,
+                    i.z, j.z, k.z, origin.z,
+                    T::zero(), T::zero(), T::zero(), T::one()
+                )
+            }
+
+
+            //
             // VIEW
             //
 
@@ -1274,7 +1405,7 @@ macro_rules! mat_impl_mat4 {
             /// ```
             #[cfg(feature="vec3")]
             pub fn look_at_view_lh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
-                where T: Float + Sum + AddAssign
+                where T: Float + Sum
             {
                 // From GLM
                 let (eye, target, up) = (eye.into(), target.into(), up.into());
@@ -1313,7 +1444,7 @@ macro_rules! mat_impl_mat4 {
             /// ```
             #[cfg(feature="vec3")]
             pub fn look_at_model_lh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
-                where T: Float + Sum + AddAssign
+                where T: Float + Sum
             {
                 // Advanced 3D Game Programming with DirectX 10.0, p. 173
                 let (eye, target, up) = (eye.into(), target.into(), up.into());
@@ -1352,7 +1483,7 @@ macro_rules! mat_impl_mat4 {
             /// ```
             #[cfg(feature="vec3")]
             pub fn look_at_model_rh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
-                where T: Float + Sum + AddAssign + MulAdd<T,T,Output=T>
+                where T: Float + Sum + MulAdd<T,T,Output=T>
             {
                 let (eye, target, up) = (eye.into(), target.into(), up.into());
                 let f = (target - eye).normalized();
@@ -1384,7 +1515,7 @@ macro_rules! mat_impl_mat4 {
             /// ```
             #[cfg(feature="vec3")]
             pub fn look_at_view_rh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
-                where T: Float + Sum + AddAssign
+                where T: Float + Sum
             {
                 // From GLM
                 let (eye, target, up) = (eye.into(), target.into(), up.into());
@@ -2115,6 +2246,8 @@ macro_rules! mat_impl_mat3 {
             {
                 Self::rotation_3d(angle_radians, axis) * self
             }
+            /// 3D rotation matrix. `axis` is not required to be normalized.
+            ///
             /// ```
             /// # extern crate vek;
             /// # #[macro_use] extern crate approx;

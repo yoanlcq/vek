@@ -371,7 +371,7 @@ macro_rules! quaternion_complete_mod {
         
         /// The `Lerp` implementation for `Quaternion` is the "Normalized LERP".
         impl<T> Lerp<T> for Quaternion<T>
-            where T: Copy + Zero + One + Mul<Output=T> + Sub<Output=T> + Add<Output=T> + MulAdd<T,T,Output=T> + Clamp + Sum + Float
+            where T: MulAdd<T,T,Output=T> + Clamp + Sum + Float
         {
             fn lerp_unclamped_precise(from: Self, to: Self, factor: T) -> Self {
                 Self::lerp_unclamped_precise_unnormalized(from, to, factor).normalized()
@@ -381,7 +381,7 @@ macro_rules! quaternion_complete_mod {
             }
         }
         impl<T> Quaternion<T>
-            where T: Copy + Zero + One + Mul<Output=T> + Sub<Output=T> + Add<Output=T> + MulAdd<T,T,Output=T> + Clamp + Sum + Float
+            where T: MulAdd<T,T,Output=T> + Clamp + Sum + Float
         {
             /// Performs linear interpolation without normalizing the result.
             /// For an implementation that normalizes the result (which is commonly wanted), see
