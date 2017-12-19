@@ -23,6 +23,9 @@ pub trait Clamp<Bound=Self>: Sized {
 	///
 	/// This would rather make use of inclusive ranges, but it's an unstable
 	/// feature.
+    ///
+    /// # Panics
+    /// Panics if `lower` is greater than `upper`. Swap the values yourself if necessary.
 	///
 	/// ```
 	/// use vek::ops::Clamp;
@@ -36,6 +39,9 @@ pub trait Clamp<Bound=Self>: Sized {
 	fn clamped(self, lower: Bound, upper: Bound) -> Self;
 
 	/// Alias to `clamped`, which doesn't take `self`.
+    ///
+    /// # Panics
+    /// Panics if `lower` is greater than `upper`. Swap the values yourself if necessary.
 	fn clamp(val: Self, lower: Bound, upper: Bound) -> Self {
 		val.clamped(lower, upper)
 	}
@@ -45,6 +51,9 @@ pub trait Clamp<Bound=Self>: Sized {
 	/// This would rather make use of inclusive ranges, but it's an unstable
 	/// feature.
 	///
+    /// # Panics
+    /// Panics if `lower` is greater than `upper`. Swap the values yourself if necessary.
+    ///
 	/// ```
 	/// use vek::ops::Clamp;
 	///
@@ -76,9 +85,11 @@ macro_rules! impl_clamp_float {
 			impl Clamp for $T {
 				type BoolVector = bool;
 				fn clamped(self, lower: Self, upper: Self) -> Self {
+                    assert!(lower <= upper);
 					partial_min(partial_max(self, lower), upper)
 				}
 				fn is_between(self, lower: Self, upper: Self) -> bool {
+                    assert!(lower <= upper);
 					lower <= self && self <= upper
 				}
 			}
@@ -91,9 +102,11 @@ macro_rules! impl_clamp_integer {
 			impl Clamp for $T {
 				type BoolVector = bool;
 				fn clamped(self, lower: Self, upper: Self) -> Self {
+                    assert!(lower <= upper);
 					cmp::min(cmp::max(self, lower), upper)
 				}
 				fn is_between(self, lower: Self, upper: Self) -> bool {
+                    assert!(lower <= upper);
 					lower <= self && self <= upper
 				}
 			}

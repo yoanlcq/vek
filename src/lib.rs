@@ -140,12 +140,6 @@
 //!   depend on it because it won't compile on Stable and there's no way (as of this writing)
 //!   to selectively depend on a crate based on the `rustc` version, not even via build scripts.
 //!
-//! ***
-//!
-//! - `fix` implements vectors and matrices of fixed-point numbers from the `fix` crate.
-//! - `fpa` implements vectors and matrices of fixed-point numbers from the `fpa` crate.
-//! - `num-bigint` implements vectors and matrices of big integers from the `num-bigint` crate.
-//!
 //! # `#![no_std]`
 //! This crate is `#![no_std]`.
 
@@ -179,12 +173,6 @@ extern crate serde_derive;
 #[cfg(feature="serde")]
 #[macro_use]
 extern crate serde;
-#[cfg(feature="fix")]
-extern crate fix;
-#[cfg(feature="fpa")]
-extern crate fpa;
-#[cfg(feature="num_bigint")]
-extern crate num_bigint;
 
 #[cfg(feature="x86intrin")]
 extern crate x86intrin;
@@ -223,6 +211,9 @@ pub mod geom;
 pub use geom::*;
 
 
+// TODO: Clamp: rename to `PartialClamp` trait ?
+// TODO: Wrap: fix doc-tests
+// TODO: Clamp: implement for vecs
 // TODO:
 // - Matrices:
 //   - Add 3D shearing.
@@ -239,7 +230,4 @@ pub use geom::*;
 //   Document the _zo _no stuff
 //   Document what _lh _rh transformations actually do (the tests do it but...)
 //   Document that feature requests are welcome!
-// TODO panic when lower > upper and document it.
-// TODO: Have Clamp and PartialClamp traits
-// TODO fixed doc-tests for `Wrap`.
 

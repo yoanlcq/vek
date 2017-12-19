@@ -6,7 +6,7 @@ use core::slice;
 use core::iter::Sum;
 use core::fmt::{self, Display, Formatter};
 use core::ops::*;
-use num_traits::{Zero, One, Float};
+use num_traits::{Zero, One, Float, NumCast};
 use approx::ApproxEq;
 use ops::MulAdd;
 use vec;
@@ -23,6 +23,10 @@ macro_rules! mat_impl_mat {
 
 
         impl<T> $Mat<T> {
+            /// Converts this matrix into a fixed-size array of elements.
+            pub fn into_row_array(self) -> [T; $nrows*$ncols] {
+                unimplemented!{}
+            }
             /// Gets a const pointer to this matrix's elements.
             ///
             /// # Panics
@@ -247,6 +251,10 @@ macro_rules! mat_impl_mat {
         mat_impl_mat!{common cols $Mat $CVec $Vec ($nrows x $ncols) ($($get)+)}
 
         impl<T> $Mat<T> {
+            /// Converts this matrix into a fixed-size array of elements.
+            pub fn into_col_array(self) -> [T; $nrows*$ncols] {
+                unimplemented!{}
+            }
             /// Gets a const pointer to this matrix's elements.
             ///
             /// # Panics
@@ -481,6 +489,13 @@ macro_rules! mat_impl_mat {
                 Self::identity()
             }
         }
+        impl<T: Zero + PartialEq> Zero for $Mat<T> {
+            fn zero() -> Self { Self::zero() }
+            fn is_zero(&self) -> bool { self.is_zero() }
+        }
+        impl<T: Zero + One + Copy + MulAdd<T,T,Output=T>> One for $Mat<T> {
+            fn one() -> Self { Self::identity() }
+        }
         impl<T> $Mat<T> {
             /// The identity matrix, which is also the default value for square matrices.
             ///
@@ -500,6 +515,45 @@ macro_rules! mat_impl_mat {
                         $($get: $Vec::zero(),)+
                     }
                 }
+            }
+            /// Are all elements of this matrix equal to zero ?
+            pub fn is_zero(&self) -> bool where T: Zero + PartialEq {
+                self == &Self::zero()
+            }
+            /// Is this matrix the identity ? (uses ApproxEq)
+            pub fn is_identity(&self) -> bool where T: Zero + One, Self: ApproxEq {
+                Self::relative_eq(self, &Self::identity(), Self::default_epsilon(), Self::default_max_relative())
+            }
+            /// Returns a memberwise-converted copy of this matrix, using the given conversion
+            /// closure.
+            // TODO this example
+            // ```
+            // # use vek::vec::Vec4;
+            // let v = Vec4::new(0_f32, 1., 1.8, 3.14);
+            // let i = v.convert(|x| x.round() as i32);
+            // assert_eq!(i, Vec4::new(0, 1, 2, 3));
+            // ```
+            pub fn convert<D,F>(self, f: F) -> $Mat<D> where F: Fn(T) -> D + Copy { // FIXME: There ought to be a way to get rid of this Copy bound
+                $Mat {
+                    $lines: $CVec {
+                        $($get: self.$lines.$get.convert(f),)+
+                    }
+                }
+            }
+            /// Returns a memberwise-converted copy of this matrix, using `NumCast`.
+            // TODO this example
+            // ```ignored
+            // # use vek::vec::Vec4;
+            // let v = Vec4::new(0_f32, 1., 2., 3.);
+            // let i: Vec4<i32> = v.numcast().unwrap();
+            // assert_eq!(i, Vec4::new(0, 1, 2, 3));
+            // ```
+            pub fn numcast<D>(self) -> Option<$Mat<D>> where T: NumCast, D: NumCast {
+                Some($Mat {
+                    $lines: $CVec {
+                        $($get: self.$lines.$get.numcast()?,)+
+                    }
+                })
             }
             /// Initializes a new matrix with elements of the diagonal set to `val`
             /// and the other to zero.
