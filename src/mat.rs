@@ -20,9 +20,18 @@ macro_rules! def_inv_utils {
     () => {
         mod inv_utils {
             /// Opaque type wrapping a hardware-preferred shuffle mask format for `Vec4`.
+            // NOTE: I know that _mm_shuffle_ps() needs an immediate value for the mask,
+            // which means that the mask value has to be known at compile-time, which is
+            // problematic.
             #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
             pub struct ShuffleMask(u8);
 
+            /// A `ShuffleMask` can be obtained by using the same index for all elements of the result.
+            impl From<usize> for ShuffleMask {
+                fn from(m: usize) -> Self {
+                    Self::new(m,m,m,m)
+                }
+            }
             impl From<(usize, usize, usize, usize)> for ShuffleMask {
                 fn from(tuple: (usize, usize, usize, usize)) -> Self {
                     let (a,b,c,d) = tuple;
@@ -37,8 +46,7 @@ macro_rules! def_inv_utils {
             impl ShuffleMask {
                 #[inline]
                 pub fn new(m0: usize, m1: usize, m2: usize, m3: usize) -> Self {
-                    let (m0, m1, m2, m3) = (m0&3, m1&3, m2&3, m3&3);
-                    ShuffleMask((m0 | (m1<<2) | (m2<<4) | (m3<<6)) as _)
+                    ShuffleMask(((m0&3) | ((m1&3)<<2) | ((m2&3)<<4) | ((m3&3)<<6)) as _)
                 }
                 pub fn to_indices(&self) -> (usize, usize, usize, usize) {
                     let m = self.0 as usize;
@@ -47,45 +55,165 @@ macro_rules! def_inv_utils {
             }
 
             use super::{Vec4, Float};
+            /// Shuffle elements from this vector, using `mask`.
+            ///
+            /// The relevant x86 intrinsic is `_mm_shuffle_ps(v, v, mask)`.
+            ///
+            /// ```
+            /// # use vek::Vec4;
+            /// let a = Vec4::<u32>::new(0,1,2,3);
+            /// assert_eq!(a.shuffled((0,1,2,3)), Vec4::new(0,1,2,3));
+            /// assert_eq!(a.shuffled((3,2,1,0)), Vec4::new(3,2,1,0));
+            /// assert_eq!(a.shuffled((2,3,4,5)), Vec4::new(2,3,0,1));
+            /// assert_eq!(a.shuffled(1), Vec4::new(1,1,1,1));
+            /// ```
             pub fn vec4_shuffle<T: Copy, M: Into<ShuffleMask>>(u: Vec4<T>, mask: M) -> Vec4<T> {
                 vec4_shuffle2(u, u, mask)
             }
+            /// Moves the lower two elements of this vector to the upper two elements of the result.
+            /// The lower two elements of this vector are passed through to the result.
+            /// 
+            /// The relevant x86 intrinsic is `_mm_movelh_ps(v, v)`.
+            ///
+            /// ```
+            /// # use vek::Vec4;
+            /// let a = Vec4::<u32>::new(0,1,2,3);
+            /// let b = Vec4::<u32>::new(0,1,0,1);
+            /// assert_eq!(a.shuffled_0101(), b);
+            /// ```
             pub fn vec4_shuffle_0101<T: Copy>(u: Vec4<T>) -> Vec4<T> {
                 vec4_shuffle2_0101(u, u)
             }
+            /// Moves the upper two elements of this vector to the lower two elements of the result.
+            /// The upper two elements of this vector are passed through to the result.
+            ///
+            /// The relevant x86 intrinsic is `_mm_movehl_ps(v, v)`.
+            ///
+            /// ```
+            /// # use vek::Vec4;
+            /// let a = Vec4::<u32>::new(0,1,2,3);
+            /// let b = Vec4::<u32>::new(2,3,2,3);
+            /// assert_eq!(a.shuffled_2323(), b);
+            /// ```
             pub fn vec4_shuffle_2323<T: Copy>(u: Vec4<T>) -> Vec4<T> {
                 vec4_shuffle2_2323(u, u)
             }
+            /// Shuffle elements from `lo`'s low part and `hi`'s high part using `mask`.
+            ///
+            /// To shuffle a single vector, you may pass it as the first two arguments,
+            /// or use the `shuffled()` method.
+            ///
+            /// The relevant x86 intrinsic is `_mm_shuffle_ps(lo, hi, mask)`.
+            ///
+            /// ```
+            /// # use vek::Vec4;
+            /// let a = Vec4::<u32>::new(0,1,2,3);
+            /// let b = Vec4::<u32>::new(4,5,6,7);
+            /// assert_eq!(Vec4::shuffle2(a, b, (0,1,2,3)), Vec4::new(0,1,6,7));
+            /// assert_eq!(Vec4::shuffle2(a, b, (3,2,1,0)), Vec4::new(3,2,5,4));
+            /// ```
             pub fn vec4_shuffle2<T: Copy, M: Into<ShuffleMask>>(lo: Vec4<T>, hi: Vec4<T>, mask: M) -> Vec4<T> {
-                // _mm_shuffle_ps (beware of the order here, too ! Do some tests!!)
                 let (lo0,lo1,hi2,hi3) = mask.into().to_indices();
                 Vec4::new(lo[lo0], lo[lo1], hi[hi2], hi[hi3])
             }
+            /// Interleaves the lower two elements from `a` and `b`.
+            /// 
+            /// The relevant x86 intrinsic is `_mm_unpacklo_ps(a, b)`.
+            ///
+            /// ```
+            /// # use vek::Vec4;
+            /// let a = Vec4::<u32>::new(0,1,2,3);
+            /// let b = Vec4::<u32>::new(4,5,6,7);
+            /// let c = Vec4::<u32>::new(0,4,1,5);
+            /// assert_eq!(Vec4::interleave_0011(a, b), c);
+            /// ```
             pub fn vec4_interleave_0011<T>(u: Vec4<T>, v: Vec4<T>) -> Vec4<T> {
-                // _mm_unpacklo_ps
                 Vec4::new(u.x, v.x, u.y, v.y)
             }
+            /// Interleaves the upper two elements from `a` and `b`.
+            /// 
+            /// The relevant x86 intrinsic is `_mm_unpackhi_ps(a, b)`.
+            ///
+            /// ```
+            /// # use vek::Vec4;
+            /// let a = Vec4::<u32>::new(0,1,2,3);
+            /// let b = Vec4::<u32>::new(4,5,6,7);
+            /// let c = Vec4::<u32>::new(2,6,3,7);
+            /// assert_eq!(Vec4::interleave_2233(a, b), c);
+            /// ```
             pub fn vec4_interleave_2233<T>(u: Vec4<T>, v: Vec4<T>) -> Vec4<T> {
-                // _mm_unpackhi_ps
                 Vec4::new(u.z, v.z, u.w, v.w)
             }
+            /// Moves the lower two elements of `b` to the upper two elements of the result.
+            /// The lower two elements of `a` are passed through to the result.
+            /// 
+            /// The relevant x86 intrinsic is `_mm_movelh_ps(a, b)`.
+            ///
+            /// ```
+            /// # use vek::Vec4;
+            /// let a = Vec4::<u32>::new(0,1,2,3);
+            /// let b = Vec4::<u32>::new(4,5,6,7);
+            /// let c = Vec4::<u32>::new(0,1,4,5);
+            /// assert_eq!(Vec4::shuffle2_0101(a, b), c);
+            /// ```
             pub fn vec4_shuffle2_0101<T>(u: Vec4<T>, v: Vec4<T>) -> Vec4<T> {
-                // _mm_movelh_ps
                 Vec4::new(u.x, u.y, v.x, v.y)
             }
+            /// Moves the upper two elements of `a` to the lower two elements of the result.
+            /// The upper two elements of `b` are passed through to the result.
+            ///
+            /// The relevant x86 intrinsic is `_mm_movehl_ps(b, a)`.
+            /// Notice how arguments are swapped.
+            ///
+            /// ```
+            /// # use vek::Vec4;
+            /// let a = Vec4::<u32>::new(0,1,2,3);
+            /// let b = Vec4::<u32>::new(4,5,6,7);
+            /// let c = Vec4::<u32>::new(2,3,6,7);
+            /// assert_eq!(Vec4::shuffle2_2323(a, b), c);
+            /// ```
             pub fn vec4_shuffle2_2323<T>(u: Vec4<T>, v: Vec4<T>) -> Vec4<T> {
-                // _mm_movehl_ps (beware of parameter order! We could reverse it ourselves just
-                // before calling the intrinsic)
-                Vec4::new(v.z, v.w, u.z, u.w)
+                Vec4::new(u.z, u.w, v.z, v.w)
             }
+            /// Returns a copy of this vector with `v[1]` set to `v[0]` and `v[3]` set to `v[2]`.
+            ///
+            /// The relevant x86 intrinsic is `_mm_moveldup_ps(v)`.
+            /// 
+            /// ```
+            /// # use vek::Vec4;
+            /// let a = Vec4::<u32>::new(0,1,2,3);
+            /// let b = Vec4::<u32>::new(0,0,2,2);
+            /// assert_eq!(a.shuffled_0022(), b);
+            /// ```
             pub fn vec4_shuffle_0022<T: Copy>(u: Vec4<T>) -> Vec4<T> {
-                // _mm_moveldup_ps(vec)
                 Vec4::new(u.x, u.x, u.z, u.z)
             }
+            /// Returns a copy of this vector with `v[0]` set to `v[1]` and `v[2]` set to `v[3]`.
+            ///
+            /// The relevant x86 intrinsic is `_mm_movehdup_ps(v)`.
+            ///
+            /// ```
+            /// # use vek::Vec4;
+            /// let a = Vec4::<u32>::new(0,1,2,3);
+            /// let b = Vec4::<u32>::new(1,1,3,3);
+            /// assert_eq!(a.shuffled_1133(), b);
+            /// ```
             pub fn vec4_shuffle_1133<T: Copy>(u: Vec4<T>) -> Vec4<T> {
-                // _mm_movehdup_ps(vec)
                 Vec4::new(u.y, u.y, u.w, u.w)
             }
+            /// Performs 2x2 matrix multiplication, treating each `Vec4` as a row-major 2x2 matrix.
+            ///
+            /// ```
+            /// let a = Vec4::new(
+            ///     0,1,
+            ///     2,3
+            /// );
+            /// let b = Vec4::new(
+            ///     2,3,
+            ///     6,11
+            /// );
+            /// assert_eq!(a.mat2_mul(a), b)
+            /// ```
             pub fn mat2_mul<T: Float>(u: Vec4<T>, v: Vec4<T>) -> Vec4<T> {
                 u * vec4_shuffle(v, (0,3,0,3)) + vec4_shuffle(u, (1,0,3,2)) * vec4_shuffle(v, (2,1,2,1))
             }
