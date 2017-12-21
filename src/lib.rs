@@ -210,7 +210,7 @@ pub use rect::*;
 
 
 // 0.9 roadmap:
-// TODO: Mat4 is_invertible(), determinant(), etc...
+// TODO: Sort API entries so the documentation is consistent
 // TODO:
 // - Others
 //   Document the assumed handedness for rotations
@@ -224,9 +224,6 @@ pub use rect::*;
 // NOTE: Clamp: rename to `PartialClamp` trait ? Resolved: NO. This would be a mess for an issue nobody really cares abouts.
 // - Matrices:
 //   - Add 3D shearing.
+//   - decompose()
 //   - Add scale_from_point and rotate_about_point
-//   - foward_*, right(), unit_x() etc
-// - Quaternions:
-//   - to_angle_axis()
-//   - decompose() for Mat4
 

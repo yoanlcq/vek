@@ -352,11 +352,41 @@ macro_rules! quaternion_complete_mod {
                 *self = self.rotated_z(angle_radians);
             }
 
-            /*
-            pub fn into_axis_angle(self) -> (T, Vec3<T>) {
-                // Q57 of matrix-quaternion FAQ
+            /// Convert this quaternion to angle-axis representation,
+            /// **assuming the quaternion is normalized.**
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::{Quaternion, Vec3};
+            /// use std::f32::consts::PI;
+            ///
+            /// # fn main() {
+            /// let q = Quaternion::rotation_x(PI/2.);
+            /// let (angle, axis) = q.into_angle_axis();
+            /// assert_relative_eq!(angle, PI/2.);
+            /// assert_relative_eq!(axis, Vec3::unit_x());
+            ///
+            /// let q = Quaternion::rotation_3d(PI*4./5., Vec3::new(1., 2., 3.));
+            /// let (angle, axis) = q.into_angle_axis();
+            /// assert_relative_eq!(angle, PI*4./5.);
+            /// assert_relative_eq!(axis, Vec3::new(1., 2., 3.));
+            /// # }
+            /// ```
+            pub fn into_angle_axis(self) -> (T, Vec3<T>) where T: Float {
+                // http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToAngle/
+                // Also, Q57 of matrix-quaternion FAQ
+                let Self { x, y, z, w } = self;
+                let angle = w.acos();
+                let angle = angle + angle;
+                let s = (T::one() - w*w).sqrt();
+                let axis = if s < T::epsilon() {
+                    Vec3::unit_x() // Any axis would do
+                } else {
+                    Vec3 { x, y, z } / s
+                };
+                (angle, axis)
             }
-             */
 
             pub fn into_vec4(self) -> Vec4<T> {
                 self.into()

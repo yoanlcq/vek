@@ -1266,6 +1266,31 @@ macro_rules! mat_impl_mat4 {
                 mem::swap(&mut self.$lines.z.w, &mut self.$lines.w.z);
             }
 
+            /// Get this matrix's determinant.
+            ///
+            /// A matrix is invertible if its determinant is non-zero.
+            pub fn determinant(self) -> T where T: Copy + Mul<T,Output=T> + Sub<T,Output=T> + Add<T, Output=T> {
+                // http://www.euclideanspace.com/maths/algebra/matrix/functions/determinant/fourD/index.htm
+                let CVec4 {
+                    x: Vec4 { x: m00, y: m01, z: m02, w: m03 },
+                    y: Vec4 { x: m10, y: m11, z: m12, w: m13 },
+                    z: Vec4 { x: m20, y: m21, z: m22, w: m23 },
+                    w: Vec4 { x: m30, y: m31, z: m32, w: m33 },
+                } = Rows4::from(self).rows;
+                m03 * m12 * m21 * m30 - m02 * m13 * m21 * m30 -
+                m03 * m11 * m22 * m30 + m01 * m13 * m22 * m30 +
+                m02 * m11 * m23 * m30 - m01 * m12 * m23 * m30 -
+                m03 * m12 * m20 * m31 + m02 * m13 * m20 * m31 +
+                m03 * m10 * m22 * m31 - m00 * m13 * m22 * m31 -
+                m02 * m10 * m23 * m31 + m00 * m12 * m23 * m31 +
+                m03 * m11 * m20 * m32 - m01 * m13 * m20 * m32 -
+                m03 * m10 * m21 * m32 + m00 * m13 * m21 * m32 +
+                m01 * m10 * m23 * m32 - m00 * m11 * m23 * m32 -
+                m02 * m11 * m20 * m33 + m01 * m12 * m20 * m33 +
+                m02 * m10 * m21 * m33 - m00 * m12 * m21 * m33 -
+                m01 * m10 * m22 * m33 + m00 * m11 * m22 * m33
+            }
+
             //
             // BASIC
             //
@@ -2659,6 +2684,19 @@ macro_rules! mat_impl_mat3 {
                 mem::swap(&mut self.$lines.y.z, &mut self.$lines.z.y);
             }
 
+            /// Get this matrix's determinant.
+            ///
+            /// A matrix is invertible if its determinant is non-zero.
+            pub fn determinant(self) -> T where T: Copy + Mul<T,Output=T> + Sub<T,Output=T> + Add<T, Output=T> {
+                // https://www.mathsisfun.com/algebra/matrix-determinant.html
+                use super::row_major::Mat3 as Rows3;
+                let CVec3 {
+                    x: Vec3 { x: a, y: b, z: c },
+                    y: Vec3 { x: d, y: e, z: f },
+                    z: Vec3 { x: g, y: h, z: i },
+                } = Rows3::from(self).rows;
+                a*(e*i - f*h) - b*(d*i - f*g) + c*(d*h - e*g)
+            }
 
             pub fn translate_2d<V: Into<Vec2<T>>>(&mut self, v: V)
                 where T: Float + MulAdd<T,T,Output=T>
@@ -2973,6 +3011,24 @@ macro_rules! mat_impl_mat2 {
                 mem::swap(&mut self.$lines.x.y, &mut self.$lines.y.x);
             }
 
+            /// Get this matrix's determinant.
+            ///
+            /// A matrix is invertible if its determinant is non-zero.
+            ///
+            /// ```
+            /// # use vek::Mat2;
+            /// let (a,b,c,d) = (0,1,2,3);
+            /// let m = Mat2::new(a,b,c,d);
+            /// assert_eq!(m.determinant(), a*d - c*b);
+            /// ```
+            pub fn determinant(self) -> T where T: Mul<T,Output=T> + Sub<T,Output=T> {
+                // NOTE: This works on row-major as well as column-major.
+                let CVec2 {
+                    x: Vec2 { x: a, y: b },
+                    y: Vec2 { x: c, y: d },
+                } = self.$lines;
+                a*d - c*b
+            }
 
             pub fn rotate_z(&mut self, angle_radians: T)
                 where T: Float + MulAdd<T,T,Output=T>
