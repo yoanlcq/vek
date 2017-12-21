@@ -34,15 +34,15 @@ macro_rules! vec_impl_cmp {
 }
 
 macro_rules! vec_impl_trinop_vec_vec {
-    ($op:ident, $Out:ty, $Rhs1:ty, $Rhs2:ty, ($($get:ident)+)) => {
+    ($op:ident, $Out:ty, $Rhs1:ty, $Rhs2:ty, ($($namedget:ident)+)) => {
         type Output = $Out;
         fn $op(self, a: $Rhs1, b: $Rhs2) -> Self::Output {
             let mut iter = self.into_iter().zip(a.into_iter().zip(b.into_iter()));
             $(
                 let (val, (aa, bb)) = iter.next().unwrap();
-                let $get = val.$op(aa, bb);
+                let $namedget = val.$op(aa, bb);
             )+
-            Self::Output { $($get,)+ }
+            Self::Output::new($($namedget),+)
         }
     }
 }
@@ -91,15 +91,15 @@ macro_rules! vec_impl_trinop_s_s {
 }
 */
 macro_rules! vec_impl_trinop {
-    (impl $Op:ident for $Vec:ident { $op:tt } ($($get:tt)+)) => {
-        impl<           T> $Op< $Vec<T>,     $Vec<T>> for    $Vec<T> where   T: $Op<    T,   T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>,   $Vec<T>,    $Vec<T>, ($($get)+)} }
-        impl<       'c, T> $Op< $Vec<T>,     $Vec<T>> for &'c $Vec<T> where &'c T: $Op< T,   T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>,   $Vec<T>,    $Vec<T>, ($($get)+)} }
-        impl<   'b,  T> $Op<    $Vec<T>, &'b $Vec<T>> for    $Vec<T> where   T: $Op<    T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>,     $Vec<T>, &'b $Vec<T>, ($($get)+)} }
-        impl<   'b, 'c, T> $Op< $Vec<T>, &'b $Vec<T>> for &'c $Vec<T> where &'c T: $Op< T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>,     $Vec<T>, &'b $Vec<T>, ($($get)+)} }
-        impl<'a,         T> $Op<&'a $Vec<T>,     $Vec<T>> for    $Vec<T> where   T: $Op<&'a T,   T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>,  $Vec<T>, ($($get)+)} }
-        impl<'a,     'c, T> $Op<&'a $Vec<T>,     $Vec<T>> for &'c $Vec<T> where &'c T: $Op<&'a T,    T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>,  $Vec<T>, ($($get)+)} }
-        impl<'a, 'b,     T> $Op<&'a $Vec<T>, &'b $Vec<T>> for    $Vec<T> where   T: $Op<&'a T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>, &'b $Vec<T>, ($($get)+)} }
-        impl<'a, 'b, 'c, T> $Op<&'a $Vec<T>, &'b $Vec<T>> for &'c $Vec<T> where &'c T: $Op<&'a T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>, &'b $Vec<T>, ($($get)+)} }
+    (impl $Op:ident for $Vec:ident { $op:tt } ($($namedget:tt)+)) => {
+        impl<           T> $Op< $Vec<T>,     $Vec<T>> for    $Vec<T> where   T: $Op<    T,   T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>,   $Vec<T>,    $Vec<T>, ($($namedget)+)} }
+        impl<       'c, T> $Op< $Vec<T>,     $Vec<T>> for &'c $Vec<T> where &'c T: $Op< T,   T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>,   $Vec<T>,    $Vec<T>, ($($namedget)+)} }
+        impl<   'b,  T> $Op<    $Vec<T>, &'b $Vec<T>> for    $Vec<T> where   T: $Op<    T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>,     $Vec<T>, &'b $Vec<T>, ($($namedget)+)} }
+        impl<   'b, 'c, T> $Op< $Vec<T>, &'b $Vec<T>> for &'c $Vec<T> where &'c T: $Op< T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>,     $Vec<T>, &'b $Vec<T>, ($($namedget)+)} }
+        impl<'a,         T> $Op<&'a $Vec<T>,     $Vec<T>> for    $Vec<T> where   T: $Op<&'a T,   T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>,  $Vec<T>, ($($namedget)+)} }
+        impl<'a,     'c, T> $Op<&'a $Vec<T>,     $Vec<T>> for &'c $Vec<T> where &'c T: $Op<&'a T,    T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>,  $Vec<T>, ($($namedget)+)} }
+        impl<'a, 'b,     T> $Op<&'a $Vec<T>, &'b $Vec<T>> for    $Vec<T> where   T: $Op<&'a T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>, &'b $Vec<T>, ($($namedget)+)} }
+        impl<'a, 'b, 'c, T> $Op<&'a $Vec<T>, &'b $Vec<T>> for &'c $Vec<T> where &'c T: $Op<&'a T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>, &'b $Vec<T>, ($($namedget)+)} }
 
         /* I give up, it's dumb.
         impl<           T> $Op< T,   T> for  $Vec<T> where   T: $Op<    T,   T, Output=T>, T: Copy { vec_impl_trinop_s_s!{$op, $Vec<T>,  T,  T, a, b} }
@@ -237,7 +237,7 @@ macro_rules! vec_impl_vec {
     ($c_or_simd:ident tuple $Vec:ident $vec:ident ($dim:expr) ($fmt:expr) ($($get:tt)+) ($($namedget:tt)+) ($($tupleget:tt)+) $Tuple:ty) => {
 
         impl<T> $Vec<T> {
-            /// Creates a vector from each component.
+            /// Creates a vector from elements.
             #[cfg_attr(feature = "clippy", allow(too_many_arguments))]
             pub fn new($($namedget:T),+) -> Self {
                 $Vec($($namedget),+)
@@ -251,7 +251,7 @@ macro_rules! vec_impl_vec {
     ($c_or_simd:ident struct $Vec:ident $vec:ident ($dim:expr) ($fmt:expr) ($($get:tt)+) ($($namedget:tt)+) ($($tupleget:tt)+) $Tuple:ty) => {
 
         impl<T> $Vec<T> {
-            /// Creates a vector from each component.
+            /// Creates a vector from elements.
             #[cfg_attr(feature = "clippy", allow(too_many_arguments))]
             pub fn new($($namedget:T),+) -> Self {
                 Self { $($namedget),+ }
@@ -337,7 +337,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(Vec4::broadcast(5), Vec4::from(5));
             /// ```
             pub fn broadcast(val: T) -> Self where T: Copy {
-                Self::new($({let $get = val; $get}),+)
+                Self::new($({let $namedget = val; $namedget}),+)
             }
 
             /// Creates a new vector with all elements set to zero.
@@ -349,7 +349,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(Vec4::zero(), Vec4::from(0));
             /// ```
             pub fn zero() -> Self where T: Zero {
-                Self::new($({let $get = T::zero(); $get}),+)
+                Self::new($({let $namedget = T::zero(); $namedget}),+)
             }
 
             /// Creates a new vector with all elements set to one.
@@ -361,7 +361,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(Vec4::one(), Vec4::from(1));
             /// ```
             pub fn one() -> Self where T: One {
-                Self::new($({let $get = T::one(); $get}),+)
+                Self::new($({let $namedget = T::one(); $namedget}),+)
             }
 
             /// Are all elements of this vector equal to the given value ?
@@ -391,13 +391,12 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(Vec4::iota(), Vec4::new(0, 1, 2, 3));
             /// ```
             pub fn iota() -> Self where T: Zero + One + AddAssign + Copy {
-                let mut out = Self::zero();
                 let mut i = T::zero();
                 $(
-                    out.$get = i;
+                    let $namedget = i;
                     i += T::one();
                 )+
-                out
+                Self::new($($namedget),+)
             }
 
             /// Convenience method which returns the number of elements of this vector.
@@ -494,10 +493,10 @@ macro_rules! vec_impl_vec {
             /// ```
             /// # use vek::vec::Vec4;
             /// let v = Vec4::new(0_f32, 1., 1.8, 3.14);
-            /// let i = v.convert(|x| x.round() as i32);
+            /// let i = v.map(|x| x.round() as i32);
             /// assert_eq!(i, Vec4::new(0, 1, 2, 3));
             /// ```
-            pub fn convert<D,F>(self, f: F) -> $Vec<D> where F: Fn(T) -> D {
+            pub fn map<D,F>(self, f: F) -> $Vec<D> where F: Fn(T) -> D {
                 $Vec::new($(f(self.$get)),+)
             }
             /// Returns a memberwise-converted copy of this vector, using `NumCast`.
@@ -540,9 +539,9 @@ macro_rules! vec_impl_vec {
                 let mut iter = self.into_iter().zip(mul.into_iter().zip(add.into_iter()));
                 $(
                     let (val, (mul, add)) = iter.next().unwrap();
-                    let $get = val.mul_add(mul, add);
+                    let $namedget = val.mul_add(mul, add);
                 )+
-                Self { $($get,)+ }
+                Self::new($($namedget),+)
             }
 
             /// Gets an iterator over immutable references of this vector's elements.
@@ -713,11 +712,11 @@ macro_rules! vec_impl_vec {
             /// # use vek::vec::Vec4;
             /// let red = Vec4::new(255u8, 1, 128, 128);
             ///
-            /// let red = red.convert(|c| c as u16);
+            /// let red = red.map(|c| c as u16);
             /// let grey_level = red.average() as u8;
             /// assert_eq!(grey_level, 128);
             ///
-            /// let red = red.convert(|c| c as f32);
+            /// let red = red.map(|c| c as f32);
             /// let grey_level = red.average().round() as u8;
             /// assert_eq!(grey_level, 128);
             /// ```
@@ -807,13 +806,13 @@ macro_rules! vec_impl_vec {
                 let rhs = rhs.into();
                 let mut iter = self.into_iter().chain(rhs.into_iter());
                 $(
-                    let $get = { 
+                    let $namedget = { 
                         let a = iter.next().unwrap();
                         let b = iter.next().unwrap();
                         a + b
                     };
                 )+
-                Self { $($get,)+ }
+                Self::new($($namedget),+)
             }
 
             vec_impl_cmp!{
@@ -1099,7 +1098,7 @@ macro_rules! vec_impl_vec {
         }
 
 
-        vec_impl_trinop!{impl MulAdd for $Vec { mul_add } ($($get)+)}
+        vec_impl_trinop!{impl MulAdd for $Vec { mul_add } ($($namedget)+)}
         vec_impl_binop!{impl Add for $Vec { add } ($($get)+)}
         vec_impl_binop!{impl Sub for $Vec { sub } ($($get)+)}
         vec_impl_binop!{impl Mul for $Vec { mul } ($($get)+)}
@@ -1269,11 +1268,11 @@ macro_rules! vec_impl_vec {
                 let mut i = -1_isize;
                 $(
                     i += 1; 
-                    let $get = unsafe {
+                    let $namedget = unsafe {
                         ptr::read(array.get_unchecked(i as usize))
                     };
                 )+
-                Self { $($get,)+ }
+                Self::new($($namedget),+)
             }
         }
         /// A vector can be obtained from a single scalar by broadcasting it.
@@ -1580,13 +1579,11 @@ macro_rules! vec_impl_spatial_4d {
                     Self::new(x, y, z, T::zero())
                 }
                 /// Turns a vector into a point vector in homogeneous coordinates (sets the last coordinate to 1).
-                #[cfg(feature="vec3")]
                 pub fn from_point<V: Into<Vec3<T>>>(v: V) -> Self where T: One {
                     let Vec3 { x, y, z } = v.into();
                     Self::new_point(x, y, z)
                 }
                 /// Turns a vector into a direction vector in homogeneous coordinates (sets the last coordinate to 0).
-                #[cfg(feature="vec3")]
                 pub fn from_direction<V: Into<Vec3<T>>>(v: V) -> Self where T: Zero {
                     let Vec3 { x, y, z } = v.into();
                     Self::new_direction(x, y, z)
@@ -1705,7 +1702,7 @@ macro_rules! vec_impl_pixel_rgb {
                 Self { r: f(self.r), g: f(self.g), b: f(self.b) }
             }
             fn apply<F>(&mut self, f: F) where F: FnMut(Self::Subpixel) -> Self::Subpixel {
-                *self = self.map(f);
+                *self = Pixel::map(self, f);
             }
             fn map_with_alpha<F, G>(&self, mut f: F, mut _g: G) -> Self
                 where F: FnMut(Self::Subpixel) -> Self::Subpixel, G: FnMut(Self::Subpixel) -> Self::Subpixel
@@ -1734,7 +1731,7 @@ macro_rules! vec_impl_pixel_rgb {
             }
 
             fn invert(&mut self) {
-                *self = self.inverted();
+                *self = self.inverted_rgb();
             }
             fn blend(&mut self, other: &Self) {
                 self.apply2(other, |a, b| {
@@ -1811,7 +1808,7 @@ macro_rules! vec_impl_pixel_rgba {
                 Self { r: f(self.r), g: f(self.g), b: f(self.b), a: f(self.a) }
             }
             fn apply<F>(&mut self, f: F) where F: FnMut(Self::Subpixel) -> Self::Subpixel {
-                *self = self.map(f);
+                *self = Pixel::map(self, f);
             }
             fn map_with_alpha<F, G>(&self, mut f: F, mut g: G) -> Self
                 where F: FnMut(Self::Subpixel) -> Self::Subpixel, G: FnMut(Self::Subpixel) -> Self::Subpixel
@@ -1841,7 +1838,7 @@ macro_rules! vec_impl_pixel_rgba {
             }
 
             fn invert(&mut self) {
-                *self = self.inverted();
+                *self = self.inverted_rgb();
             }
             fn blend(&mut self, other: &Self) {
                 self.apply2(other, |a, b| {
@@ -1910,12 +1907,12 @@ macro_rules! vec_impl_color_rgba {
             /// ```
             /// # use vek::Rgba;
             /// let opaque_orange = Rgba::new(255_u8, 128, 0, 255_u8);
-            /// assert_eq!(opaque_orange.inverted(), Rgba::new(0, 127, 255, 255));
-            /// assert_eq!(Rgba::<u8>::black().inverted(), Rgba::white());
-            /// assert_eq!(Rgba::<u8>::white().inverted(), Rgba::black());
-            /// assert_eq!(Rgba::<u8>::red().inverted(), Rgba::cyan());
+            /// assert_eq!(opaque_orange.inverted_rgb(), Rgba::new(0, 127, 255, 255));
+            /// assert_eq!(Rgba::<u8>::black().inverted_rgb(), Rgba::white());
+            /// assert_eq!(Rgba::<u8>::white().inverted_rgb(), Rgba::black());
+            /// assert_eq!(Rgba::<u8>::red().inverted_rgb(), Rgba::cyan());
             /// ```
-            pub fn inverted(mut self) -> Self where T: Sub<Output=T> {
+            pub fn inverted_rgb(mut self) -> Self where T: Sub<Output=T> {
                 self.r = T::full() - self.r;
                 self.g = T::full() - self.g;
                 self.b = T::full() - self.b;
@@ -1924,6 +1921,261 @@ macro_rules! vec_impl_color_rgba {
         }
     };
 }
+
+/// Opaque type wrapping a hardware-preferred shuffle mask format for `Vec4`.
+// NOTE: I know that _mm_shuffle_ps() needs an immediate value for the mask,
+// which means that the mask value has to be known at compile-time, which is
+// problematic.
+// Later: See platorm-intrinsics for a fix, and how the x86intrin crate implements
+// _mm_shuffle_ps().
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub struct ShuffleMask4(u8);
+
+/// A `ShuffleMask4` can be obtained by using the same index for all elements of the result.
+impl From<usize> for ShuffleMask4 {
+    fn from(m: usize) -> Self {
+        Self::new(m,m,m,m)
+    }
+}
+impl From<(usize, usize, usize, usize)> for ShuffleMask4 {
+    fn from(tuple: (usize, usize, usize, usize)) -> Self {
+        let (a,b,c,d) = tuple;
+        Self::new(a,b,c,d)
+    }
+}
+impl From<[usize; 4]> for ShuffleMask4 {
+    fn from(m: [usize; 4]) -> Self {
+        Self::new(m[0], m[1], m[2], m[3])
+    }
+}
+impl ShuffleMask4 {
+    #[inline]
+    pub fn new(m0: usize, m1: usize, m2: usize, m3: usize) -> Self {
+        ShuffleMask4(((m0&3) | ((m1&3)<<2) | ((m2&3)<<4) | ((m3&3)<<6)) as _)
+    }
+    pub fn to_indices(&self) -> (usize, usize, usize, usize) {
+        let m = self.0 as usize;
+        (m&3, (m>>2)&3, (m>>4)&3, (m>>6)&3)
+    }
+}
+
+macro_rules! vec_impl_shuffle_4d {
+    ($Vec:ident ($x:tt $y:tt $z:tt $w:tt)) => {
+
+        use super::super::ShuffleMask4;
+
+        // NOTE: Inspired by
+        // https://lxjk.github.io/2017/09/03/Fast-4x4-Matrix-Inverse-with-SSE-SIMD-Explained.html
+        impl<T> $Vec<T> {
+            /// Shuffle elements from this vector, using `mask`.
+            ///
+            /// The relevant x86 intrinsic is `_mm_shuffle_ps(v, v, mask)`.
+            ///
+            /// ```
+            /// # use vek::Vec4;
+            /// let a = Vec4::<u32>::new(0,1,2,3);
+            /// assert_eq!(a.shuffled((0,1,2,3)), Vec4::new(0,1,2,3));
+            /// assert_eq!(a.shuffled((3,2,1,0)), Vec4::new(3,2,1,0));
+            /// assert_eq!(a.shuffled((2,3,4,5)), Vec4::new(2,3,0,1));
+            /// assert_eq!(a.shuffled(1), Vec4::new(1,1,1,1));
+            /// assert_eq!(a.shuffled(1), Vec4::broadcast(1));
+            /// ```
+            pub fn shuffled<M: Into<ShuffleMask4>>(self, mask: M) -> Self where T: Copy {
+                Self::shuffle_lo_hi(self, self, mask)
+            }
+            /// Moves the lower two elements of this vector to the upper two elements of the result.
+            /// The lower two elements of this vector are passed through to the result.
+            /// 
+            /// The relevant x86 intrinsic is `_mm_movelh_ps(v, v)`.
+            ///
+            /// ```
+            /// # use vek::Vec4;
+            /// let a = Vec4::<u32>::new(0,1,2,3);
+            /// let b = Vec4::<u32>::new(0,1,0,1);
+            /// assert_eq!(a.shuffled_0101(), b);
+            /// ```
+            pub fn shuffled_0101(self) -> Self where T: Copy {
+                Self::shuffle_lo_hi_0101(self, self)
+            }
+            /// Moves the upper two elements of this vector to the lower two elements of the result.
+            /// The upper two elements of this vector are passed through to the result.
+            ///
+            /// The relevant x86 intrinsic is `_mm_movehl_ps(v, v)`.
+            ///
+            /// ```
+            /// # use vek::Vec4;
+            /// let a = Vec4::<u32>::new(0,1,2,3);
+            /// let b = Vec4::<u32>::new(2,3,2,3);
+            /// assert_eq!(a.shuffled_2323(), b);
+            /// ```
+            pub fn shuffled_2323(self) -> Self where T: Copy {
+                Self::shuffle_hi_lo_2323(self, self)
+            }
+            /// Shuffle elements from `lo`'s low part and `hi`'s high part using `mask`.
+            ///
+            /// To shuffle a single vector, you may pass it as the first two arguments,
+            /// or use the `shuffled()` method.
+            ///
+            /// The relevant x86 intrinsic is `_mm_shuffle_ps(lo, hi, mask)`.
+            ///
+            /// ```
+            /// # use vek::Vec4;
+            /// let a = Vec4::<u32>::new(0,1,2,3);
+            /// let b = Vec4::<u32>::new(4,5,6,7);
+            /// assert_eq!(Vec4::shuffle_lo_hi(a, b, (0,1,2,3)), Vec4::new(0,1,6,7));
+            /// assert_eq!(Vec4::shuffle_lo_hi(a, b, (3,2,1,0)), Vec4::new(3,2,5,4));
+            /// ```
+            pub fn shuffle_lo_hi<M: Into<ShuffleMask4>>(lo: Self, hi: Self, mask: M) -> Self where T: Copy {
+                let (lo0, lo1, hi2, hi3) = mask.into().to_indices();
+                Self::new(lo[lo0], lo[lo1], hi[hi2], hi[hi3])
+            }
+            /// Interleaves the lower two elements from `a` and `b`.
+            /// 
+            /// The relevant x86 intrinsic is `_mm_unpacklo_ps(a, b)`.
+            ///
+            /// ```
+            /// # use vek::Vec4;
+            /// let a = Vec4::<u32>::new(0,1,2,3);
+            /// let b = Vec4::<u32>::new(4,5,6,7);
+            /// let c = Vec4::<u32>::new(0,4,1,5);
+            /// assert_eq!(Vec4::interleave_0011(a, b), c);
+            /// ```
+            pub fn interleave_0011(a: Self, b: Self) -> Self {
+                Self::new(a.$x, b.$x, a.$y, b.$y)
+            }
+            /// Interleaves the upper two elements from `a` and `b`.
+            /// 
+            /// The relevant x86 intrinsic is `_mm_unpackhi_ps(a, b)`.
+            ///
+            /// ```
+            /// # use vek::Vec4;
+            /// let a = Vec4::<u32>::new(0,1,2,3);
+            /// let b = Vec4::<u32>::new(4,5,6,7);
+            /// let c = Vec4::<u32>::new(2,6,3,7);
+            /// assert_eq!(Vec4::interleave_2233(a, b), c);
+            /// ```
+            pub fn interleave_2233(a: Self, b: Self) -> Self {
+                Self::new(a.$z, b.$z, a.$w, b.$w)
+            }
+            /// Moves the lower two elements of `b` to the upper two elements of the result.
+            /// The lower two elements of `a` are passed through to the result.
+            /// 
+            /// The relevant x86 intrinsic is `_mm_movelh_ps(a, b)`.
+            ///
+            /// ```
+            /// # use vek::Vec4;
+            /// let a = Vec4::<u32>::new(0,1,2,3);
+            /// let b = Vec4::<u32>::new(4,5,6,7);
+            /// let c = Vec4::<u32>::new(0,1,4,5);
+            /// assert_eq!(Vec4::shuffle_lo_hi_0101(a, b), c);
+            /// ```
+            pub fn shuffle_lo_hi_0101(a: Self, b: Self) -> Self {
+                Self::new(a.$x, a.$y, b.$x, b.$y)
+            }
+            /// Moves the upper two elements of `b` to the lower two elements of the result.
+            /// The upper two elements of `a` are passed through to the result.
+            ///
+            /// The relevant x86 intrinsic is `_mm_movehl_ps(a, b)`.
+            ///
+            /// ```
+            /// # use vek::Vec4;
+            /// let a = Vec4::<u32>::new(0,1,2,3);
+            /// let b = Vec4::<u32>::new(4,5,6,7);
+            /// let c = Vec4::<u32>::new(6,7,2,3);
+            /// assert_eq!(Vec4::shuffle_hi_lo_2323(a, b), c);
+            /// ```
+            pub fn shuffle_hi_lo_2323(a: Self, b: Self) -> Self {
+                Self::new(b.$z, b.$w, a.$z, a.$w)
+            }
+            /// Returns a copy of this vector with `v[1]` set to `v[0]` and `v[3]` set to `v[2]`.
+            ///
+            /// The relevant x86 intrinsic is `_mm_moveldup_ps(v)`.
+            /// 
+            /// ```
+            /// # use vek::Vec4;
+            /// let a = Vec4::<u32>::new(0,1,2,3);
+            /// let b = Vec4::<u32>::new(0,0,2,2);
+            /// assert_eq!(a.shuffled_0022(), b);
+            /// ```
+            pub fn shuffled_0022(self) -> Self where T: Copy {
+                Self::new(self.$x, self.$x, self.$z, self.$z)
+            }
+            /// Returns a copy of this vector with `v[0]` set to `v[1]` and `v[2]` set to `v[3]`.
+            ///
+            /// The relevant x86 intrinsic is `_mm_movehdup_ps(v)`.
+            ///
+            /// ```
+            /// # use vek::Vec4;
+            /// let a = Vec4::<u32>::new(0,1,2,3);
+            /// let b = Vec4::<u32>::new(1,1,3,3);
+            /// assert_eq!(a.shuffled_1133(), b);
+            /// ```
+            pub fn shuffled_1133(self) -> Self where T: Copy {
+                Self::new(self.$y, self.$y, self.$w, self.$w)
+            }
+        }
+    };
+}
+
+macro_rules! vec_impl_mat2_via_vec4 {
+    ($Vec:ident) => {
+        // NOTE: Stolen from
+        // https://lxjk.github.io/2017/09/03/Fast-4x4-Matrix-Inverse-with-SSE-SIMD-Explained.html#_appendix
+        impl<T: Copy + Add<T,Output=T> + Mul<T,Output=T> + Sub<T,Output=T>> $Vec<T> {
+            /// Performs 2x2 matrix multiplication, treating each `Vec4` as a row-major 2x2 matrix.
+            ///
+            /// ```
+            /// # use vek::Vec4;
+            /// let a = Vec4::new(
+            ///     0,1,
+            ///     2,3
+            /// );
+            /// let b = Vec4::new(
+            ///     2,3,
+            ///     6,11
+            /// );
+            /// assert_eq!(a.mat2_rows_mul(a), b)
+            /// ```
+            pub fn mat2_rows_mul(self, rhs: Self) -> Self {
+                self * rhs.shuffled((0,3,0,3)) + self.shuffled((1,0,3,2)) * rhs.shuffled((2,1,2,1))
+            }
+            /// 2x2 row-major Matrix adjugate multiply (A#)*B
+            pub fn mat2_rows_adj_mul(self, rhs: Self) -> Self {
+                self.shuffled((3,3,0,0)) * rhs - self.shuffled((1,1,2,2)) * rhs.shuffled((2,3,0,1))
+            }
+            /// 2x2 row-major Matrix multiply adjugate A*(B#)
+            pub fn mat2_rows_mul_adj(self, rhs: Self) -> Self {
+                self * rhs.shuffled((3,0,3,0)) - self.shuffled((1,0,3,2)) * rhs.shuffled((2,1,2,1))
+            }
+            /// Performs 2x2 matrix multiplication, treating each `Vec4` as a column-major 2x2 matrix.
+            ///
+            /// ```
+            /// # use vek::Vec4;
+            /// let a = Vec4::new(
+            ///     0,2,
+            ///     1,3
+            /// );
+            /// let b = Vec4::new(
+            ///     2,6,
+            ///     3,11
+            /// );
+            /// assert_eq!(a.mat2_cols_mul(a), b)
+            /// ```
+            pub fn mat2_cols_mul(self, rhs: Self) -> Self {
+                self * rhs.shuffled((0,0,3,3)) + self.shuffled((2,3,0,1)) * rhs.shuffled((1,1,2,2))
+            }
+            /// 2x2 column-major Matrix adjugate multiply (A#)*B
+            pub fn mat2_cols_adj_mul(self, rhs: Self) -> Self {
+                self.shuffled((3,0,3,0)) * rhs - self.shuffled((2,1,2,1)) * rhs.shuffled((1,0,3,2))
+            }
+            /// 2x2 column-major Matrix multiply adjugate A*(B#)
+            pub fn mat2_cols_mul_adj(self, rhs: Self) -> Self {
+                self * rhs.shuffled((3,3,0,0)) - self.shuffled((2,3,0,1)) * rhs.shuffled((1,1,2,2))
+            }
+        }
+    };
+}
+
 
 #[cfg(feature="rgb")]
 macro_rules! vec_impl_color_rgb {
@@ -1954,12 +2206,12 @@ macro_rules! vec_impl_color_rgb {
             /// ```
             /// # use vek::Rgb;
             /// let orange = Rgb::new(255_u8, 128, 0);
-            /// assert_eq!(orange.inverted(), Rgb::new(0, 127, 255));
-            /// assert_eq!(Rgb::<u8>::black().inverted(), Rgb::white());
-            /// assert_eq!(Rgb::<u8>::white().inverted(), Rgb::black());
-            /// assert_eq!(Rgb::<u8>::red().inverted(), Rgb::cyan());
+            /// assert_eq!(orange.inverted_rgb(), Rgb::new(0, 127, 255));
+            /// assert_eq!(Rgb::<u8>::black().inverted_rgb(), Rgb::white());
+            /// assert_eq!(Rgb::<u8>::white().inverted_rgb(), Rgb::black());
+            /// assert_eq!(Rgb::<u8>::red().inverted_rgb(), Rgb::cyan());
             /// ```
-            pub fn inverted(mut self) -> Self where T: Sub<Output=T> {
+            pub fn inverted_rgb(mut self) -> Self where T: Sub<Output=T> {
                 self.r = T::full() - self.r;
                 self.g = T::full() - self.g;
                 self.b = T::full() - self.b;
@@ -1973,7 +2225,6 @@ macro_rules! vec_impl_color_rgb {
 macro_rules! vec_impl_all_vecs {
     ($c_or_simd:ident $(#[$repr_attrs:meta])+) => {
 
-        #[cfg(feature="vec2")]
         /// Vector type suited for 2D spatial coordinates.
         pub mod vec2 {
             use super::*;
@@ -1987,7 +2238,6 @@ macro_rules! vec_impl_all_vecs {
             vec_impl_spatial!(Vec2);
             vec_impl_spatial_2d!(Vec2);
 
-            #[cfg(feature="vec3")]
             impl<T> From<Vec3<T>> for Vec2<T> {
                 fn from(v: Vec3<T>) -> Self {
                     Self::new(v.x, v.y)
@@ -1999,17 +2249,14 @@ macro_rules! vec_impl_all_vecs {
                     Self::new(v.x, v.y)
                 }
             }
-            #[cfg(feature="extent2")]
             impl<T> From<Extent2<T>> for Vec2<T> {
                 fn from(v: Extent2<T>) -> Self {
                     Self::new(v.w, v.h)
                 }
             }
         }
-        #[cfg(feature="vec2")]
         pub use self::vec2::Vec2;
 
-        #[cfg(feature="vec3")]
         /// Vector type suited for 3D spatial coordinates.
         pub mod vec3 {
             use super::*;
@@ -2023,7 +2270,6 @@ macro_rules! vec_impl_all_vecs {
             vec_impl_spatial!(Vec3);
             vec_impl_spatial_3d!(Vec3);
 
-            #[cfg(feature="vec2")]
             impl<T: Zero> From<Vec2<T>> for Vec3<T> {
                 fn from(v: Vec2<T>) -> Self {
                     Self::new(v.x, v.y, T::zero())
@@ -2054,7 +2300,6 @@ macro_rules! vec_impl_all_vecs {
                 }
             }
         }
-        #[cfg(feature="vec3")]
         pub use self::vec3::Vec3;
 
     	// #[cfg(feature="vec4")] // Commented out, see rationale in Cargo.toml
@@ -2079,14 +2324,14 @@ macro_rules! vec_impl_all_vecs {
             vec_impl_vec!($c_or_simd struct Vec4   vec4    (4) ("({}, {}, {}, {})") (x y z w) (x y z w) (0 1 2 3) (T,T,T,T));
             vec_impl_spatial!(Vec4);
             vec_impl_spatial_4d!(Vec4);
+            vec_impl_shuffle_4d!(Vec4 (x y z w));
+            vec_impl_mat2_via_vec4!(Vec4);
 
-            #[cfg(feature="vec3")]
             impl<T: Zero> From<Vec3<T>> for Vec4<T> {
                 fn from(v: Vec3<T>) -> Self {
                     Self::new(v.x, v.y, v.z, T::zero())
                 }
             }
-            #[cfg(feature="vec2")]
             impl<T: Zero> From<Vec2<T>> for Vec4<T> {
                 fn from(v: Vec2<T>) -> Self {
                     Self::new(v.x, v.y, T::zero(), T::zero())
@@ -2212,7 +2457,6 @@ macro_rules! vec_impl_all_vecs {
             vec_impl_vec!($c_or_simd struct Extent3 extent3 (3) ("({}, {}, {})") (w h d) (w h d) (0 1 2) (T,T,T));
             vec_impl_spatial!(Extent3);
 
-            #[cfg(feature="vec3")]
             impl<T> From<Vec3<T>> for Extent3<T> {
                 fn from(v: Vec3<T>) -> Self {
                     Self::new(v.x, v.y, v.z)
@@ -2222,7 +2466,6 @@ macro_rules! vec_impl_all_vecs {
         #[cfg(feature="extent3")]
         pub use self::extent3::Extent3;
 
-        #[cfg(feature="extent2")]
         /// Vector type suited for 2D extents (width and height).
         pub mod extent2 {
             use super::*;
@@ -2242,14 +2485,12 @@ macro_rules! vec_impl_all_vecs {
             vec_impl_vec!($c_or_simd struct Extent2 extent2 (2) ("({}, {})") (w h) (w h) (0 1) (T,T));
             vec_impl_spatial!(Extent2);
 
-            #[cfg(feature="vec2")]
             impl<T> From<Vec2<T>> for Extent2<T> {
                 fn from(v: Vec2<T>) -> Self {
                     Self::new(v.x, v.y)
                 }
             }
         }
-        #[cfg(feature="extent2")]
         pub use self::extent2::Extent2;
 
         #[cfg(feature="rgba")]
@@ -2267,6 +2508,7 @@ macro_rules! vec_impl_all_vecs {
             pub struct Rgba<T> { pub r:T, pub g:T, pub b:T, pub a:T }
             vec_impl_vec!($c_or_simd struct Rgba   rgba    (4) ("rgba({}, {}, {}, {})") (r g b a) (r g b a) (0 1 2 3) (T,T,T,T));
             vec_impl_color_rgba!{Rgba}
+            vec_impl_shuffle_4d!(Rgba (r g b a));
 
             #[cfg(feature="vec4")]
             impl<T> From<Vec4<T>> for Rgba<T> {
@@ -2300,7 +2542,6 @@ macro_rules! vec_impl_all_vecs {
             vec_impl_vec!($c_or_simd struct Rgb     rgb     (3) ("rgb({}, {}, {})") (r g b) (r g b) (0 1 2) (T,T,T));
             vec_impl_color_rgb!{Rgb}
 
-            #[cfg(feature="vec3")]
             impl<T> From<Vec3<T>> for Rgb<T> {
                 fn from(v: Vec3<T>) -> Self {
                     Self::new(v.x, v.y, v.z)
@@ -2328,7 +2569,6 @@ macro_rules! vec_impl_all_vecs {
             pub struct Uvw<T> { pub u:T, pub v:T, pub w:T }
             vec_impl_vec!($c_or_simd struct Uvw     uvw     (3) ("({}, {}, {})") (u v w) (u v w) (0 1 2) (T,T,T));
 
-            #[cfg(feature="vec3")]
             impl<T> From<Vec3<T>> for Uvw<T> {
                 fn from(v: Vec3<T>) -> Self {
                     Self::new(v.x, v.y, v.z)
@@ -2350,7 +2590,6 @@ macro_rules! vec_impl_all_vecs {
             pub struct Uv<T> { pub u:T, pub v:T }
             vec_impl_vec!($c_or_simd struct Uv   uv      (2) ("({}, {})") (u v) (u v) (0 1) (T,T));
 
-            #[cfg(feature="vec2")]
             impl<T> From<Vec2<T>> for Uv<T> {
                 fn from(v: Vec2<T>) -> Self {
                     Self::new(v.x, v.y)
@@ -2421,17 +2660,17 @@ mod tests {
         };
     }
     // Vertical editing helps here :)
-    #[cfg(feature="vec2")]    for_each_type!{vec2    Vec2    bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="vec3")]    for_each_type!{vec3    Vec3    bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    /*#[cfg(feature="vec4")]*/for_each_type!{vec4    Vec4    bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="vec8")]    for_each_type!{vec8    Vec8    bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="vec16")]   for_each_type!{vec16   Vec16   bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="vec32")]   for_each_type!{vec32   Vec32   bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="vec64")]   for_each_type!{vec64   Vec64   bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="rgba")]    for_each_type!{rgba    Rgba    bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="rgb")]     for_each_type!{rgb     Rgb     bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="extent3")] for_each_type!{extent3 Extent3 bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="extent2")] for_each_type!{extent2 Extent2 bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="uv")]      for_each_type!{uv      Uv      bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="uvw")]     for_each_type!{uvw     Uvw     bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    /*#[cfg(feature="vec2")]*/   for_each_type!{vec2    Vec2    bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    /*#[cfg(feature="vec3")]*/   for_each_type!{vec3    Vec3    bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    /*#[cfg(feature="vec4")]*/   for_each_type!{vec4    Vec4    bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="vec8")]       for_each_type!{vec8    Vec8    bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="vec16")]      for_each_type!{vec16   Vec16   bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="vec32")]      for_each_type!{vec32   Vec32   bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="vec64")]      for_each_type!{vec64   Vec64   bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="rgba")]       for_each_type!{rgba    Rgba    bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="rgb")]        for_each_type!{rgb     Rgb     bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="extent3")]    for_each_type!{extent3 Extent3 bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    /*#[cfg(feature="extent2")]*/for_each_type!{extent2 Extent2 bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="uv")]         for_each_type!{uv      Uv      bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="uvw")]        for_each_type!{uvw     Uvw     bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
 }

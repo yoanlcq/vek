@@ -43,8 +43,6 @@
 //! Here's a preview of what using this crate looks like :
 //!
 //! ```
-//! # #![cfg(feature="vec3")]
-//!
 //! # extern crate vek;
 //! #[macro_use] 
 //! extern crate approx;
@@ -175,6 +173,7 @@ extern crate x86intrin;
 
 extern crate num_traits;
 extern crate num_integer;
+// NOTE: Allow unused imports here, because usage depends on which features are enabled.
 #[allow(unused_imports)]
 #[macro_use]
 extern crate approx;
@@ -204,9 +203,15 @@ pub mod geom;
 #[cfg(feature="geom")]
 pub use geom::*;
 
+pub mod frustum;
+pub use frustum::*;
+pub mod rect;
+pub use rect::*;
+
 
 // 0.9 roadmap:
-// TODO: Mat4 inverse
+// TODO: Mat4: Prove that invert() works on projection matrices too.
+// TODO: Mat4 is_invertible(), determinant(), etc...
 // TODO:
 // - Others
 //   Document the assumed handedness for rotations
@@ -221,8 +226,8 @@ pub use geom::*;
 // - Matrices:
 //   - Add 3D shearing.
 //   - Add scale_from_point and rotate_about_point
+//   - foward_*, right(), unit_x() etc
 // - Quaternions:
 //   - to_angle_axis()
 //   - decompose() for Mat4
-//   - foward_*, right(), unit_x() etc for Mat4
 

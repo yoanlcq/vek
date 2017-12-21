@@ -10,222 +10,10 @@ use num_traits::{Zero, One, Float, NumCast};
 use approx::ApproxEq;
 use ops::MulAdd;
 use vec;
-#[allow(unused_imports)]
-#[cfg(feature="geom")]
-use geom::{FrustumPlanes, Rect};
+use rect::Rect;
+use frustum::FrustumPlanes;
 #[cfg(feature="quaternion")]
 use quaternion;
-
-macro_rules! def_inv_utils {
-    () => {
-        mod inv_utils {
-            /// Opaque type wrapping a hardware-preferred shuffle mask format for `Vec4`.
-            // NOTE: I know that _mm_shuffle_ps() needs an immediate value for the mask,
-            // which means that the mask value has to be known at compile-time, which is
-            // problematic.
-            #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-            pub struct ShuffleMask(u8);
-
-            /// A `ShuffleMask` can be obtained by using the same index for all elements of the result.
-            impl From<usize> for ShuffleMask {
-                fn from(m: usize) -> Self {
-                    Self::new(m,m,m,m)
-                }
-            }
-            impl From<(usize, usize, usize, usize)> for ShuffleMask {
-                fn from(tuple: (usize, usize, usize, usize)) -> Self {
-                    let (a,b,c,d) = tuple;
-                    Self::new(a,b,c,d)
-                }
-            }
-            impl From<[usize; 4]> for ShuffleMask {
-                fn from(m: [usize; 4]) -> Self {
-                    Self::new(m[0], m[1], m[2], m[3])
-                }
-            }
-            impl ShuffleMask {
-                #[inline]
-                pub fn new(m0: usize, m1: usize, m2: usize, m3: usize) -> Self {
-                    ShuffleMask(((m0&3) | ((m1&3)<<2) | ((m2&3)<<4) | ((m3&3)<<6)) as _)
-                }
-                pub fn to_indices(&self) -> (usize, usize, usize, usize) {
-                    let m = self.0 as usize;
-                    (m&3, (m>>2)&3, (m>>4)&3, (m>>6)&3)
-                }
-            }
-
-            use super::{Vec4, Float};
-            /// Shuffle elements from this vector, using `mask`.
-            ///
-            /// The relevant x86 intrinsic is `_mm_shuffle_ps(v, v, mask)`.
-            ///
-            /// ```
-            /// # use vek::Vec4;
-            /// let a = Vec4::<u32>::new(0,1,2,3);
-            /// assert_eq!(a.shuffled((0,1,2,3)), Vec4::new(0,1,2,3));
-            /// assert_eq!(a.shuffled((3,2,1,0)), Vec4::new(3,2,1,0));
-            /// assert_eq!(a.shuffled((2,3,4,5)), Vec4::new(2,3,0,1));
-            /// assert_eq!(a.shuffled(1), Vec4::new(1,1,1,1));
-            /// ```
-            pub fn vec4_shuffle<T: Copy, M: Into<ShuffleMask>>(u: Vec4<T>, mask: M) -> Vec4<T> {
-                vec4_shuffle2(u, u, mask)
-            }
-            /// Moves the lower two elements of this vector to the upper two elements of the result.
-            /// The lower two elements of this vector are passed through to the result.
-            /// 
-            /// The relevant x86 intrinsic is `_mm_movelh_ps(v, v)`.
-            ///
-            /// ```
-            /// # use vek::Vec4;
-            /// let a = Vec4::<u32>::new(0,1,2,3);
-            /// let b = Vec4::<u32>::new(0,1,0,1);
-            /// assert_eq!(a.shuffled_0101(), b);
-            /// ```
-            pub fn vec4_shuffle_0101<T: Copy>(u: Vec4<T>) -> Vec4<T> {
-                vec4_shuffle2_0101(u, u)
-            }
-            /// Moves the upper two elements of this vector to the lower two elements of the result.
-            /// The upper two elements of this vector are passed through to the result.
-            ///
-            /// The relevant x86 intrinsic is `_mm_movehl_ps(v, v)`.
-            ///
-            /// ```
-            /// # use vek::Vec4;
-            /// let a = Vec4::<u32>::new(0,1,2,3);
-            /// let b = Vec4::<u32>::new(2,3,2,3);
-            /// assert_eq!(a.shuffled_2323(), b);
-            /// ```
-            pub fn vec4_shuffle_2323<T: Copy>(u: Vec4<T>) -> Vec4<T> {
-                vec4_shuffle2_2323(u, u)
-            }
-            /// Shuffle elements from `lo`'s low part and `hi`'s high part using `mask`.
-            ///
-            /// To shuffle a single vector, you may pass it as the first two arguments,
-            /// or use the `shuffled()` method.
-            ///
-            /// The relevant x86 intrinsic is `_mm_shuffle_ps(lo, hi, mask)`.
-            ///
-            /// ```
-            /// # use vek::Vec4;
-            /// let a = Vec4::<u32>::new(0,1,2,3);
-            /// let b = Vec4::<u32>::new(4,5,6,7);
-            /// assert_eq!(Vec4::shuffle2(a, b, (0,1,2,3)), Vec4::new(0,1,6,7));
-            /// assert_eq!(Vec4::shuffle2(a, b, (3,2,1,0)), Vec4::new(3,2,5,4));
-            /// ```
-            pub fn vec4_shuffle2<T: Copy, M: Into<ShuffleMask>>(lo: Vec4<T>, hi: Vec4<T>, mask: M) -> Vec4<T> {
-                let (lo0,lo1,hi2,hi3) = mask.into().to_indices();
-                Vec4::new(lo[lo0], lo[lo1], hi[hi2], hi[hi3])
-            }
-            /// Interleaves the lower two elements from `a` and `b`.
-            /// 
-            /// The relevant x86 intrinsic is `_mm_unpacklo_ps(a, b)`.
-            ///
-            /// ```
-            /// # use vek::Vec4;
-            /// let a = Vec4::<u32>::new(0,1,2,3);
-            /// let b = Vec4::<u32>::new(4,5,6,7);
-            /// let c = Vec4::<u32>::new(0,4,1,5);
-            /// assert_eq!(Vec4::interleave_0011(a, b), c);
-            /// ```
-            pub fn vec4_interleave_0011<T>(u: Vec4<T>, v: Vec4<T>) -> Vec4<T> {
-                Vec4::new(u.x, v.x, u.y, v.y)
-            }
-            /// Interleaves the upper two elements from `a` and `b`.
-            /// 
-            /// The relevant x86 intrinsic is `_mm_unpackhi_ps(a, b)`.
-            ///
-            /// ```
-            /// # use vek::Vec4;
-            /// let a = Vec4::<u32>::new(0,1,2,3);
-            /// let b = Vec4::<u32>::new(4,5,6,7);
-            /// let c = Vec4::<u32>::new(2,6,3,7);
-            /// assert_eq!(Vec4::interleave_2233(a, b), c);
-            /// ```
-            pub fn vec4_interleave_2233<T>(u: Vec4<T>, v: Vec4<T>) -> Vec4<T> {
-                Vec4::new(u.z, v.z, u.w, v.w)
-            }
-            /// Moves the lower two elements of `b` to the upper two elements of the result.
-            /// The lower two elements of `a` are passed through to the result.
-            /// 
-            /// The relevant x86 intrinsic is `_mm_movelh_ps(a, b)`.
-            ///
-            /// ```
-            /// # use vek::Vec4;
-            /// let a = Vec4::<u32>::new(0,1,2,3);
-            /// let b = Vec4::<u32>::new(4,5,6,7);
-            /// let c = Vec4::<u32>::new(0,1,4,5);
-            /// assert_eq!(Vec4::shuffle2_0101(a, b), c);
-            /// ```
-            pub fn vec4_shuffle2_0101<T>(u: Vec4<T>, v: Vec4<T>) -> Vec4<T> {
-                Vec4::new(u.x, u.y, v.x, v.y)
-            }
-            /// Moves the upper two elements of `a` to the lower two elements of the result.
-            /// The upper two elements of `b` are passed through to the result.
-            ///
-            /// The relevant x86 intrinsic is `_mm_movehl_ps(b, a)`.
-            /// Notice how arguments are swapped.
-            ///
-            /// ```
-            /// # use vek::Vec4;
-            /// let a = Vec4::<u32>::new(0,1,2,3);
-            /// let b = Vec4::<u32>::new(4,5,6,7);
-            /// let c = Vec4::<u32>::new(2,3,6,7);
-            /// assert_eq!(Vec4::shuffle2_2323(a, b), c);
-            /// ```
-            pub fn vec4_shuffle2_2323<T>(u: Vec4<T>, v: Vec4<T>) -> Vec4<T> {
-                Vec4::new(u.z, u.w, v.z, v.w)
-            }
-            /// Returns a copy of this vector with `v[1]` set to `v[0]` and `v[3]` set to `v[2]`.
-            ///
-            /// The relevant x86 intrinsic is `_mm_moveldup_ps(v)`.
-            /// 
-            /// ```
-            /// # use vek::Vec4;
-            /// let a = Vec4::<u32>::new(0,1,2,3);
-            /// let b = Vec4::<u32>::new(0,0,2,2);
-            /// assert_eq!(a.shuffled_0022(), b);
-            /// ```
-            pub fn vec4_shuffle_0022<T: Copy>(u: Vec4<T>) -> Vec4<T> {
-                Vec4::new(u.x, u.x, u.z, u.z)
-            }
-            /// Returns a copy of this vector with `v[0]` set to `v[1]` and `v[2]` set to `v[3]`.
-            ///
-            /// The relevant x86 intrinsic is `_mm_movehdup_ps(v)`.
-            ///
-            /// ```
-            /// # use vek::Vec4;
-            /// let a = Vec4::<u32>::new(0,1,2,3);
-            /// let b = Vec4::<u32>::new(1,1,3,3);
-            /// assert_eq!(a.shuffled_1133(), b);
-            /// ```
-            pub fn vec4_shuffle_1133<T: Copy>(u: Vec4<T>) -> Vec4<T> {
-                Vec4::new(u.y, u.y, u.w, u.w)
-            }
-            /// Performs 2x2 matrix multiplication, treating each `Vec4` as a row-major 2x2 matrix.
-            ///
-            /// ```
-            /// let a = Vec4::new(
-            ///     0,1,
-            ///     2,3
-            /// );
-            /// let b = Vec4::new(
-            ///     2,3,
-            ///     6,11
-            /// );
-            /// assert_eq!(a.mat2_mul(a), b)
-            /// ```
-            pub fn mat2_mul<T: Float>(u: Vec4<T>, v: Vec4<T>) -> Vec4<T> {
-                u * vec4_shuffle(v, (0,3,0,3)) + vec4_shuffle(u, (1,0,3,2)) * vec4_shuffle(v, (2,1,2,1))
-            }
-            pub fn mat2_adj_mul<T: Float>(u: Vec4<T>, v: Vec4<T>) -> Vec4<T> {
-                vec4_shuffle(u, (3,3,0,0)) * v - vec4_shuffle(u, (1,1,2,2)) * vec4_shuffle(v, (2,3,0,1))
-            }
-            pub fn mat2_mul_adj<T: Float>(u: Vec4<T>, v: Vec4<T>) -> Vec4<T> {
-                u * vec4_shuffle(v, (3,0,3,0)) - vec4_shuffle(u, (1,0,3,2)) * vec4_shuffle(v, (2,1,2,1))
-            }
-        }
-    };
-}
 
 macro_rules! mat_impl_mat {
     (rows $Mat:ident $CVec:ident $Vec:ident ($nrows:tt x $ncols:tt) ($($get:tt)+)) => {
@@ -234,6 +22,30 @@ macro_rules! mat_impl_mat {
 
 
         impl<T> $Mat<T> {
+            /// Returns a row-wise-converted copy of this matrix, using the given conversion
+            /// closure.
+            ///
+            /// ```
+            /// use vek::mat::repr_c::row_major::Mat4;
+            ///
+            /// let m = Mat4::<f32>::new(
+            ///     0.25, 1.25, 5.56, 8.66,
+            ///     8.53, 2.92, 3.86, 9.36,
+            ///     1.02, 0.28, 5.52, 6.06,
+            ///     6.20, 7.01, 4.90, 5.26
+            /// );
+            /// let m = m.map_rows(|row| row.map(|x| x.round() as i32));
+            /// assert_eq!(m, Mat4::new(
+            ///     0, 1, 6, 9,
+            ///     9, 3, 4, 9,
+            ///     1, 0, 6, 6,
+            ///     6, 7, 5, 5
+            /// ));
+            /// ```
+            pub fn map_rows<D,F>(self, f: F) -> $Mat<D> where F: Fn($Vec<T>) -> $Vec<D> {
+                $Mat { rows: $CVec::new($(f(self.rows.$get)),+) }
+            }
+
             /// Converts this matrix into a fixed-size array of elements.
             ///
             /// ```
@@ -593,6 +405,31 @@ macro_rules! mat_impl_mat {
         mat_impl_mat!{common cols $Mat $CVec $Vec ($nrows x $ncols) ($($get)+)}
 
         impl<T> $Mat<T> {
+            /// Returns a column-wise-converted copy of this matrix, using the given conversion
+            /// closure.
+            ///
+            /// ```
+            /// use vek::mat::repr_c::column_major::Mat4;
+            ///
+            /// let m = Mat4::<f32>::new(
+            ///     0.25, 1.25, 5.56, 8.66,
+            ///     8.53, 2.92, 3.86, 9.36,
+            ///     1.02, 0.28, 5.52, 6.06,
+            ///     6.20, 7.01, 4.90, 5.26
+            /// );
+            /// let m = m.map_cols(|col| col.map(|x| x.round() as i32));
+            /// assert_eq!(m, Mat4::new(
+            ///     0, 1, 6, 9,
+            ///     9, 3, 4, 9,
+            ///     1, 0, 6, 6,
+            ///     6, 7, 5, 5
+            /// ));
+            /// ```
+            pub fn map_cols<D,F>(self, f: F) -> $Mat<D> where F: Fn($Vec<T>) -> $Vec<D> {
+                $Mat { cols: $CVec::new($(f(self.cols.$get)),+) }
+            }
+
+
             /// Converts this matrix into a fixed-size array of elements.
             ///
             /// ```
@@ -998,21 +835,6 @@ macro_rules! mat_impl_mat {
             pub fn is_identity(&self) -> bool where T: Zero + One, Self: ApproxEq {
                 Self::relative_eq(self, &Self::identity(), Self::default_epsilon(), Self::default_max_relative())
             }
-            /*
-            /// Returns a memberwise-converted copy of this matrix, using the given conversion
-            /// closure.
-            ///
-            /// ```
-            /// # use vek::Mat4;
-            /// let m = Mat4::<f32>::identity();
-            /// let m: Mat4<i32> = m.convert(|x| x as _);
-            /// assert_eq!(m, Mat4::identity());
-            /// ```
-            pub fn convert<D,F>(self, f: F) -> $Mat<D> where F: Fn(T) -> D {
-                // This is actually super hard to do!!
-                unimplemented!{}
-            }
-            */
             /// Returns a memberwise-converted copy of this matrix, using `NumCast`.
             ///
             /// ```
@@ -1362,6 +1184,7 @@ macro_rules! mat_impl_mat4 {
     (common $lines:ident) => {
 
         use super::row_major::Mat4 as Rows4;
+        use super::column_major::Mat4 as Cols4;
 
         impl<T> Mat4<T> {
 
@@ -1458,50 +1281,60 @@ macro_rules! mat_impl_mat4 {
             /// as long as they consist of any combination of pure rotations,
             /// translations, scales and shears.
             ///
-            /// ```ignore
+            /// ```
             /// # extern crate vek;
             /// # #[macro_use] extern crate approx;
-            /// # use vek::Mat4;
+            /// use vek::vec::repr_c::Vec3;
+            /// use vek::mat::repr_c::row_major::Mat4 as Rows4;
+            /// use vek::mat::repr_c::column_major::Mat4 as Cols4;
             /// use std::f32::consts::PI;
             ///
             /// # fn main() {
-            /// let a = Mat4::rotation_x(PI*4./5.);
+            /// let a = Rows4::scaling_3d(1.77_f32)
+            ///     .rotated_3d(PI*4./5., Vec3::new(5., 8., 10.))
+            ///     .translated_3d(Vec3::new(1., 2., 3.));
             /// let b = a.inverted();
-            /// assert_relative_eq!(a*b, Mat4::identity());
-            /// assert_relative_eq!(b*a, Mat4::identity());
+            /// assert_relative_eq!(a*b, Rows4::identity(), epsilon = 0.000001);
+            /// assert_relative_eq!(b*a, Rows4::identity(), epsilon = 0.000001);
+            ///
+            /// let a = Cols4::scaling_3d(1.77_f32)
+            ///     .rotated_3d(PI*4./5., Vec3::new(5., 8., 10.))
+            ///     .translated_3d(Vec3::new(1., 2., 3.));
+            /// let b = a.inverted();
+            /// assert_relative_eq!(a*b, Cols4::identity(), epsilon = 0.000001);
+            /// assert_relative_eq!(b*a, Cols4::identity(), epsilon = 0.000001);
+            ///
+            /// // Beware, projection matrices are not invertible!
+            /// let a = Cols4::perspective_rh_zo(60_f32.to_radians(), 16./9., 0.001, 1000.) * a;
+            /// let b = a.inverted();
+            /// assert_relative_ne!(a*b, Cols4::identity(), epsilon = 0.000001);
+            /// assert_relative_ne!(b*a, Cols4::identity(), epsilon = 0.000001);
             /// # }
             /// ```
-            // FIXME: Make the above doc-test actually pass
-            // TODO: Steal
-            // https://github.com/niswegmann/small-matrix-inverse/blob/master/invert4x4_sse.h
+            // NOTE: Stolen from
             // https://lxjk.github.io/2017/09/03/Fast-4x4-Matrix-Inverse-with-SSE-SIMD-Explained.html
-            //
-            // Taken verbatim from datenwolf's linmath.h
-            // As mentioned in the original, it assumes that the matrix is invertible.
-            // It appears to lose quite a bunch of precision though. There should be a better way.
             pub fn inverted(self) -> Self where T: Float
             {
-                use super::super::inv_utils::*;
-                // XXX: Assumes row-major
+                // NOTE: The VecShuffle_2323() macro in the article swaps its arguments
                 let m = self.$lines;
-                let a = vec4_shuffle2_0101(m.x, m.y);
-                let b = vec4_shuffle2_2323(m.x, m.y);
-                let c = vec4_shuffle2_0101(m.z, m.w);
-                let d = vec4_shuffle2_2323(m.z, m.w);
+                let a = Vec4::shuffle_lo_hi_0101(m.x, m.y);
+                let b = Vec4::shuffle_hi_lo_2323(m.y, m.x);
+                let c = Vec4::shuffle_lo_hi_0101(m.z, m.w);
+                let d = Vec4::shuffle_hi_lo_2323(m.w, m.z);
 
                 let det_a = Vec4::broadcast(m.x.x * m.y.y - m.x.y * m.y.x);
                 let det_b = Vec4::broadcast(m.x.z * m.y.w - m.x.w * m.y.z);
                 let det_c = Vec4::broadcast(m.z.x * m.w.y - m.z.y * m.w.x);
                 let det_d = Vec4::broadcast(m.z.z * m.w.w - m.z.w * m.w.z);
 
-                let d_c = mat2_adj_mul(d, c);
-                let a_b = mat2_adj_mul(a, b);
-                let x_ = det_d * a - mat2_mul(b, d_c);
-                let w_ = det_a * d - mat2_mul(c, a_b);
-                let y_ = det_b * c - mat2_mul_adj(d, a_b);
-                let z_ = det_c * b - mat2_mul_adj(a, d_c);
+                let d_c = d.mat2_rows_adj_mul(c);
+                let a_b = a.mat2_rows_adj_mul(b);
+                let x_ = det_d * a - b.mat2_rows_mul(d_c);
+                let w_ = det_a * d - c.mat2_rows_mul(a_b);
+                let y_ = det_b * c - d.mat2_rows_mul_adj(a_b);
+                let z_ = det_c * b - a.mat2_rows_mul_adj(d_c);
 
-                let tr = a_b * vec4_shuffle(d_c, (0,2,1,3));
+                let tr = a_b * d_c.shuffled((0,2,1,3));
                 let tr = tr.hadd(tr);
                 let tr = tr.hadd(tr);
 
@@ -1517,55 +1350,142 @@ macro_rules! mat_impl_mat4 {
 
                 Self {
                     $lines: CVec4::new(
-                        vec4_shuffle2(x_, y_, (3,1,3,1)),
-                        vec4_shuffle2(x_, y_, (2,0,2,0)),
-                        vec4_shuffle2(z_, w_, (3,1,3,1)),
-                        vec4_shuffle2(z_, w_, (2,0,2,0))
+                        Vec4::shuffle_lo_hi(x_, y_, (3,1,3,1)),
+                        Vec4::shuffle_lo_hi(x_, y_, (2,0,2,0)),
+                        Vec4::shuffle_lo_hi(z_, w_, (3,1,3,1)),
+                        Vec4::shuffle_lo_hi(z_, w_, (2,0,2,0))
                     )
                 }
-                /*
-                let mut m = Rows4::from(self).rows;
-                let s = [
-                    m[0][0]*m[1][1] - m[1][0]*m[0][1],
-                    m[0][0]*m[1][2] - m[1][0]*m[0][2],
-                    m[0][0]*m[1][3] - m[1][0]*m[0][3],
-                    m[0][1]*m[1][2] - m[1][1]*m[0][2],
-                    m[0][1]*m[1][3] - m[1][1]*m[0][3],
-                    m[0][2]*m[1][3] - m[1][2]*m[0][3],
-                ];
-                let c = [
-                    m[2][0]*m[3][1] - m[3][0]*m[2][1],
-                    m[2][0]*m[3][2] - m[3][0]*m[2][2],
-                    m[2][0]*m[3][3] - m[3][0]*m[2][3],
-                    m[2][1]*m[3][2] - m[3][1]*m[2][2],
-                    m[2][1]*m[3][3] - m[3][1]*m[2][3],
-                    m[2][2]*m[3][3] - m[3][2]*m[2][3],
-                ];
-                
-                let idet = T::one() / ( s[0]*c[5]-s[1]*c[4]+s[2]*c[3]+s[3]*c[2]-s[4]*c[1]+s[5]*c[0] );
-                
-                m[0][0] = ( m[1][1] * c[5] - m[1][2] * c[4] + m[1][3] * c[3]) * idet;
-                m[0][1] = (-m[0][1] * c[5] + m[0][2] * c[4] - m[0][3] * c[3]) * idet;
-                m[0][2] = ( m[3][1] * s[5] - m[3][2] * s[4] + m[3][3] * s[3]) * idet;
-                m[0][3] = (-m[2][1] * s[5] + m[2][2] * s[4] - m[2][3] * s[3]) * idet;
-                m[1][0] = (-m[1][0] * c[5] + m[1][2] * c[2] - m[1][3] * c[1]) * idet;
-                m[1][1] = ( m[0][0] * c[5] - m[0][2] * c[2] + m[0][3] * c[1]) * idet;
-                m[1][2] = (-m[3][0] * s[5] + m[3][2] * s[2] - m[3][3] * s[1]) * idet;
-                m[1][3] = ( m[2][0] * s[5] - m[2][2] * s[2] + m[2][3] * s[1]) * idet;
-                m[2][0] = ( m[1][0] * c[4] - m[1][1] * c[2] + m[1][3] * c[0]) * idet;
-                m[2][1] = (-m[0][0] * c[4] + m[0][1] * c[2] - m[0][3] * c[0]) * idet;
-                m[2][2] = ( m[3][0] * s[4] - m[3][1] * s[2] + m[3][3] * s[0]) * idet;
-                m[2][3] = (-m[2][0] * s[4] + m[2][1] * s[2] - m[2][3] * s[0]) * idet;
-                m[3][0] = (-m[1][0] * c[3] + m[1][1] * c[1] - m[1][2] * c[0]) * idet;
-                m[3][1] = ( m[0][0] * c[3] - m[0][1] * c[1] + m[0][2] * c[0]) * idet;
-                m[3][2] = (-m[3][0] * s[3] + m[3][1] * s[1] - m[3][2] * s[0]) * idet;
-                m[3][3] = ( m[2][0] * s[3] - m[2][1] * s[1] + m[2][2] * s[0]) * idet;
-
-                Rows4 { rows: m }.into()
-                */
             }
 
+            /// Returns this matrix's inverse, blindly assuming that it is an invertible transform
+            /// matrix which scale is 1.
+            ///
+            /// See `inverted_affine_transform_no_scale()` for more info.
+            pub fn invert_affine_transform_no_scale(&mut self) where T: Float {
+                *self = self.inverted_affine_transform_no_scale()
+            }
+            /// Returns this matrix's inverse, blindly assuming that it is an invertible transform
+            /// matrix which scale is 1.
+            ///
+            /// A transform matrix is invertible this way as long as it consists
+            /// of translations, rotations, and shears.  
+            /// **It's not guaranteed to work if the scale is not 1.**
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// use vek::vec::repr_c::Vec3;
+            /// use vek::mat::repr_c::row_major::Mat4 as Rows4;
+            /// use vek::mat::repr_c::column_major::Mat4 as Cols4;
+            /// use std::f32::consts::PI;
+            ///
+            /// # fn main() {
+            /// let a = Rows4::rotation_3d(PI*4./5., Vec3::new(5., 8., 10.))
+            ///     .translated_3d(Vec3::new(1., 2., 3.));
+            /// let b = a.inverted_affine_transform_no_scale();
+            /// assert_relative_eq!(a*b, Rows4::identity(), epsilon = 0.000001);
+            /// assert_relative_eq!(b*a, Rows4::identity(), epsilon = 0.000001);
+            ///
+            /// let a = Cols4::rotation_3d(PI*4./5., Vec3::new(5., 8., 10.))
+            ///     .translated_3d(Vec3::new(1., 2., 3.));
+            /// let b = a.inverted_affine_transform_no_scale();
+            /// assert_relative_eq!(a*b, Cols4::identity(), epsilon = 0.000001);
+            /// assert_relative_eq!(b*a, Cols4::identity(), epsilon = 0.000001);
+            ///
+            /// // Look! It stops working as soon as we add a scale.
+            /// // (notice that we assert on inequality here)
+            /// let a = Rows4::scaling_3d(5_f32)
+            ///     .rotated_3d(PI*4./5., Vec3::new(5., 8., 10.))
+            ///     .translated_3d(Vec3::new(1., 2., 3.));
+            /// let b = a.inverted_affine_transform_no_scale();
+            /// assert_relative_ne!(a*b, Rows4::identity(), epsilon = 0.000001);
+            /// assert_relative_ne!(b*a, Rows4::identity(), epsilon = 0.000001);
+            /// # }
+            /// ```
+            // NOTE: Stolen from
+            // https://lxjk.github.io/2017/09/03/Fast-4x4-Matrix-Inverse-with-SSE-SIMD-Explained.html
+            pub fn inverted_affine_transform_no_scale(self) -> Self where T: Float
+            {
+                // NOTE: The VecShuffle_2323() macro in the article swaps its arguments
+                let m = Cols4::from(self).cols;
+                let t0 = Vec4::shuffle_lo_hi_0101(m.x, m.y);
+                let t1 = Vec4::shuffle_hi_lo_2323(m.y, m.x);
+                let r0 = Vec4::shuffle_lo_hi(t0, m.z, (0,2,0,3));
+                let r1 = Vec4::shuffle_lo_hi(t0, m.z, (1,3,1,3));
+                let r2 = Vec4::shuffle_lo_hi(t1, m.z, (0,2,2,3));
+                let r3 = Vec4::unit_w()
+                       - r0 * m.w.shuffled(0)
+                       - r1 * m.w.shuffled(1)
+                       - r2 * m.w.shuffled(2);
+                Cols4 { cols: CVec4::new(r0, r1, r2, r3) }.into()
+            }
+            /// Inverts this matrix, blindly assuming that it is an invertible transform matrix.
+            /// See `inverted_affine_transform()` for more info.
+            pub fn invert_affine_transform(&mut self) where T: Float {
+                *self = self.inverted_affine_transform()
+            }
+            /// Returns this matrix's inverse, blindly assuming that it is an invertible transform
+            /// matrix.
+            ///
+            /// A transform matrix is invertible this way as long as it consists
+            /// of translations, rotations, scales and shears.
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// use vek::vec::repr_c::Vec3;
+            /// use vek::mat::repr_c::row_major::Mat4 as Rows4;
+            /// use vek::mat::repr_c::column_major::Mat4 as Cols4;
+            /// use std::f32::consts::PI;
+            ///
+            /// # fn main() {
+            /// let a = Rows4::scaling_3d(1.77_f32)
+            ///     .rotated_3d(PI*4./5., Vec3::new(5., 8., 10.))
+            ///     .translated_3d(Vec3::new(1., 2., 3.));
+            /// let b = a.inverted_affine_transform();
+            /// assert_relative_eq!(a*b, Rows4::identity(), epsilon = 0.000001);
+            /// assert_relative_eq!(b*a, Rows4::identity(), epsilon = 0.000001);
+            ///
+            /// let a = Cols4::scaling_3d(1.77_f32)
+            ///     .rotated_3d(PI*4./5., Vec3::new(5., 8., 10.))
+            ///     .translated_3d(Vec3::new(1., 2., 3.));
+            /// let b = a.inverted_affine_transform();
+            /// assert_relative_eq!(a*b, Cols4::identity(), epsilon = 0.000001);
+            /// assert_relative_eq!(b*a, Cols4::identity(), epsilon = 0.000001);
+            /// # }
+            /// ```
+            // NOTE: Stolen from
+            // https://lxjk.github.io/2017/09/03/Fast-4x4-Matrix-Inverse-with-SSE-SIMD-Explained.html
+            pub fn inverted_affine_transform(self) -> Self where T: Float
+            {
+                // NOTE: The VecShuffle_2323() macro in the article swaps its arguments
+                let m = Cols4::from(self).cols;
+                let t0 = Vec4::shuffle_lo_hi_0101(m.x, m.y);
+                let t1 = Vec4::shuffle_hi_lo_2323(m.y, m.x);
+                let r0 = Vec4::shuffle_lo_hi(t0, m.z, (0,2,0,3));
+                let r1 = Vec4::shuffle_lo_hi(t0, m.z, (1,3,1,3));
+                let r2 = Vec4::shuffle_lo_hi(t1, m.z, (0,2,2,3));
+                // PERF: Could use mul_add()
+                let size_sqr = r0 * r0 + r1 * r1 + r2 * r2;
+                let epsilon = T::epsilon(); // XXX: Might prefer the one from ApproxEq ???
+                // PERF: Could use _mm_blendv_ps(), like in this part of the article's source code.
+                let size_sqr = size_sqr.map(|x| if x.abs() > epsilon { x } else { T::one() });
+                let r0 = r0 / size_sqr;
+                let r1 = r1 / size_sqr;
+                let r2 = r2 / size_sqr;
+                let r3 = Vec4::unit_w()
+                       - r0 * m.w.shuffled(0)
+                       - r1 * m.w.shuffled(1)
+                       - r2 * m.w.shuffled(2);
+                Cols4 { cols: CVec4::new(r0, r1, r2, r3) }.into()
+            }
+
+
+
+
             #[allow(dead_code)]
+            /// XXX I don't know exactly what this does. Make it public when I do.
             fn orthonormalize(&mut self) where T: Float + Sum + SubAssign {
                 *self = self.orthonormalized();
             }
@@ -1598,14 +1518,12 @@ macro_rules! mat_impl_mat4 {
             //
 
             /// Shortcut for `self * Vec4::from_point(rhs)`.
-            #[cfg(feature="vec3")]
             pub fn mul_point<V: Into<Vec3<T>> + From<Vec4<T>>>(self, rhs: V) -> V
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 V::from(self * Vec4::from_point(rhs))
             }
             /// Shortcut for `self * Vec4::from_direction(rhs)`.
-            #[cfg(feature="vec3")]
             pub fn mul_direction<V: Into<Vec3<T>> + From<Vec4<T>>>(self, rhs: V) -> V
                 where T: Float + MulAdd<T,T,Output=T>
             {
@@ -1616,19 +1534,16 @@ macro_rules! mat_impl_mat4 {
             // TRANSFORMS
             //
 
-            #[cfg(feature="vec2")]
             pub fn translate_2d<V: Into<Vec2<T>>>(&mut self, v: V)
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 *self = self.translated_2d(v);
             }
-            #[cfg(feature="vec2")]
             pub fn translated_2d<V: Into<Vec2<T>>>(self, v: V) -> Self
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::translation_2d(v) * self
             }
-            #[cfg(feature="vec2")]
             pub fn translation_2d<V: Into<Vec2<T>>>(v: V) -> Self where T: Zero + One {
                 let Vec2 { x, y } = v.into();
                 Self::new(
@@ -1638,19 +1553,16 @@ macro_rules! mat_impl_mat4 {
                     T::zero(), T::zero(), T::zero(), T::one(),
                 )
             }
-            #[cfg(feature="vec3")]
             pub fn translate_3d<V: Into<Vec3<T>>>(&mut self, v: V)
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 *self = self.translated_3d(v);
             }
-            #[cfg(feature="vec3")]
             pub fn translated_3d<V: Into<Vec3<T>>>(self, v: V) -> Self
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::translation_3d(v) * self
             }
-            #[cfg(feature="vec3")]
             pub fn translation_3d<V: Into<Vec3<T>>>(v: V) -> Self where T: Zero + One {
                 let Vec3 { x, y, z } = v.into();
                 Self::new(
@@ -1662,7 +1574,6 @@ macro_rules! mat_impl_mat4 {
             }
             #[allow(dead_code)]
             /// XXX: This was from linmath.h. I'm not confident what this does. Make it pub when I do.
-            #[cfg(feature="vec3")]
             fn translate_in_place_3d<V: Into<Vec3<T>>>(&mut self, v: V) where T: Copy + Zero + One + AddAssign + Sum {
                 let Vec3 { x, y, z } = v.into();
                 let t = Vec4 { x, y, z, w: T::zero() };
@@ -1674,19 +1585,16 @@ macro_rules! mat_impl_mat4 {
                 *self = Rows4 { rows }.into();
             }
 
-            #[cfg(feature="vec3")]
             pub fn scale_3d<V: Into<Vec3<T>>>(&mut self, v: V)
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 *self = self.scaled_3d(v);
             }
-            #[cfg(feature="vec3")]
             pub fn scaled_3d<V: Into<Vec3<T>>>(self, v: V) -> Self
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::scaling_3d(v) * self
             }
-            #[cfg(feature="vec3")]
             pub fn scaling_3d<V: Into<Vec3<T>>>(v: V) -> Self where T: Zero + One {
                 let Vec3 { x, y, z } = v.into();
                 Self::new(
@@ -1756,13 +1664,11 @@ macro_rules! mat_impl_mat4 {
                     T::zero(), T::zero(), T::zero(), T::one()
                 )
             }
-            #[cfg(feature="vec3")]
             pub fn rotate_3d<V: Into<Vec3<T>>>(&mut self, angle_radians: T, axis: V)
                 where T: Float + MulAdd<T,T,Output=T> + Sum
             {
                 *self = self.rotated_3d(angle_radians, axis);
             }
-            #[cfg(feature="vec3")]
             pub fn rotated_3d<V: Into<Vec3<T>>>(self, angle_radians: T, axis: V) -> Self
                 where T: Float + MulAdd<T,T,Output=T> + Sum
             {
@@ -1813,7 +1719,6 @@ macro_rules! mat_impl_mat4 {
             /// }
             /// # }
             /// ```
-            #[cfg(feature="vec3")]
             pub fn rotation_3d<V: Into<Vec3<T>>>(angle_radians: T, axis: V) -> Self where T: Float + Sum {
                 let Vec3 { x, y, z } = axis.into().normalized();
                 let s = angle_radians.sin();
@@ -1881,7 +1786,6 @@ macro_rules! mat_impl_mat4 {
             ///     assert_relative_eq!(m.mul_point(origin+k), Vec3::unit_z(), epsilon = 0.000001);
             /// # }
             /// ```
-            #[cfg(feature="vec3")]
             pub fn basis_to_local<V: Into<Vec3<T>>>(origin: V, i: V, j: V, k: V) -> Self
                 where T: Zero + One + Neg<Output=T> + Float + Sum
             {
@@ -1944,7 +1848,6 @@ macro_rules! mat_impl_mat4 {
             ///     assert_relative_eq!(origin+k, m.mul_point(Vec3::unit_z()));
             /// # }
             /// ```
-            #[cfg(feature="vec3")]
             pub fn local_to_basis<V: Into<Vec3<T>>>(origin: V, i: V, j: V, k: V) -> Self where T: Zero + One {
                 let (origin, i, j, k) = (origin.into(), i.into(), j.into(), k.into());
                 Self::new(
@@ -1976,7 +1879,6 @@ macro_rules! mat_impl_mat4 {
             /// assert_relative_eq!(view * target, Vec4::new(0_f32, 0., 2_f32.sqrt(), 1.));
             /// # }
             /// ```
-            #[cfg(feature="vec3")]
             pub fn look_at_view_lh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
                 where T: Float + Sum
             {
@@ -2015,7 +1917,6 @@ macro_rules! mat_impl_mat4 {
             /// assert_relative_eq!(model * view, Mat4::identity());
             /// # }
             /// ```
-            #[cfg(feature="vec3")]
             pub fn look_at_model_lh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
                 where T: Float + Sum
             {
@@ -2054,7 +1955,6 @@ macro_rules! mat_impl_mat4 {
             /// assert_relative_eq!(model * view, Mat4::identity());
             /// # }
             /// ```
-            #[cfg(feature="vec3")]
             pub fn look_at_model_rh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
                 where T: Float + Sum + MulAdd<T,T,Output=T>
             {
@@ -2086,7 +1986,6 @@ macro_rules! mat_impl_mat4 {
             /// assert_relative_eq!(view * target, Vec4::new(0_f32, 0., -2_f32.sqrt(), 1.));
             /// # }
             /// ```
-            #[cfg(feature="vec3")]
             pub fn look_at_view_rh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
                 where T: Float + Sum
             {
@@ -2109,7 +2008,6 @@ macro_rules! mat_impl_mat4 {
             // PROJECTIONS
             //
 
-            #[cfg(feature="geom")]
             pub fn orthographic_without_depth_planes (o: FrustumPlanes<T>) -> Self where T: Float {
                 let two = T::one() + T::one();
                 let FrustumPlanes { left, right, top, bottom, .. } = o;
@@ -2120,7 +2018,6 @@ macro_rules! mat_impl_mat4 {
                 m[(1, 3)] = - (top + bottom) / (top - bottom);
                 m
             }
-            #[cfg(feature="geom")]
             pub fn orthographic_lh_zo (o: FrustumPlanes<T>) -> Self where T: Float {
                 let FrustumPlanes { near, far, .. } = o;
                 let mut m = Self::orthographic_without_depth_planes(o);
@@ -2128,7 +2025,6 @@ macro_rules! mat_impl_mat4 {
                 m[(2, 3)] = - near / (far - near);
                 m
             }
-            #[cfg(feature="geom")]
             pub fn orthographic_lh_no (o: FrustumPlanes<T>) -> Self where T: Float {
                 let two = T::one() + T::one();
                 let FrustumPlanes { near, far, .. } = o;
@@ -2137,7 +2033,6 @@ macro_rules! mat_impl_mat4 {
                 m[(2, 3)] = - (far + near) / (far - near);
                 m
             }
-            #[cfg(feature="geom")]
             pub fn orthographic_rh_zo (o: FrustumPlanes<T>) -> Self where T: Float {
                 let FrustumPlanes { near, far, .. } = o;
                 let mut m = Self::orthographic_without_depth_planes(o);
@@ -2145,7 +2040,6 @@ macro_rules! mat_impl_mat4 {
                 m[(2, 3)] = - near / (far - near);
                 m
             }
-            #[cfg(feature="geom")]
             pub fn orthographic_rh_no (o: FrustumPlanes<T>) -> Self where T: Float {
                 let two = T::one() + T::one();
                 let FrustumPlanes { near, far, .. } = o;
@@ -2155,7 +2049,6 @@ macro_rules! mat_impl_mat4 {
                 m
             }
 
-            #[cfg(feature="geom")]
             pub fn frustum_lh_zo (o: FrustumPlanes<T>) -> Self where T: Float {
                 let two = T::one() + T::one();
                 let FrustumPlanes { left, right, top, bottom, near, far } = o;
@@ -2169,7 +2062,6 @@ macro_rules! mat_impl_mat4 {
                 m[(2, 3)] = -(far * near) / (far - near);
                 m
             }
-            #[cfg(feature="geom")]
             pub fn frustum_lh_no (o: FrustumPlanes<T>) -> Self where T: Float {
                 let two = T::one() + T::one();
                 let FrustumPlanes { near, far, .. } = o;
@@ -2178,14 +2070,12 @@ macro_rules! mat_impl_mat4 {
                 m[(2, 3)] = -(two * far * near) / (far - near);
                 m
             }
-            #[cfg(feature="geom")]
             pub fn frustum_rh_zo (o: FrustumPlanes<T>) -> Self where T: Float {
                 let mut m = Self::frustum_lh_zo(o);
                 m[(2, 2)] = -m[(2, 2)];
                 m[(3, 2)] = -m[(3, 2)];
                 m
             }
-            #[cfg(feature="geom")]
             pub fn frustum_rh_no (o: FrustumPlanes<T>) -> Self where T: Float {
                 let mut m = Self::frustum_lh_no(o);
                 m[(2, 2)] = -m[(2, 2)];
@@ -2395,7 +2285,6 @@ macro_rules! mat_impl_mat4 {
             ///
             /// # Panics
             /// `delta`'s `x` and `y` are required to be strictly greater than zero.
-            #[cfg(all(feature="vec3", feature="vec2", feature="geom"))]
             pub fn picking_region<V2: Into<Vec2<T>>>(center: V2, delta: V2, viewport: Rect<T, T>) -> Self
                 where T: Float + MulAdd<T,T,Output=T>
             {
@@ -2420,7 +2309,6 @@ macro_rules! mat_impl_mat4 {
             /// Returns a matrix that projects from world-space to screen-space,
             /// for a depth clip space ranging from -1 to 1 (`GL_DEPTH_NEGATIVE_ONE_TO_ONE`,
             /// hence the `_no` suffix).
-            #[cfg(all(feature="vec3", feature="geom"))]
             pub fn world_to_viewport_no<V3>(obj: V3, modelview: Self, proj: Self, viewport: Rect<T, T>) -> Vec3<T>
                 where T: Float + MulAdd<T,T,Output=T>,
                       V3: Into<Vec3<T>>
@@ -2444,7 +2332,6 @@ macro_rules! mat_impl_mat4 {
             /// Returns a matrix that projects from world-space to screen-space,
             /// for a depth clip space ranging from 0 to 1 (`GL_DEPTH_ZERO_TO_ONE`,
             /// hence the `_zo` suffix).
-            #[cfg(all(feature="vec3", feature="geom"))]
             pub fn world_to_viewport_zo<V3>(obj: V3, modelview: Self, proj: Self, viewport: Rect<T, T>) -> Vec3<T>
                 where T: Float + MulAdd<T,T,Output=T>,
                       V3: Into<Vec3<T>>
@@ -2469,7 +2356,6 @@ macro_rules! mat_impl_mat4 {
             /// Returns a matrix that unprojects from screen-space to world-space,
             /// for a depth clip space ranging from 0 to 1 (`GL_DEPTH_ZERO_TO_ONE`,
             /// hence the `_zo` suffix).
-            #[cfg(all(feature="vec3", feature="geom"))]
             pub fn viewport_to_world_zo<V3>(ray: V3, modelview: Self, proj: Self, viewport: Rect<T, T>) -> Vec3<T>
                 where T: Float + MulAdd<T,T,Output=T>,
                       V3: Into<Vec3<T>>
@@ -2491,7 +2377,6 @@ macro_rules! mat_impl_mat4 {
             /// Returns a matrix that unprojects from screen-space to world-space,
             /// for a depth clip space ranging from -1 to 1 (`GL_DEPTH_NEGATIVE_ONE_TO_ONE`,
             /// hence the `_no` suffix).
-            #[cfg(all(feature="vec3", feature="geom"))]
             pub fn viewport_to_world_no<V3>(ray: V3, modelview: Self, proj: Self, viewport: Rect<T, T>) -> Vec3<T>
                 where T: Float + MulAdd<T,T,Output=T>,
                       V3: Into<Vec3<T>>
@@ -2775,19 +2660,16 @@ macro_rules! mat_impl_mat3 {
             }
 
 
-            #[cfg(feature="vec2")]
             pub fn translate_2d<V: Into<Vec2<T>>>(&mut self, v: V)
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 *self = self.translated_2d(v);
             }
-            #[cfg(feature="vec2")]
             pub fn translated_2d<V: Into<Vec2<T>>>(self, v: V) -> Self
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::translation_2d(v) * self
             }
-            #[cfg(feature="vec2")]
             pub fn translation_2d<V: Into<Vec2<T>>>(v: V) -> Self where T: Zero + One {
                 let v = v.into();
                 Self::new(
@@ -2796,19 +2678,16 @@ macro_rules! mat_impl_mat3 {
                     T::zero(), T::zero(), T::one()
                 )
             }
-            #[cfg(feature="vec3")]
             pub fn scale_3d<V: Into<Vec3<T>>>(&mut self, v: V)
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 *self = self.scaled_3d(v);
             }
-            #[cfg(feature="vec3")]
             pub fn scaled_3d<V: Into<Vec3<T>>>(self, v: V) -> Self
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::scaling_3d(v) * self
             }
-            #[cfg(feature="vec3")]
             pub fn scaling_3d<V: Into<Vec3<T>>>(v: V) -> Self where T: Zero {
                 let Vec3 { x, y, z } = v.into();
                 Self::new(
@@ -2875,13 +2754,11 @@ macro_rules! mat_impl_mat3 {
                 )
             }
 
-            #[cfg(feature="vec3")]
             pub fn rotate_3d<V: Into<Vec3<T>>>(&mut self, angle_radians: T, axis: V)
                 where T: Float + MulAdd<T,T,Output=T> + Sum
             {
                 *self = self.rotated_3d(angle_radians, axis);
             }
-            #[cfg(feature="vec3")]
             pub fn rotated_3d<V: Into<Vec3<T>>>(self, angle_radians: T, axis: V) -> Self
                 where T: Float + MulAdd<T,T,Output=T> + Sum
             {
@@ -2933,7 +2810,6 @@ macro_rules! mat_impl_mat3 {
             /// }
             /// # }
             /// ```
-            #[cfg(feature="vec3")]
             pub fn rotation_3d<V: Into<Vec3<T>>>(angle_radians: T, axis: V) -> Self where T: Float + Sum {
                 let Vec3 { x, y, z } = axis.into().normalized();
                 let s = angle_radians.sin();
@@ -3300,18 +3176,14 @@ pub mod repr_c {
 
     use super::*;
     #[allow(unused_imports)]
-    #[cfg(feature="vec2")]
     use super::vec::repr_c::{Vec2, Vec2 as CVec2};
     #[allow(unused_imports)]
-    #[cfg(feature="vec3")]
     use super::vec::repr_c::{Vec3, Vec3 as CVec3};
     // #[cfg(feature="vec4")] // Commented out, see rationale in Cargo.toml
     use super::vec::repr_c::{Vec4, Vec4 as CVec4};
 
     #[cfg(feature="quaternion")]
     use super::quaternion::repr_c::Quaternion;
-
-    def_inv_utils!{}
 
     mat_declare_modules!{}
 }
@@ -3322,16 +3194,12 @@ pub mod repr_simd {
    
     use super::*;
     #[allow(unused_imports)]
-    #[cfg(feature="vec2")]
     use super::vec::repr_simd::{Vec2};
     #[allow(unused_imports)]
-    #[cfg(feature="vec2")]
     use super::vec::repr_c::{Vec2 as CVec2};
     #[allow(unused_imports)]
-    #[cfg(feature="vec3")]
     use super::vec::repr_simd::{Vec3};
     #[allow(unused_imports)]
-    #[cfg(feature="vec3")]
     use super::vec::repr_c::{Vec3 as CVec3};
     // #[cfg(feature="vec4")] // Commented out, see rationale in Cargo.toml
     use super::vec::repr_simd::{Vec4};
@@ -3340,8 +3208,6 @@ pub mod repr_simd {
 
     #[cfg(feature="quaternion")]
     use super::quaternion::repr_simd::Quaternion;
-
-    def_inv_utils!{}
 
     mat_declare_modules!{}
 }

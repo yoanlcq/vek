@@ -3,7 +3,7 @@ version = "0.8.0" # remember to update html_root_url in src/lib.rs
 authors = ["Yoan Lecoq <yoanlecoq.io@gmail.com>"]
 description = "Generic but efficient SIMD vector+matrix library for game engines, with focus on intent and the small bits that make you happier as a user."
 documentation = "https://docs.rs/vek"
-keywords = ["vector", "matrix", "simd"]
+keywords = ["vector", "matrix", "simd", "quaternion", "bézier", "rgb", "rgba"]
 categories = [ "algorithms", "data-structures", "no-std", "science" ]
 license = "MIT/Apache-2.0"
 readme = "README.md"
@@ -20,31 +20,34 @@ exclude = [
 [badges]
 travis-ci = { repository = "yoanlcq/vek" }
 appveyor  = { repository = "yoanlcq/vek" }
+maintenance = { status = "experimental" }
 
 [features]
-#default = []
-default = ["serde", "repr_simd", "vec2", "vec3", "rgba", "rgb", "extent3", "extent2", "mat2", "mat3", "quaternion", "geom", "bezier"]
-repr_align = []
-repr_simd = []
-vec2 = []
-vec3 = []
-# vec4 = [] # NOTE: Always implicitly enabled, because doc tests assume their availability.
+default = ["serde", "repr_simd", "geom", "bezier", "quaternion", "rgba", "rgb", "mat2", "mat3"]
+# NOTE: The below ones (commented out) are enforced, because doc tests assume their availability.
+# vec2 = []
+# vec3 = []
+# vec4 = []
+# mat4 = []
+# rect = []
+# frustum = []
+# extent2 = []
+extent3 = []
+mat2 = []
+mat3 = []
+geom = ["extent3"]
+quaternion = []
+bezier = ["mat3"]
 vec8 = []
 vec16 = []
 vec32 = []
 vec64 = []
-rgba = []
 rgb = []
-extent3 = []
-extent2 = []
-uvw = []
+rgba = []
 uv = []
-mat2 = ["vec2"]
-mat3 = ["vec3"]
-# mat4 = [] # NOTE: Always implicitly enabled, because doc tests assume their availability.
-quaternion = ["vec3"]
-geom = ["extent2", "extent3", "vec2", "vec3"]
-bezier = ["geom", "vec3", "mat3"]
+uvw = []
+repr_align = []
+repr_simd = []
 
 [build-dependencies]
 rustc_version = "0.2.1"
@@ -54,9 +57,9 @@ approx = "0.1.1"
 num-traits = "0.1.40"
 num-integer = "0.1.35"
 static_assertions = "0.2.5"
-# clippy = { version = "0.0.166", optional = true }
 image = { version = "0.17", optional = true, default-features = false }
 serde = { version = "1.0.24", optional = true, features = ["derive"] }
+# clippy = { version = "0.0.166", optional = true }
 
 [target.'cfg(any(target_arch="x86", target_arch="x86_64"))'.dependencies]
 x86intrin = { version = "0.4", optional = true }

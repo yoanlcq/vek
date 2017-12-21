@@ -15,18 +15,6 @@ macro_rules! geom_complete_mod {
         // use mat::$mod::Mat2;
         use vec::$mod::*;
 
-        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        pub struct Rect<P, E> {
-            /// X position of the top-left corner.
-            pub x: P,
-            /// Y position of the top-left corner.
-            pub y: P,
-            /// Width.
-            pub w: E,
-            /// Height, with Y axis going downwards.
-            pub h: E,
-        }
         /// A `Rect` extended to 3D.
         ///
         /// This would have been named `Box`, but it was "taken" by the standard library already.
@@ -169,67 +157,6 @@ macro_rules! geom_complete_mod {
         pub struct LineSegment3<T> {
             pub a: Vec3<T>,
             pub b: Vec3<T>,
-        }
-
-
-        impl<P,E> Rect<P,E> {
-            pub fn new(x: P, y: P, w: E, h: E) -> Self {
-                Self { x, y, w, h }
-            }
-            pub fn position(self) -> Vec2<P> {
-                let Self { x, y, .. } = self;
-                Vec2 { x, y }
-            }
-            pub fn extent(self) -> Extent2<E> {
-                let Self { w, h, .. } = self;
-                Extent2 { w, h }
-            }
-            pub fn into_pair(self) -> (Vec2<P>, Extent2<E>) {
-                let Self { x, y, w, h } = self;
-                (Vec2 { x, y }, Extent2 { w, h })
-            }
-            pub fn convert<DP,DE,PF,EF>(self, pf: PF, ef: EF) -> Rect<DP,DE>
-                where PF: Fn(P) -> DP, EF: Fn(E) -> DE
-            {
-                let Self { x, y, w, h } = self;
-                let Vec2 { x, y } = Vec2 { x, y }.convert(pf);
-                let Extent2 { w, h } = Extent2 { w, h }.convert(ef);
-                Rect { x, y, w, h }
-            }
-            /*
-            pub fn collision(self, _other: Self) -> Vec2<P> {
-                unimplemented!()    
-            }
-            pub fn split_v(self, _from_left: E) -> (Self, Self) {
-                unimplemented!()
-            }
-            pub fn split_h(self, _from_top: E) -> (Self, Self) {
-                unimplemented!()
-            }
-            pub fn split(self, _from_topleft: Extent2<E>) -> Mat2<Self> {
-                unimplemented!()
-            }
-            */
-        }
-
-        impl<P,E> From<(Vec2<P>, Extent2<E>)> for Rect<P,E> {
-            fn from(t: (Vec2<P>, Extent2<E>)) -> Self {
-                let Vec2 { x, y } = t.0;
-                let Extent2 { w, h } = t.1;
-                Self { x, y, w, h }
-            }
-        }
-
-        // NOTE: Don't implement Default
-        #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        pub struct FrustumPlanes<T> {
-            pub left: T,
-            pub right: T,
-            pub bottom: T,
-            pub top: T,
-            pub near: T,
-            pub far: T,
         }
     }
 }
