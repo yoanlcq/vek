@@ -210,7 +210,6 @@ pub use rect::*;
 
 
 // 0.9 roadmap:
-// TODO: Mat4: Prove that invert() works on projection matrices too.
 // TODO: Mat4 is_invertible(), determinant(), etc...
 // TODO:
 // - Others
