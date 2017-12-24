@@ -1,3 +1,5 @@
+//! Common and trivial geometric primitives.
+//!
 //! This module is still a work-in-progress. A lot of useful operations remain to be implemented.
 
 // WISH add useful impls to this module (inclusing basic conversions from rect to vec pairs)
@@ -7,7 +9,7 @@
 extern crate num_traits;
 
 use self::num_traits::{/*Float, Zero*/FloatConst, One};
-use core::ops::*;
+use std::ops::*;
 //use clamp::partial_max;
 
 macro_rules! geom_complete_mod {

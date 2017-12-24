@@ -5,14 +5,14 @@
 //! because of this.  
 //! They do have element-wise comparison functions though.
 
-use core::borrow::{Borrow, BorrowMut};
-use core::fmt::{self, Display, Formatter};
-use core::iter::{FromIterator, Product, Sum};
-use core::mem;
-use core::ptr;
-use core::cmp;
-use core::ops::*;
-use core::slice::{self, /*SliceIndex*/}; // NOTE: Will want to use SliceIndex once it's stabilized
+use std::borrow::{Borrow, BorrowMut};
+use std::fmt::{self, Display, Formatter};
+use std::iter::{FromIterator, Product, Sum};
+use std::mem;
+use std::ptr;
+use std::cmp;
+use std::ops::*;
+use std::slice::{self, /*SliceIndex*/}; // NOTE: Will want to use SliceIndex once it's stabilized
 use num_traits::{Zero, One, NumCast, Signed, Float};
 use approx::ApproxEq;
 use ops::*;
@@ -135,7 +135,7 @@ macro_rules! vec_impl_trinop {
 macro_rules! vec_impl_binop {
     (impl $Op:ident for $Vec:ident { $op:tt } ($($get:tt)+)) => {
         // NOTE: Reminder that scalars T: Copy also implement Into<$Vec<T>>.
-        impl<V, T> $Op<V> for $Vec<T> where V: Into<$Vec<T>>, T: $Op<Output=T> {
+        impl<V, T> $Op<V> for $Vec<T> where V: Into<$Vec<T>>, T: $Op<T, Output=T> {
             type Output = Self;
             fn $op(self, rhs: V) -> Self::Output {
                 let rhs = rhs.into();
@@ -186,7 +186,7 @@ macro_rules! vec_impl_binop {
 
     }
 }
-macro_rules! vec_impl_unop {
+macro_rules! vec_impl_binop_assign {
     (impl $Op:ident for $Vec:ident { $op:tt } ($($get:tt)+)) => {
         // NOTE: Reminder that scalars T: Copy also implement Into<$Vec<T>>.
         impl<V, T> $Op<V> for $Vec<T> where V: Into<$Vec<T>>, T: $Op<T> {
@@ -211,25 +211,16 @@ macro_rules! vec_impl_unop {
         */
     }
 }
-
-macro_rules! vec_impl_index {
-    ($Vec:ident $((($I:ty) -> $Output:tt))+) => {
-        $(
-            impl<T> Index<$I> for $Vec<T> {
-                type Output = $Output;
-                fn index(&self, i: $I) -> &Self::Output {
-                    &self.as_slice()[i]
-                }
+macro_rules! vec_impl_unop {
+    (impl $Op:ident for $Vec:ident { $op:tt } ($($get:tt)+)) => {
+        impl<T> $Op for $Vec<T> where T: $Op<Output=T> {
+            type Output = Self;
+            fn $op(self) -> Self::Output {
+                Self::new($(self.$get.$op()),+)
             }
-            impl<T> IndexMut<$I> for $Vec<T> {
-                fn index_mut(&mut self, i: $I) -> &mut Self::Output {
-                    &mut self.as_mut_slice()[i]
-                }
-            }
-        )+
+        }
     }
 }
-
 
 /// Generates implementations specific to the given vector type.
 macro_rules! vec_impl_vec {
@@ -364,19 +355,6 @@ macro_rules! vec_impl_vec {
                 Self::new($({let $namedget = T::one(); $namedget}),+)
             }
 
-            /// Are all elements of this vector equal to the given value ?
-            pub fn is_broadcast(&self, val: T) -> bool where T: Copy + PartialEq {
-                self == &Self::broadcast(val)
-            }
-            /// Are all elements of this vector equal to zero ?
-            pub fn is_zero(&self) -> bool where T: Zero + PartialEq {
-                self == &Self::zero()
-            }
-            /// Are all elements of this vector equal to one ?
-            pub fn is_one(&self) -> bool where T: One + PartialEq {
-                self == &Self::one()
-            }
-
             /// Produces a vector of the first `n` integers, starting from zero,
             /// where `n` is the number of elements for this vector type.
             ///
@@ -418,7 +396,8 @@ macro_rules! vec_impl_vec {
 
             /// Are elements of this vector tightly packed in memory ?
             // NOTE: Not public, because it is supposed to always be true.
-            // If it's not, we'll have to handle an exotic target.
+            // If it's not, someone is on an exotic target and I would like
+            // them to file an issue.
             pub(crate) fn is_packed(&self) -> bool {
                 let ptr = self as *const _ as *const T;
                 let mut i = -1isize;
@@ -431,7 +410,7 @@ macro_rules! vec_impl_vec {
                 true
             }
             /// Converts this into a raw pointer of read-only data.
-            pub fn as_ptr(&self) -> *const T {
+            fn as_ptr_priv(&self) -> *const T {
                 // This ought to be true and is checked by tests.
                 // Still, let's be careful about exotic architectures
                 // or alignment requirement of elements.
@@ -443,8 +422,8 @@ macro_rules! vec_impl_vec {
                 self as *const _ as *const T
             }
             /// Converts this into a raw pointer.
-            pub fn as_mut_ptr(&mut self) -> *mut T {
-                // See rationale in as_mut_ptr()
+            fn as_mut_ptr_priv(&mut self) -> *mut T {
+                // See rationale in as_ptr_priv()
                 assert!(self.is_packed());
                 self as *mut _ as *mut T
             }
@@ -452,13 +431,13 @@ macro_rules! vec_impl_vec {
             /// View this vector as an immutable slice.
             pub fn as_slice(&self) -> &[T] {
                 unsafe {
-                    slice::from_raw_parts(self.as_ptr(), $dim)
+                    slice::from_raw_parts(self.as_ptr_priv(), $dim)
                 }
             }
             /// View this vector as a mutable slice.
             pub fn as_mut_slice(&mut self) -> &mut [T] {
                 unsafe {
-                    slice::from_raw_parts_mut(self.as_mut_ptr(), $dim)
+                    slice::from_raw_parts_mut(self.as_mut_ptr_priv(), $dim)
                 }
             }
 
@@ -466,25 +445,6 @@ macro_rules! vec_impl_vec {
             /// their default values.
             pub fn from_slice(slice: &[T]) -> Self where T: Default + Copy {
                 Self::from_iter(slice.into_iter().cloned())
-            }
-
-            /// Attempts to get an immutable reference to the ith element.
-            pub fn get(&self, i: usize) -> Option<&T> {
-                self.as_slice().get(i)
-            }
-            /// Attempts to get an immutable reference to the ith element, bypassing bounds
-            /// checking.
-            pub unsafe fn get_unchecked(&self, i: usize) -> &T {
-                self.as_slice().get_unchecked(i)
-            }
-            /// Attempts to get a mutable reference to the ith element.
-            pub fn get_mut(&mut self, i: usize) -> Option<&mut T> {
-                self.as_mut_slice().get_mut(i)
-            }
-            /// Attempts to get a mutable reference to the ith element, bypassing bounds
-            /// checking.
-            pub unsafe fn get_unchecked_mut(&mut self, i: usize) -> &mut T {
-                self.as_mut_slice().get_unchecked_mut(i)
             }
 
             /// Returns a memberwise-converted copy of this vector, using the given conversion
@@ -496,7 +456,17 @@ macro_rules! vec_impl_vec {
             /// let i = v.map(|x| x.round() as i32);
             /// assert_eq!(i, Vec4::new(0, 1, 2, 3));
             /// ```
-            pub fn map<D,F>(self, f: F) -> $Vec<D> where F: Fn(T) -> D {
+            ///
+            /// Performing LERP on integer vectors by concisely converting them to floats:
+            ///
+            /// ```
+            /// # use vek::Vec4;
+            /// let a = Vec4::new(0,1,2,3).map(|x| x as f32);
+            /// let b = Vec4::new(2,3,4,5).map(|x| x as f32);
+            /// let v = Vec4::lerp(a, b, 0.5_f32).map(|x| x.round() as i32);
+            /// assert_eq!(v, Vec4::new(1,2,3,4));
+            /// ```
+            pub fn map<D,F>(self, mut f: F) -> $Vec<D> where F: FnMut(T) -> D {
                 $Vec::new($(f(self.$get)),+)
             }
             /// Returns a memberwise-converted copy of this vector, using `NumCast`.
@@ -508,7 +478,11 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(i, Vec4::new(0, 1, 2, 3));
             /// ```
             pub fn numcast<D>(self) -> Option<$Vec<D>> where T: NumCast, D: NumCast {
-                Some($Vec::new($(D::from(self.$get)?),+))
+                // NOTE: Should use `?` for conciseness, but docs.rs uses rustc 1.22 and doesn't seem to like that.
+                Some($Vec::new($(match D::from(self.$get) {
+                    Some(x) => x,
+                    None => return None,
+                }),+))
             }
             /// Converts this vector into a fixed-size array.
             pub fn into_array(self) -> [T; $dim] {
@@ -700,6 +674,7 @@ macro_rules! vec_impl_vec {
             ///
             /// ```should_panic
             /// # use vek::vec::Vec4;
+            /// // This causes a panic!
             /// let red = Vec4::new(255u8, 1, 0, 0);
             /// let grey_level = red.average();
             /// assert_eq!(grey_level, 128);
@@ -802,8 +777,7 @@ macro_rules! vec_impl_vec {
             /// let h = Vec4::new(0+1, 2+3, 4+5, 6+7);
             /// assert_eq!(h, a.hadd(b));
             /// ```
-            pub fn hadd<V>(self, rhs: V) -> Self where V: Into<Self>, T: Add<T, Output=T> {
-                let rhs = rhs.into();
+            pub fn hadd(self, rhs: Self) -> Self where T: Add<T, Output=T> {
                 let mut iter = self.into_iter().chain(rhs.into_iter());
                 $(
                     let $namedget = { 
@@ -959,27 +933,133 @@ macro_rules! vec_impl_vec {
 
 	        /// Returns the linear interpolation of `from` to `to` with `factor` unconstrained.  
             /// See the `Lerp` trait.
-            fn lerp_unclamped_precise<V: Into<Self>, S: Into<Self>>(from: V, to: V, factor: S) -> Self
-                where T: Copy + One + Mul<Output=T> + Sub<Output=T> + Add<Output=T> + MulAdd<T,T,Output=T>
+            pub fn lerp_unclamped_precise<S: Into<Self>>(from: Self, to: Self, factor: S) -> Self
+                where T: Copy + One + Mul<Output=T> + Sub<Output=T> + MulAdd<T,T,Output=T>
             {
-                let (from, to, factor) = (from.into(), to.into(), factor.into());
+                let factor = factor.into();
                 from.mul_add(Self::one()-factor, to*factor)
             }
 	        /// Same as `lerp_unclamped_precise`, implemented as a possibly faster but less precise operation.
             /// See the `Lerp` trait.
-            fn lerp_unclamped<V: Into<Self>, S: Into<Self>>(from: V, to: V, factor: S) -> Self
-                where T: Copy + One + Mul<Output=T> + Sub<Output=T> + Add<Output=T> + MulAdd<T,T,Output=T>
+            pub fn lerp_unclamped<S: Into<Self>>(from: Self, to: Self, factor: S) -> Self
+                where T: Copy + Sub<Output=T> + MulAdd<T,T,Output=T>
             {
-                let (from, to, factor) = (from.into(), to.into(), factor.into());
+                let factor = factor.into();
                 factor.mul_add(to - from, from)
             }
+	        /// Returns the linear interpolation of `from` to `to` with `factor` constrained to be
+            /// between 0 and 1.  
+            /// See the `Lerp` trait.
+            pub fn lerp<S: Into<Self> + Clamp + Zero + One>(from: Self, to: Self, factor: S) -> Self
+                where T: Copy + Sub<Output=T> + MulAdd<T,T,Output=T>
+            {
+                Self::lerp_unclamped(from, to, factor.clamped01().into())
+            }
+            /// Returns the linear interpolation of `from` to `to` with `factor` constrained to be
+            /// between 0 and 1.  
+            /// See the `Lerp` trait.
+            pub fn lerp_precise<S: Into<Self> + Clamp + Zero + One>(from: Self, to: Self, factor: S) -> Self
+                where T: Copy + One + Mul<Output=T> + Sub<Output=T> + MulAdd<T,T,Output=T>
+            {
+                Self::lerp_unclamped_precise(from, to, factor.clamped01().into())
+            }
         }
+
+
+        // OPS
+
+        /*
+        impl<T, Factor> Lerp<Factor> for $Vec<T>
+            where T: Copy + One + Mul<T,Output=T> + Sub<T,Output=T> + MulAdd<T,T,Output=T>,
+                  Factor: Into<$Vec<T>>
+        {
+            type Output = Self;
+            fn lerp_unclamped_precise(from: Self, to: Self, factor: Factor) -> Self {
+                Self::lerp_unclamped_precise(from, to, factor)
+            }
+            fn lerp_unclamped(from: Self, to: Self, factor: Factor) -> Self {
+                Self::lerp_unclamped(from, to, factor)
+            }
+        }
+        */
+        impl<T, Factor> Lerp<Factor> for $Vec<T>
+            where T: Lerp<Factor,Output=T>,
+                  Factor: Copy
+        {
+            type Output = Self;
+            fn lerp_unclamped_precise(from: Self, to: Self, factor: Factor) -> Self {
+                Self::new($(Lerp::lerp_unclamped_precise(from.$get, to.$get, factor)),+)
+            }
+            fn lerp_unclamped(from: Self, to: Self, factor: Factor) -> Self {
+                Self::new($(Lerp::lerp_unclamped(from.$get, to.$get, factor)),+)
+            }
+        }
+        impl<'a, T, Factor> Lerp<Factor> for &'a $Vec<T>
+            where &'a T: Lerp<Factor,Output=T>,
+                  Factor: Copy
+        {
+            type Output = $Vec<T>;
+            fn lerp_unclamped_precise(from: Self, to: Self, factor: Factor) -> $Vec<T> {
+                $Vec::new($(Lerp::lerp_unclamped_precise(&from.$get, &to.$get, factor)),+)
+            }
+            fn lerp_unclamped(from: Self, to: Self, factor: Factor) -> $Vec<T> {
+                $Vec::new($(Lerp::lerp_unclamped(&from.$get, &to.$get, factor)),+)
+            }
+        }
+
+
+        impl<T: Wrap + Copy> Wrap<T> for $Vec<T> {
+            fn wrapped(self, upper: T) -> Self {
+                self.wrapped(Self::broadcast(upper))
+            }
+            fn wrapped_between(self, lower: T, upper: T) -> Self {
+                self.wrapped_between(Self::broadcast(lower), Self::broadcast(upper))
+            }
+            fn pingpong(self, upper: T) -> Self {
+                self.pingpong(Self::broadcast(upper))
+            }
+        }
+        impl<T: Wrap> Wrap<$Vec<T>> for $Vec<T> {
+            fn wrapped(self, upper: $Vec<T>) -> Self {
+                Self::new($(self.$get.wrapped(upper.$get)),+)
+            }
+            fn wrapped_between(self, lower: Self, upper: Self) -> Self {
+                Self::new($(self.$get.wrapped_between(lower.$get, upper.$get)),+)
+            }
+            fn pingpong(self, upper: Self) -> Self {
+                Self::new($(self.$get.pingpong(upper.$get)),+)
+            }
+        }
+
+        impl<T: Clamp + Copy> Clamp<T> for $Vec<T> {
+            fn clamped(self, lower: T, upper: T) -> Self {
+                self.clamped(Self::broadcast(lower), Self::broadcast(upper))
+            }
+        }
+        impl<T: IsBetween<Output=bool> + Copy> IsBetween<T> for $Vec<T> {
+            type Output = $Vec<bool>;
+            fn is_between(self, lower: T, upper: T) -> Self::Output {
+                self.is_between(Self::broadcast(lower), Self::broadcast(upper))
+            }
+        }
+        impl<T: Clamp> Clamp<$Vec<T>> for $Vec<T> {
+            fn clamped(self, lower: Self, upper: Self) -> Self {
+                $Vec::new($(self.$get.clamped(lower.$get, upper.$get)),+)
+            }
+        }
+        impl<T: IsBetween<Output=bool>> IsBetween<$Vec<T>> for $Vec<T> {
+            type Output = $Vec<bool>;
+            fn is_between(self, lower: Self, upper: Self) -> Self::Output {
+                $Vec::new($(self.$get.is_between(lower.$get, upper.$get)),+)
+            }
+        }
+
 
         // TRAITS IMPLS
 
         impl<T: Zero + PartialEq> Zero for $Vec<T> {
             fn zero() -> Self { Self::zero() }
-            fn is_zero(&self) -> bool { self.is_zero() }
+            fn is_zero(&self) -> bool { self == &Self::zero() }
         }
         impl<T: One> One for $Vec<T> {
             fn one() -> Self { Self::one() }
@@ -1024,100 +1104,29 @@ macro_rules! vec_impl_vec {
             }
         }
 
-
-        // OPS
-
-        impl<T> Neg for $Vec<T> where T: Neg<Output=T> {
-            type Output = Self;
-            fn neg(self) -> Self::Output {
-                Self::new($(-self.$get),+)
-            }
-        }
-
-        impl<T> Lerp<T> for $Vec<T>
-            where T: Copy + One + Mul<Output=T> + Sub<Output=T> + Add<Output=T> + MulAdd<T,T,Output=T>
-        {
-            fn lerp_unclamped_precise(from: Self, to: Self, factor: T) -> Self {
-                Self::lerp_unclamped_precise(from, to, factor)
-            }
-            fn lerp_unclamped(from: Self, to: Self, factor: T) -> Self {
-                Self::lerp_unclamped(from, to, factor)
-            }
-        }
-
-        impl<T> Lerp<$Vec<T>> for $Vec<T>
-            where T: Copy + One + Mul<Output=T> + Sub<Output=T> + Add<Output=T> + MulAdd<T,T,Output=T>
-        {
-            fn lerp_unclamped_precise(from: Self, to: Self, factor: Self) -> Self {
-                Self::lerp_unclamped_precise(from, to, factor)
-            }
-            fn lerp_unclamped(from: Self, to: Self, factor: Self) -> Self {
-                Self::lerp_unclamped(from, to, factor)
-            }
-        }
-        impl<T: Wrap + Copy> Wrap<T> for $Vec<T> {
-            fn wrapped(self, upper: T) -> Self {
-                self.wrapped(Self::broadcast(upper))
-            }
-            fn wrapped_between(self, lower: T, upper: T) -> Self {
-                self.wrapped_between(Self::broadcast(lower), Self::broadcast(upper))
-            }
-            fn pingpong(self, upper: T) -> Self {
-                self.pingpong(Self::broadcast(upper))
-            }
-        }
-        impl<T: Wrap> Wrap<$Vec<T>> for $Vec<T> {
-            fn wrapped(self, upper: $Vec<T>) -> Self {
-                Self::new($(self.$get.wrapped(upper.$get)),+)
-            }
-            fn wrapped_between(self, lower: Self, upper: Self) -> Self {
-                Self::new($(self.$get.wrapped_between(lower.$get, upper.$get)),+)
-            }
-            fn pingpong(self, upper: Self) -> Self {
-                Self::new($(self.$get.pingpong(upper.$get)),+)
-            }
-        }
-
-        impl<T: Clamp<BoolVector=bool> + Copy> Clamp<T> for $Vec<T> {
-            type BoolVector = $Vec<bool>;
-            fn clamped(self, lower: T, upper: T) -> Self {
-                self.clamped(Self::broadcast(lower), Self::broadcast(upper))
-            }
-            fn is_between(self, lower: T, upper: T) -> Self::BoolVector {
-                self.is_between(Self::broadcast(lower), Self::broadcast(upper))
-            }
-        }
-        impl<T: Clamp<BoolVector=bool>> Clamp<$Vec<T>> for $Vec<T> {
-            type BoolVector = $Vec<bool>;
-            fn clamped(self, lower: Self, upper: Self) -> Self {
-                $Vec::new($(self.$get.clamped(lower.$get, upper.$get)),+)
-            }
-            fn is_between(self, lower: Self, upper: Self) -> Self::BoolVector {
-                $Vec::new($(self.$get.is_between(lower.$get, upper.$get)),+)
-            }
-        }
-
-
         vec_impl_trinop!{impl MulAdd for $Vec { mul_add } ($($namedget)+)}
+        vec_impl_unop!{ impl Neg for $Vec { neg } ($($get)+)}
         vec_impl_binop!{impl Add for $Vec { add } ($($get)+)}
         vec_impl_binop!{impl Sub for $Vec { sub } ($($get)+)}
         vec_impl_binop!{impl Mul for $Vec { mul } ($($get)+)}
         vec_impl_binop!{impl Div for $Vec { div } ($($get)+)}
         vec_impl_binop!{impl Rem for $Vec { rem } ($($get)+)}
-        vec_impl_unop!{ impl AddAssign for $Vec { add_assign } ($($get)+)}
-        vec_impl_unop!{ impl SubAssign for $Vec { sub_assign } ($($get)+)}
-        vec_impl_unop!{ impl MulAssign for $Vec { mul_assign } ($($get)+)}
-        vec_impl_unop!{ impl DivAssign for $Vec { div_assign } ($($get)+)}
-        vec_impl_unop!{ impl RemAssign for $Vec { rem_assign } ($($get)+)}
-
-        vec_impl_index!{
-            $Vec 
-            ((usize) -> T)
-            ((Range<usize>) -> [T])
-            ((RangeFrom<usize>) -> [T])
-            ((RangeTo<usize>) -> [T])
-            ((RangeFull) -> [T])
-        }
+        vec_impl_binop_assign!{ impl AddAssign for $Vec { add_assign } ($($get)+)}
+        vec_impl_binop_assign!{ impl SubAssign for $Vec { sub_assign } ($($get)+)}
+        vec_impl_binop_assign!{ impl MulAssign for $Vec { mul_assign } ($($get)+)}
+        vec_impl_binop_assign!{ impl DivAssign for $Vec { div_assign } ($($get)+)}
+        vec_impl_binop_assign!{ impl RemAssign for $Vec { rem_assign } ($($get)+)}
+        vec_impl_binop!{impl Shl    for $Vec { shl    } ($($get)+)}
+        vec_impl_binop!{impl Shr    for $Vec { shr    } ($($get)+)}
+        vec_impl_binop_assign!{impl ShlAssign    for $Vec { shl_assign    } ($($get)+)}
+        vec_impl_binop_assign!{impl ShrAssign    for $Vec { shr_assign    } ($($get)+)}
+        vec_impl_binop!{impl BitAnd for $Vec { bitand } ($($get)+)}
+        vec_impl_binop!{impl BitOr  for $Vec { bitor  } ($($get)+)}
+        vec_impl_binop!{impl BitXor for $Vec { bitxor } ($($get)+)}
+        vec_impl_binop_assign!{impl BitAndAssign for $Vec { bitand_assign } ($($get)+)}
+        vec_impl_binop_assign!{impl BitOrAssign  for $Vec { bitor_assign  } ($($get)+)}
+        vec_impl_binop_assign!{impl BitXorAssign for $Vec { bitxor_assign } ($($get)+)}
+        vec_impl_unop!{ impl Not for $Vec { not } ($($get)+)}
 
         impl<T> AsRef<[T]> for $Vec<T> {
             fn as_ref(&self) -> &[T] {
@@ -1157,44 +1166,60 @@ macro_rules! vec_impl_vec {
             type Item = &'a T;
             type IntoIter = slice::Iter<'a, T>;
             fn into_iter(self) -> Self::IntoIter {
-                self.as_slice().into_iter()
+                // Note to self: DO NOT return self.iter() here. Causes infinite recursion.
+                self.as_slice().iter()
             }
         }
         impl<'a, T> IntoIterator for &'a mut $Vec<T> {
             type Item = &'a mut T;
             type IntoIter = slice::IterMut<'a, T>;
             fn into_iter(self) -> Self::IntoIter {
-                self.as_mut_slice().into_iter()
+                // Note to self: DO NOT return self.iter_mut() here. Causes infinite recursion.
+                self.as_mut_slice().iter_mut()
             }
         }
+
+        impl<T> Deref for $Vec<T> {
+            type Target = [T];
+            fn deref(&self) -> &[T] {
+                self.as_slice()
+            }
+        }
+        impl<T> DerefMut for $Vec<T> {
+            fn deref_mut(&mut self) -> &mut [T] {
+                self.as_mut_slice()
+            }
+        }
+
+        use ::std::mem::ManuallyDrop;
 
         /// Consuming iterator over this module's vector type.
         // Can't (De)Serialize a ManuallyDrop<T>
         //#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+        #[derive(Debug, Hash, PartialEq, Eq)]
         pub struct IntoIter<T> {
-            vector: mem::ManuallyDrop<$Vec<T>>,
+            vector: $Vec<ManuallyDrop<T>>,
             start: usize,
             end: usize,
         }
 
-        // Be explicit about doing nothing when dropped!
-        // Ownership of all items is returned via ptr::read().
-        // If we dropped self.vector, this could lead to double frees.
-        // Tu understand this, picture what would happen for a Vec4<Rc<T>>.
-        /*
-         * Don't actually declare this - required for deriving Copy
+        // NOTE: Be careful to only drop elements that weren't yielded.
         impl<T> Drop for IntoIter<T> {
-            fn drop(&mut self) {}
+            fn drop(&mut self) {
+                for elem in &mut self.vector[self.start .. self.end] {
+                    unsafe {
+                        ManuallyDrop::drop(elem);
+                    }
+                }
+            }
         }
-        */
 
         impl<T> IntoIterator for $Vec<T> {
             type Item = T;
             type IntoIter = IntoIter<T>;
             fn into_iter(self) -> Self::IntoIter {
                 Self::IntoIter {
-                    vector: mem::ManuallyDrop::new(self),
+                    vector: self.map(ManuallyDrop::new),
                     start: 0,
                     end: $dim,
                 }
@@ -1208,7 +1233,7 @@ macro_rules! vec_impl_vec {
                     return None;
                 }
                 unsafe {
-                    let result = ptr::read(self.vector.get_unchecked(self.start));
+                    let result = ManuallyDrop::into_inner(ptr::read(self.vector.get_unchecked(self.start)));
                     self.start += 1;
                     Some(result)
                 }
@@ -1232,7 +1257,7 @@ macro_rules! vec_impl_vec {
                 }
                 unsafe {
                     self.end -= 1;
-                    Some(ptr::read(self.vector.get_unchecked(self.end)))
+                    Some(ManuallyDrop::into_inner(ptr::read(self.vector.get_unchecked(self.end))))
                 }
             }
         }
@@ -1279,6 +1304,33 @@ macro_rules! vec_impl_vec {
         ///
         /// This conversion is important because it allows scalars to be
         /// smoothly accepted as operands in most vector operations.
+        ///
+        /// For instance :
+        ///
+        /// ```
+        /// # use vek::{Mat4, Vec3, Vec4};
+        /// assert_eq!(Vec4::min(4, 5), Vec4::broadcast(4));
+        /// assert_eq!(Vec4::max(4, 5), Vec4::broadcast(5));
+        /// assert_eq!(Vec4::from(4), Vec4::broadcast(4));
+        /// assert_eq!(Vec4::from(4).mul_add(4, 5), Vec4::broadcast(21));
+        ///
+        /// // scaling_3d() logically accepts a Vec3...
+        /// let _ = Mat4::<f32>::scaling_3d(Vec3::broadcast(5.0));
+        /// // ... but there you go; quick uniform scale, thanks to Into !
+        /// let _ = Mat4::scaling_3d(5_f32);
+        /// ```
+        ///
+        /// On the other hand, it also allows writing nonsense.  
+        /// To minimize surprises, the names of operations try to be as explicit as possible.
+        ///
+        /// ```
+        /// # use vek::Mat4;
+        /// // This creates a matrix that translates to (5,5,5), but it's probably not what you meant.
+        /// // Hopefully the `_3d` suffix would help you catch this.
+        /// let _ = Mat4::translation_3d(5_f32);
+        /// // translation_3d() takes V: Into<Vec3> because it allows it to accept
+        /// // Vec2, Vec3 and Vec4, and also with both repr(C) and repr(simd) layouts.
+        /// ```
         impl<T: Copy> From<T> for $Vec<T> {
             fn from(val: T) -> Self {
                 Self::broadcast(val)
@@ -1351,7 +1403,7 @@ macro_rules! vec_impl_spatial {
                 let p = dot + dot;
                 let mut out: Self = unsafe { mem::uninitialized() };
                 for ((out_e, v), s) in out.iter_mut().zip(self.into_iter()).zip(surface_normal.into_iter()) {
-                    *out_e = v - s * p;
+                    mem::forget(mem::replace(out_e, v - s * p));
                 }
                 out
             }
@@ -1437,6 +1489,10 @@ macro_rules! vec_impl_spatial_2d {
                 let Self { x, y } = self;
                 Self::new(c*x - s*y, s*x + c*y)
             }
+            /// Rotates this vector in 2D. See `rotated_z()`.
+            pub fn rotate_z(&mut self, angle_radians: T) where T: Float {
+                *self = self.rotated_z(angle_radians);
+            }
             /// Get the unit vector which has `x` set to 1.
             pub fn unit_x    () -> Self where T: Zero + One { Self::new(T::one(), T::zero()) }
             /// Get the unit vector which has `y` set to 1.
@@ -1445,9 +1501,11 @@ macro_rules! vec_impl_spatial_2d {
             pub fn left      () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_x() }
             /// Get the unit vector which has `x` set to 1.
             pub fn right     () -> Self where T: Zero + One {  Self::unit_x() }
-            /// Get the unit vector which has `y` set to 1.
+            /// Get the unit vector which has `y` set to 1.  
+            /// This is not intended for screen-space coordinates (in which case the Y axis is reversed). When in doubt, just use `unit_y()` instead.
             pub fn up        () -> Self where T: Zero + One {  Self::unit_y() }
-            /// Get the unit vector which has `y` set to -1.
+            /// Get the unit vector which has `y` set to -1.  
+            /// This is not intended for screen-space coordinates (in which case the Y axis is reversed). When in doubt, just use `unit_y()` instead.
             pub fn down      () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_y() }
         }
     };
@@ -1516,7 +1574,7 @@ macro_rules! vec_impl_spatial_3d {
                 /// # }
                 /// ```
                 pub fn slerp_unclamped(from: Self, to: Self, factor: T) -> Self
-                    where T: Sum + Float + Clamp + Lerp<T>
+                    where T: Sum + Float + Clamp + Lerp<T,Output=T>
                 {
                     // From GLM, gtx/rotate_vector.inl
                     let (mag_from, mag_to) = (from.magnitude(), to.magnitude());
@@ -1534,9 +1592,9 @@ macro_rules! vec_impl_spatial_3d {
                 /// The vectors are not required to be normalized; their length
                 /// is also interpolated in the process.
                 pub fn slerp(from: Self, to: Self, factor: T) -> Self
-                    where T: Sum + Float + Clamp + Lerp<T>
+                    where T: Sum + Float + Clamp + Lerp<T,Output=T>
                 {
-                    Self::slerp_unclamped(from, to, factor.clamped01())
+                    Slerp::slerp(from, to, factor)
                 }
 
                 /// Get the unit vector which has `x` set to 1.
@@ -1561,6 +1619,14 @@ macro_rules! vec_impl_spatial_3d {
                 pub fn back_lh   () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_z() }
                 /// Get the unit vector which has `z` set to 1 ("back" in a right-handed coordinate system).
                 pub fn back_rh   () -> Self where T: Zero + One {  Self::unit_z() }
+            }
+            impl<T> Slerp<T> for $Vec<T> 
+                where T: Sum + Float + Clamp + Lerp<T,Output=T>
+            {
+                type Output = Self;
+                fn slerp_unclamped(from: Self, to: Self, factor: T) -> Self {
+                    Self::slerp_unclamped(from, to, factor)
+                }
             }
         )+
     }
@@ -1893,14 +1959,8 @@ macro_rules! vec_impl_color_rgba {
             pub fn cyan    () -> Self { Self::new_opaque(T::zero(), T::full(), T::full()) }
             pub fn magenta () -> Self { Self::new_opaque(T::full(), T::zero(), T::full()) }
             pub fn yellow  () -> Self { Self::new_opaque(T::full(), T::full(), T::zero()) }
-            pub fn gray(value: T) -> Self where T: Copy { Self::from(Rgba::new_opaque(value, value, value)) }
-            pub fn grey(value: T) -> Self where T: Copy { Self::from(Rgba::new_opaque(value, value, value)) }
-            pub fn gray_level_via_numcast_f64(self) -> Option<T> where T: NumCast { self.grey_level_via_numcast_f64() }
-            pub fn grey_level_via_numcast_f64(self) -> Option<T> where T: NumCast {
-                let $Vec::<f64> { r, g, b, .. } = self.numcast()?;
-                let avg = (r + g + b) / 3.;
-                T::from(avg)
-            }
+            pub fn gray(value: T) -> Self where T: Copy { Self::new_opaque(value, value, value) }
+            pub fn grey(value: T) -> Self where T: Copy { Self::new_opaque(value, value, value) }
 
             /// Returns this color with RGB elements inverted. Alpha is preserved.
             ///
@@ -1918,11 +1978,62 @@ macro_rules! vec_impl_color_rgba {
                 self.b = T::full() - self.b;
                 self
             }
+            pub fn shuffled_argb(self) -> Self {
+                let Self { r, g, b, a } = self;
+                Self::new(a, r, g, b)
+            }
+            pub fn shuffled_bgra(self) -> Self {
+                let Self { r, g, b, a } = self;
+                Self::new(b, g, r, a)
+            }
         }
     };
 }
 
-/// Opaque type wrapping a hardware-preferred shuffle mask format for `Vec4`.
+#[cfg(feature="rgb")]
+macro_rules! vec_impl_color_rgb {
+    ($Vec:ident) => {
+
+        #[cfg(feature="image")]
+        vec_impl_pixel_rgb!{$Vec}
+
+        impl<T: ColorComponent> $Vec<T> {
+            pub fn black   () -> Self { Self::new(T::zero(), T::zero(), T::zero()) }
+            pub fn white   () -> Self { Self::new(T::full(), T::full(), T::full()) }
+            pub fn red     () -> Self { Self::new(T::full(), T::zero(), T::zero()) }
+            pub fn green   () -> Self { Self::new(T::zero(), T::full(), T::zero()) }
+            pub fn blue    () -> Self { Self::new(T::zero(), T::zero(), T::full()) }
+            pub fn cyan    () -> Self { Self::new(T::zero(), T::full(), T::full()) }
+            pub fn magenta () -> Self { Self::new(T::full(), T::zero(), T::full()) }
+            pub fn yellow  () -> Self { Self::new(T::full(), T::full(), T::zero()) }
+            pub fn gray(value: T) -> Self where T: Copy { Self::new(value, value, value) }
+            pub fn grey(value: T) -> Self where T: Copy { Self::new(value, value, value) }
+            /// Returns this color with RGB elements inverted.
+            ///
+            /// ```
+            /// # use vek::Rgb;
+            /// let orange = Rgb::new(255_u8, 128, 0);
+            /// assert_eq!(orange.inverted_rgb(), Rgb::new(0, 127, 255));
+            /// assert_eq!(Rgb::<u8>::black().inverted_rgb(), Rgb::white());
+            /// assert_eq!(Rgb::<u8>::white().inverted_rgb(), Rgb::black());
+            /// assert_eq!(Rgb::<u8>::red().inverted_rgb(), Rgb::cyan());
+            /// ```
+            pub fn inverted_rgb(mut self) -> Self where T: Sub<Output=T> {
+                self.r = T::full() - self.r;
+                self.g = T::full() - self.g;
+                self.b = T::full() - self.b;
+                self
+            }
+            pub fn shuffled_bgr(self) -> Self {
+                let Self { r, g, b } = self;
+                Self::new(b, g, r)
+            }
+        }
+    }
+}
+
+
+/// Opaque type wrapping a hardware-preferred shuffle mask format for 4D vectors.
 // NOTE: I know that _mm_shuffle_ps() needs an immediate value for the mask,
 // which means that the mask value has to be known at compile-time, which is
 // problematic.
@@ -2177,49 +2288,6 @@ macro_rules! vec_impl_mat2_via_vec4 {
 }
 
 
-#[cfg(feature="rgb")]
-macro_rules! vec_impl_color_rgb {
-    ($Vec:ident) => {
-
-        #[cfg(feature="image")]
-        vec_impl_pixel_rgb!{$Vec}
-
-        impl<T: ColorComponent> $Vec<T> {
-            pub fn black   () -> Self { Self::new(T::zero(), T::zero(), T::zero()) }
-            pub fn white   () -> Self { Self::new(T::full(), T::full(), T::full()) }
-            pub fn red     () -> Self { Self::new(T::full(), T::zero(), T::zero()) }
-            pub fn green   () -> Self { Self::new(T::zero(), T::full(), T::zero()) }
-            pub fn blue    () -> Self { Self::new(T::zero(), T::zero(), T::full()) }
-            pub fn cyan    () -> Self { Self::new(T::zero(), T::full(), T::full()) }
-            pub fn magenta () -> Self { Self::new(T::full(), T::zero(), T::full()) }
-            pub fn yellow  () -> Self { Self::new(T::full(), T::full(), T::zero()) }
-            pub fn gray(value: T) -> Self where T: Copy { Self::new(value, value, value) }
-            pub fn grey(value: T) -> Self where T: Copy { Self::new(value, value, value) }
-            pub fn gray_level_via_numcast_f64(self) -> Option<T> where T: NumCast { self.grey_level_via_numcast_f64() }
-            pub fn grey_level_via_numcast_f64(self) -> Option<T> where T: NumCast {
-                let $Vec::<f64> { r, g, b, .. } = self.numcast()?;
-                let avg = (r + g + b) / 3.;
-                T::from(avg)
-            }
-            /// Returns this color with RGB elements inverted.
-            ///
-            /// ```
-            /// # use vek::Rgb;
-            /// let orange = Rgb::new(255_u8, 128, 0);
-            /// assert_eq!(orange.inverted_rgb(), Rgb::new(0, 127, 255));
-            /// assert_eq!(Rgb::<u8>::black().inverted_rgb(), Rgb::white());
-            /// assert_eq!(Rgb::<u8>::white().inverted_rgb(), Rgb::black());
-            /// assert_eq!(Rgb::<u8>::red().inverted_rgb(), Rgb::cyan());
-            /// ```
-            pub fn inverted_rgb(mut self) -> Self where T: Sub<Output=T> {
-                self.r = T::full() - self.r;
-                self.g = T::full() - self.g;
-                self.b = T::full() - self.b;
-                self
-            }
-        }
-    }
-}
 
 /// Calls `vec_impl_vec!{}` on each appropriate vector type.
 macro_rules! vec_impl_all_vecs {
@@ -2634,27 +2702,87 @@ pub use self::repr_c::*;
 
 #[cfg(test)]
 mod tests {
+    macro_rules! test_vec_t {
+        (repr_c $Vec:ident<$T:ident>) => {
+
+            test_vec_t!{common $Vec<$T>}
+
+            use ::std::rc::Rc;
+
+            #[test]
+            fn from_rc_array() {
+                let v: $Vec<Rc<i32>> = Default::default();
+                let mut a = v.into_array();
+                assert_eq!(Rc::strong_count(&a[0]), 1);
+                *Rc::make_mut(&mut a[0]) = 2; // Try to write. If there's a double free, this is supposed to crash.
+                let mut v = $Vec::from(a);
+                assert_eq!(Rc::strong_count(&v[0]), 1);
+                *Rc::make_mut(&mut v[0]) = 1; // Try to write. If there's a double free, this is supposed to crash.
+            }
+            #[test]
+            fn vec_rc_into_iter() {
+                let v: $Vec<Rc<i32>> = Default::default();
+                let mut rc = v.into_iter().next().unwrap();
+                assert_eq!(Rc::strong_count(&rc), 1);
+                *Rc::make_mut(&mut rc) = 1; // Try to write. If there's a double free, this is supposed to crash.
+            }
+        };
+        (repr_simd $Vec:ident<$T:ident>) => {
+            test_vec_t!{common $Vec<$T>}
+        };
+        (common $Vec:ident<$T:ident>) => {
+            #[test]
+            fn is_packed() {
+                assert!($Vec::<$T>::default().is_packed());
+            }
+        };
+    }
     macro_rules! for_each_type {
         ($vec:ident $Vec:ident $($T:ident)+) => {
             mod $vec {
                 mod repr_c {
+                    use $crate::vec::repr_c::$Vec;
                     $(mod $T {
-                        use $crate::vec::repr_c::$Vec;
-                        #[test]
-                        fn is_packed() {
-                            assert!($Vec::<$T>::default().is_packed());
-                        }
+                        use super::$Vec;
+                        test_vec_t!{repr_c $Vec<$T>}
                     })+
                 }
                 #[cfg(all(nightly, feature="repr_simd"))]
                 mod repr_simd {
                     $(mod $T {
                         use $crate::vec::repr_simd::$Vec;
-                        #[test]
-                        fn is_packed() {
-                            assert!($Vec::<$T>::default().is_packed());
-                        }
+                        test_vec_t!{repr_simd $Vec<$T>}
                     })+
+                }
+                mod api {
+                    use $crate::vec::repr_c::$Vec;
+                    #[test]
+                    fn iterator() {
+                        let v = $Vec::<i32>::default();
+                        let mut v: $Vec<i32> = (0..).into_iter().take(v.elem_count()).collect();
+                        for _ in &mut v {}
+                        for _ in &v {}
+                        for _ in v {}
+                        let mut v = $Vec::<i32>::default();
+                        let _ = v.as_ptr();
+                        let _ = v.as_mut_ptr();
+                        let _ = v.iter_mut();
+                        let _ = v.iter();
+                        let _ = v.into_iter();
+                        let mut v = $Vec::<i32>::default();
+                        let _ = v.iter_mut().rev();
+                        let _ = v.iter().rev();
+                        let _ = v.into_iter().rev();
+                        let mut v = $Vec::<i32>::default();
+                        let _ = v[0];
+                        v[0] = 0;
+                        let _ = v.get(0);
+                        let _ = v.get_mut(0);
+                        unsafe {
+                            let _ = v.get_unchecked(0);
+                            let _ = v.get_unchecked_mut(0);
+                        }
+                    }
                 }
             }
         };

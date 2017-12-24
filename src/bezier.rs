@@ -1,8 +1,9 @@
+//! Bézier curves
 // https://pomax.github.io/bezierinfo
 
 use num_traits::Float;
-use core::ops::*;
-use core::iter::Sum;
+use std::ops::*;
+use std::iter::Sum;
 use vec::repr_c::{
     Vec3 as CVec3,
     Vec4 as CVec4,

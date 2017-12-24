@@ -21,7 +21,7 @@
 //! Here is what `vek` has to offer:
 //!
 //! - General-purpose vectors: `Vec2<T>`, `Vec3<T>`, `Vec4<T>`. They have uses for representing
-//! points or direction in euclidian spaces.
+//! points or directions in euclidian spaces.
 //! - "Data crunching" vectors: `Vec8<T>`, `Vec16<T>`, `Vec32<T>`, `Vec64<T>`, useful for
 //! performing basic operaton on many elements in the best way allowed by CPU features.
 //! - RGB vectors: `Rgb<T>`, `Rgba<T>`. They have extended functionality related to color.
@@ -61,9 +61,9 @@
 //! assert_relative_eq!(four, 4.);
 //! let four = Vec4::from(four); // Same as broadcast()
 //! let iota = Vec4::iota();
-//! assert_relative_eq!(Vec4::lerp(iota, four, 0.0_f32), iota);
-//! assert_relative_eq!(Vec4::lerp(iota, four, 0.5_f32), Vec4::new(2., 2.5, 3., 3.5));
-//! assert_relative_eq!(Vec4::lerp(iota, four, 1.0_f32), four);
+//! assert_relative_eq!(Lerp::lerp(iota, four, 0.0_f32), iota);
+//! assert_relative_eq!(Lerp::lerp(iota, four, 0.5_f32), Vec4::new(2., 2.5, 3., 3.5));
+//! assert_relative_eq!(Lerp::lerp(iota, four, 1.0_f32), four);
 //! # }
 //! ```
 //!
@@ -141,7 +141,7 @@
 //! # `#![no_std]`
 //! This crate is `#![no_std]`.
 
-#![no_std]
+#![cfg_attr(not(test), no_std)]
 #![doc(
 	test(attr(deny(warnings))),
 	html_root_url = "https://docs.rs/vek/0.8.0",
@@ -160,6 +160,9 @@
 //#![cfg_attr(feature="repr_simd", allow(improper_ctypes)]
 //#![cfg_attr(feature="repr_simd", feature(link_llvm_intrinsics)]
 #![cfg_attr(all(nightly,test), feature(test))]
+
+#[cfg(not(test))]
+extern crate core as std;
 
 #[cfg(all(nightly,test))]
 extern crate test;
@@ -187,6 +190,16 @@ pub mod vec;
 pub use vec::*;
 pub mod ops;
 pub use ops::*;
+pub mod frustum;
+pub use frustum::*;
+pub mod rect;
+pub use rect::*;
+pub mod tween;
+pub use tween::*;
+#[cfg(feature="quaternion")]
+pub mod transform;
+#[cfg(feature="quaternion")]
+pub use transform::*;
 
 #[cfg(feature="quaternion")]
 pub mod quaternion;
@@ -203,27 +216,83 @@ pub mod geom;
 #[cfg(feature="geom")]
 pub use geom::*;
 
-pub mod frustum;
-pub use frustum::*;
-pub mod rect;
-pub use rect::*;
-
-
 // 0.9 roadmap:
-// TODO: Sort API entries so the documentation is consistent
-// TODO:
-// - Others
-//   Document the assumed handedness for rotations
-//       Handedness is only human perception. The maths are the same.
-//   Document the assumed matrix transform order (matrix * column_vector).
-//       If you wanna reverse the order, you have to transpose everything.
-//   Document the _zo _no stuff
-//   Document what _lh _rh transformations actually do (the tests do it but...)
-//   Document that feature requests are welcome!
-// NOTE: The point of `fix`, `fpa` and `num-bigint` features was to make them implement vek::ops.
-// NOTE: Clamp: rename to `PartialClamp` trait ? Resolved: NO. This would be a mess for an issue nobody really cares abouts.
+//
+// # Features
+// - Make vectors properly implement AsRef and AsMut to all other kinds of vectors
+// - impl FromStr for vectors
+// - from_html_hex(s: &str) for Rgb and Rgba
+// - Re-provide the `fix`, `fpa` and `num-bigint` optional dependencies.
+//   The point is to make their types implement most of vek::ops traits;
 // - Matrices:
 //   - Add 3D shearing.
-//   - decompose()
+//   - Add symmetries.
+//   - Add decompose() (steal from GLM) (convert into Transform!)
 //   - Add scale_from_point and rotate_about_point
-
+//   - is_diagonal_matrix()
+//   - is_symmetric()
+//   - FromStr
+// - Add Euler Angles ?
+//   - I'm not sure, because they suck, and nobody agrees on the order in which
+//     rotations are applied. Some say X,Y,Z, others say Z,Y,X.
+//     I'd rather leave this to users who know better what they want.
+// - Free functions (e.g dot(), cross(), etc).
+//   This would require pulling new traits out of existing functionality.
+//   - dot()
+//   - hadd()
+//   - cross()
+//   - distance()
+//   - normalize()
+//   - reflect()
+//   - refract()
+//   - face_forward()
+//   - angle_between()
+//   - transpose()
+//   - invert()
+//   Note that there are no free functions for Lerp, Slerp, etc.
+//   It's enough to just write Lerp::lerp(..). Less pain for us to maintain, but I might change my mind.
+// - Consider turning the ops module into a vek-ops crate (Like num did with num-traits)
+// - Consider a vek-derive crate for Lerp and stuff;
+//
+// # Soft fixes
+// - More assertions for projection matrices;
+// - Re-enable #![warn(missing_docs)]
+// - Make sure to fullfill the SIMD efficiency promise.
+//   - Use platform-intrinsics for operations on repr(simd) vectors.
+//   - transposed_sse() for Mat4<f32> (based on _MM_TRANSPOSE4_PS())
+//   - transposed_sse2() for Mat4<i32>
+//   - dot_sse4_1() for Vec4<f32>
+//   - load/store_nontemporal() for Vec4<f32> and Vec4<i32> (!! needs fencing! So there should be
+//   associated fence functions! !!)
+//   - Many others ???
+//
+// # Docs and publicity
+// - Do fix the README and src/lib.rs's doc.
+// - Change the headline to "2D and 3D Math swiss army knife" or something
+// - Make a cool logo!
+// - "Explain" the reason behind the name;
+// - Sort API entries so that documentation is easy to discover
+// - Document mixing repr_c and repr_simd (quirks, and From implementations)
+// - Document mixing row-major and column-major (new(), Display, public member, multiplication and efficiency)
+// - Document which traits aren't needed to be imported (Lerp, Slerp, etc) and why these in
+//   particular. (Answer: it's convenient and arbitrary. There's no rule.)
+// - Explain why I'm not using `#[repr(packed)]`, and how to deal with this as a user.
+// - Document choices for assertions:
+//   - assert!() when critical to memory safety;
+//   - debug_assert!() otherwise.
+//   - Illustrate with perspective projection matrix. We'd rather have the final user see weird behaviour
+//     than a sudden unexplained panic.
+// - Document the assumed handedness for rotations
+//   Handedness is only a matter of human visualization. The maths are the same.
+// - Document the assumed matrix transform order (matrix * column_vector).
+//   If you wanna reverse the order, you have to transpose everything.
+// - Document the _zo _no stuff
+// - Document what _lh _rh transformations actually do;
+//   For instance, it's hard to picture the difference between look_at_view_rh() and
+//   look_at_view_lh().
+// - Document that feature requests are welcome!
+// - Add these to unwanted-features, wont-fix, whatever :
+//   - Clamp WILL NOT see a `PartialClamp` counterpart. This would be a mess for an issue nobody really cares about.
+//   - Factor and Progress types (for Lerp, etc) ARE NOT REQUIRED to be Float.
+//     Think about fixed-point: They can't implement classify(), infinity(), etc.
+//

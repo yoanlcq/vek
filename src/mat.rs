@@ -1,11 +1,11 @@
 //! Matrix types.
 
-use core::mem;
-use core::ptr;
-use core::slice;
-use core::iter::Sum;
-use core::fmt::{self, Display, Formatter};
-use core::ops::*;
+use std::mem;
+use std::ptr;
+use std::slice;
+use std::iter::Sum;
+use std::fmt::{self, Display, Formatter};
+use std::ops::*;
 use num_traits::{Zero, One, Float, NumCast};
 use approx::ApproxEq;
 use ops::MulAdd;
@@ -14,6 +14,8 @@ use rect::Rect;
 use frustum::FrustumPlanes;
 #[cfg(feature="quaternion")]
 use quaternion;
+#[cfg(feature="quaternion")]
+use transform;
 
 macro_rules! mat_impl_mat {
     (rows $Mat:ident $CVec:ident $Vec:ident ($nrows:tt x $ncols:tt) ($($get:tt)+)) => {
@@ -42,7 +44,7 @@ macro_rules! mat_impl_mat {
             ///     6, 7, 5, 5
             /// ));
             /// ```
-            pub fn map_rows<D,F>(self, f: F) -> $Mat<D> where F: Fn($Vec<T>) -> $Vec<D> {
+            pub fn map_rows<D,F>(self, mut f: F) -> $Mat<D> where F: FnMut($Vec<T>) -> $Vec<D> {
                 $Mat { rows: $CVec::new($(f(self.rows.$get)),+) }
             }
 
@@ -73,7 +75,7 @@ macro_rules! mat_impl_mat {
                     for i in 0..$nrows {
                         let row = m.rows.get_unchecked(i);
                         $(
-                            *array.get_unchecked_mut(cur) = ptr::read(&row.$get);
+                            mem::forget(mem::replace(array.get_unchecked_mut(cur), ptr::read(&row.$get)));
                             cur += 1;
                         )+
                     }
@@ -107,7 +109,7 @@ macro_rules! mat_impl_mat {
                     for i in 0..$nrows {
                         let row = m.rows.get_unchecked_mut(i);
                         $(
-                            row.$get = ptr::read(array.get_unchecked(cur));
+                            mem::forget(mem::replace(&mut row.$get, ptr::read(array.get_unchecked(cur))));
                             cur += 1;
                         )+
                     }
@@ -140,7 +142,7 @@ macro_rules! mat_impl_mat {
                     let mut array: [T; $nrows*$ncols] = mem::uninitialized();
                     $(
                         for i in 0..$nrows {
-                            *array.get_unchecked_mut(cur) = ptr::read(&m.rows.get_unchecked(i).$get);
+                            mem::forget(mem::replace(array.get_unchecked_mut(cur), ptr::read(&m.rows.get_unchecked(i).$get)));
                             cur += 1;
                         }
                     )+
@@ -173,7 +175,7 @@ macro_rules! mat_impl_mat {
                     let mut m: Self = mem::uninitialized();
                     $(
                         for i in 0..$nrows {
-                            m.rows.get_unchecked_mut(i).$get = ptr::read(array.get_unchecked(cur));
+                            mem::forget(mem::replace(&mut m.rows.get_unchecked_mut(i).$get, ptr::read(array.get_unchecked(cur))));
                             cur += 1;
                         }
                     )+
@@ -185,7 +187,8 @@ macro_rules! mat_impl_mat {
             ///
             /// # Panics
             /// Panics if the matrix's elements are not tightly packed in memory,
-            /// which may be the case for matrices in the `repr_simd` module.
+            /// which may be the case for matrices in the `repr_simd` module.  
+            /// You may check this with the `is_packed()` method.
             pub fn as_row_ptr(&self) -> *const T {
                 assert!(self.is_packed());
                 self.rows.as_ptr() as *const _ as *const T
@@ -194,7 +197,8 @@ macro_rules! mat_impl_mat {
             ///
             /// # Panics
             /// Panics if the matrix's elements are not tightly packed in memory,
-            /// which may be the case for matrices in the `repr_simd` module.
+            /// which may be the case for matrices in the `repr_simd` module.  
+            /// You may check this with the `is_packed()` method.
             pub fn as_mut_row_ptr(&mut self) -> *mut T {
                 assert!(self.is_packed());
                 self.rows.as_mut_ptr() as *mut _ as *mut T
@@ -203,7 +207,8 @@ macro_rules! mat_impl_mat {
             ///
             /// # Panics
             /// Panics if the matrix's elements are not tightly packed in memory,
-            /// which may be the case for matrices in the `repr_simd` module.
+            /// which may be the case for matrices in the `repr_simd` module.  
+            /// You may check this with the `is_packed()` method.
             pub fn as_row_slice(&self) -> &[T] {
                 unsafe {
                     slice::from_raw_parts(self.as_row_ptr(), $nrows*$ncols)
@@ -213,7 +218,8 @@ macro_rules! mat_impl_mat {
             ///
             /// # Panics
             /// Panics if the matrix's elements are not tightly packed in memory,
-            /// which may be the case for matrices in the `repr_simd` module.
+            /// which may be the case for matrices in the `repr_simd` module.  
+            /// You may check this with the `is_packed()` method.
             pub fn as_mut_row_slice(&mut self) -> &mut [T] {
                 unsafe {
                     slice::from_raw_parts_mut(self.as_mut_row_ptr(), $nrows*$ncols)
@@ -232,6 +238,7 @@ macro_rules! mat_impl_mat {
         ///   mi0 ... mij )
         /// ```
         ///
+        /// Note that elements are not comma-separated.  
         /// This format doesn't depend on the matrix's storage layout.
         impl<T: Display> Display for $Mat<T> {
             fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -425,7 +432,7 @@ macro_rules! mat_impl_mat {
             ///     6, 7, 5, 5
             /// ));
             /// ```
-            pub fn map_cols<D,F>(self, f: F) -> $Mat<D> where F: Fn($Vec<T>) -> $Vec<D> {
+            pub fn map_cols<D,F>(self, mut f: F) -> $Mat<D> where F: FnMut($Vec<T>) -> $Vec<D> {
                 $Mat { cols: $CVec::new($(f(self.cols.$get)),+) }
             }
 
@@ -457,7 +464,7 @@ macro_rules! mat_impl_mat {
                     for i in 0..$ncols {
                         let col = m.cols.get_unchecked(i);
                         $(
-                            *array.get_unchecked_mut(cur) = ptr::read(&col.$get);
+                            mem::forget(mem::replace(array.get_unchecked_mut(cur), ptr::read(&col.$get)));
                             cur += 1;
                         )+
                     }
@@ -491,7 +498,7 @@ macro_rules! mat_impl_mat {
                     for i in 0..$ncols {
                         let col = m.cols.get_unchecked_mut(i);
                         $(
-                            col.$get = ptr::read(array.get_unchecked(cur));
+                            mem::forget(mem::replace(&mut col.$get, ptr::read(array.get_unchecked(cur))));
                             cur += 1;
                         )+
                     }
@@ -524,7 +531,7 @@ macro_rules! mat_impl_mat {
                     let mut array: [T; $nrows*$ncols] = mem::uninitialized();
                     $(
                         for i in 0..$ncols {
-                            *array.get_unchecked_mut(cur) = ptr::read(&m.cols.get_unchecked(i).$get);
+                            mem::forget(mem::replace(array.get_unchecked_mut(cur), ptr::read(&m.cols.get_unchecked(i).$get)));
                             cur += 1;
                         }
                     )+
@@ -557,7 +564,7 @@ macro_rules! mat_impl_mat {
                     let mut m: Self = mem::uninitialized();
                     $(
                         for i in 0..$ncols {
-                            m.cols.get_unchecked_mut(i).$get = ptr::read(array.get_unchecked(cur));
+                            mem::forget(mem::replace(&mut m.cols.get_unchecked_mut(i).$get, ptr::read(array.get_unchecked(cur))));
                             cur += 1;
                         }
                     )+
@@ -569,7 +576,8 @@ macro_rules! mat_impl_mat {
             ///
             /// # Panics
             /// Panics if the matrix's elements are not tightly packed in memory,
-            /// which may be the case for matrices in the `repr_simd` module.
+            /// which may be the case for matrices in the `repr_simd` module.  
+            /// You may check this with the `is_packed()` method.
             pub fn as_col_ptr(&self) -> *const T {
                 assert!(self.is_packed());
                 self.cols.as_ptr() as *const _ as *const T
@@ -578,7 +586,8 @@ macro_rules! mat_impl_mat {
             ///
             /// # Panics
             /// Panics if the matrix's elements are not tightly packed in memory,
-            /// which may be the case for matrices in the `repr_simd` module.
+            /// which may be the case for matrices in the `repr_simd` module.  
+            /// You may check this with the `is_packed()` method.
             pub fn as_mut_col_ptr(&mut self) -> *mut T {
                 assert!(self.is_packed());
                 self.cols.as_mut_ptr() as *mut _ as *mut T
@@ -587,7 +596,8 @@ macro_rules! mat_impl_mat {
             ///
             /// # Panics
             /// Panics if the matrix's elements are not tightly packed in memory,
-            /// which may be the case for matrices in the `repr_simd` module.
+            /// which may be the case for matrices in the `repr_simd` module.  
+            /// You may check this with the `is_packed()` method.
             pub fn as_col_slice(&self) -> &[T] {
                 unsafe {
                     slice::from_raw_parts(self.as_col_ptr(), $nrows*$ncols)
@@ -597,7 +607,8 @@ macro_rules! mat_impl_mat {
             ///
             /// # Panics
             /// Panics if the matrix's elements are not tightly packed in memory,
-            /// which may be the case for matrices in the `repr_simd` module.
+            /// which may be the case for matrices in the `repr_simd` module.  
+            /// You may check this with the `is_packed()` method.
             pub fn as_mut_col_slice(&mut self) -> &mut [T] {
                 unsafe {
                     slice::from_raw_parts_mut(self.as_mut_col_ptr(), $nrows*$ncols)
@@ -616,6 +627,7 @@ macro_rules! mat_impl_mat {
         ///   mi0 ... mij )
         /// ```
         ///
+        /// Note that elements are not comma-separated.  
         /// This format doesn't depend on the matrix's storage layout.
         impl<T: Display> Display for $Mat<T> {
             fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -799,7 +811,7 @@ macro_rules! mat_impl_mat {
                 Self::identity()
             }
         }
-        // XXX: Now we have two is_zero() which operate differently :(
+        // Welp, not using ApproxEq here - integers don't implement it :(
         impl<T: Zero + PartialEq> Zero for $Mat<T> {
             fn zero() -> Self { Self::zero() }
             fn is_zero(&self) -> bool { self == &Self::zero() }
@@ -826,14 +838,6 @@ macro_rules! mat_impl_mat {
                         $($get: $Vec::zero(),)+
                     }
                 }
-            }
-            /// Are all elements of this matrix equal to zero ? (uses ApproxEq)
-            pub fn is_zero(&self) -> bool where T: Zero, Self: ApproxEq {
-                Self::relative_eq(self, &Self::zero(), Self::default_epsilon(), Self::default_max_relative())
-            }
-            /// Is this matrix the identity ? (uses ApproxEq)
-            pub fn is_identity(&self) -> bool where T: Zero + One, Self: ApproxEq {
-                Self::relative_eq(self, &Self::identity(), Self::default_epsilon(), Self::default_max_relative())
             }
             /// Returns a memberwise-converted copy of this matrix, using `NumCast`.
             ///
@@ -873,7 +877,7 @@ macro_rules! mat_impl_mat {
                 out
             }
             /// Initializes a matrix by its diagonal, setting other elements to zero.
-            pub fn from_diagonal(d: $Vec<T>) -> Self where T: Zero + Copy {
+            pub fn with_diagonal(d: $Vec<T>) -> Self where T: Zero + Copy {
                 let mut out = Self::zero();
                 $(out.$lines.$get.$get = d.$get;)+
                 out
@@ -950,12 +954,12 @@ macro_rules! mat_impl_mat {
                 if !self.$lines.is_packed() {
                     return false;
                 }
+                const_assert_eq!($nrows, $ncols);
                 $(
-                    i += 1;
                     if !self.$lines.$get.is_packed() {
                         return false;
                     }
-                    const_assert_eq!($nrows, $ncols);
+                    i += 1;
                     if unsafe { ptr.offset(i*($nrows+1)) } != &self.$lines.$get.$get as *const _ {
                         return false;
                     }
@@ -1187,6 +1191,37 @@ macro_rules! mat_impl_mat4 {
         use super::column_major::Mat4 as Cols4;
 
         impl<T> Mat4<T> {
+            /// Returns an element-wise-converted copy of this matrix, using the given conversion
+            /// closure.
+            ///
+            /// ```
+            /// use vek::mat::repr_c::row_major::Mat4;
+            ///
+            /// let m = Mat4::<f32>::new(
+            ///     0.25, 1.25, 5.56, 8.66,
+            ///     8.53, 2.92, 3.86, 9.36,
+            ///     1.02, 0.28, 5.52, 6.06,
+            ///     6.20, 7.01, 4.90, 5.26
+            /// );
+            /// let m = m.map(|x| x.round() as i32);
+            /// assert_eq!(m, Mat4::new(
+            ///     0, 1, 6, 9,
+            ///     9, 3, 4, 9,
+            ///     1, 0, 6, 6,
+            ///     6, 7, 5, 5
+            /// ));
+            /// ```
+            pub fn map<D,F>(self, mut f: F) -> Mat4<D> where F: FnMut(T) -> D {
+                let m = self.$lines;
+                Mat4 {
+                    $lines: CVec4::new(
+                        Vec4::new(f(m.x.x), f(m.x.y), f(m.x.z), f(m.x.w)),
+                        Vec4::new(f(m.y.x), f(m.y.y), f(m.y.z), f(m.y.w)),
+                        Vec4::new(f(m.z.x), f(m.z.y), f(m.z.z), f(m.z.w)),
+                        Vec4::new(f(m.w.x), f(m.w.y), f(m.w.z), f(m.w.w))
+                    )
+                }
+            }
 
             /// The matrix's transpose.
             ///
@@ -1216,12 +1251,18 @@ macro_rules! mat_impl_mat4 {
             /// assert_eq!(m.transposed(), t);
             /// assert_eq!(m, m.transposed().transposed());
             ///
+            /// // By the way, demonstrate ways to invert a rotation matrix,
+            /// // from fastest (specific) to slowest (general-purpose).
             /// let m = Mat4::rotation_x(PI/7.);
-            /// assert_relative_eq!(m * m.transposed(), Mat4::identity());
-            /// assert_relative_eq!(m.transposed() * m, Mat4::identity());
-            /// // This is supposed to hold true, but our inversion implementation
-            /// // loses to much precision in some elements.
-            /// // assert_relative_eq!(m.transposed(), m.inverted());
+            /// let id = Mat4::identity();
+            /// assert_relative_eq!(id, m * m.transposed());
+            /// assert_relative_eq!(id, m.transposed() * m);
+            /// assert_relative_eq!(id, m * m.inverted_affine_transform_no_scale());
+            /// assert_relative_eq!(id, m.inverted_affine_transform_no_scale() * m);
+            /// assert_relative_eq!(id, m * m.inverted_affine_transform());
+            /// assert_relative_eq!(id, m.inverted_affine_transform() * m);
+            /// assert_relative_eq!(id, m * m.inverted());
+            /// assert_relative_eq!(id, m.inverted() * m);
             /// # }
             /// ```
             // NOTE: Implemented on a per-matrix basis to avoid a Clone bound on T
@@ -1330,6 +1371,7 @@ macro_rules! mat_impl_mat4 {
             /// assert_relative_eq!(b*a, Cols4::identity(), epsilon = 0.000001);
             ///
             /// // Beware, projection matrices are not invertible!
+            /// // Notice that we assert _inequality_ below.
             /// let a = Cols4::perspective_rh_zo(60_f32.to_radians(), 16./9., 0.001, 1000.) * a;
             /// let b = a.inverted();
             /// assert_relative_ne!(a*b, Cols4::identity(), epsilon = 0.000001);
@@ -1419,7 +1461,7 @@ macro_rules! mat_impl_mat4 {
             /// assert_relative_eq!(b*a, Cols4::identity(), epsilon = 0.000001);
             ///
             /// // Look! It stops working as soon as we add a scale.
-            /// // (notice that we assert on inequality here)
+            /// // Notice that we assert _inequality_ below.
             /// let a = Rows4::scaling_3d(5_f32)
             ///     .rotated_3d(PI*4./5., Vec3::new(5., 8., 10.))
             ///     .translated_3d(Vec3::new(1., 2., 3.));
@@ -1710,14 +1752,14 @@ macro_rules! mat_impl_mat4 {
             /// # fn main() {
             /// let v = Vec4::unit_x();
             ///
-            /// let q = Mat4::rotation_z(PI);
-            /// assert_relative_eq!(q * v, -v);
+            /// let m = Mat4::rotation_z(PI);
+            /// assert_relative_eq!(m * v, -v);
             ///
-            /// let q = Mat4::rotation_z(PI * 0.5);
-            /// assert_relative_eq!(q * v, Vec4::unit_y());
+            /// let m = Mat4::rotation_z(PI * 0.5);
+            /// assert_relative_eq!(m * v, Vec4::unit_y());
             ///
-            /// let q = Mat4::rotation_z(PI * 1.5);
-            /// assert_relative_eq!(q * v, -Vec4::unit_y());
+            /// let m = Mat4::rotation_z(PI * 1.5);
+            /// assert_relative_eq!(m * v, -Vec4::unit_y());
             ///
             /// let angles = 32;
             /// for i in 0..angles {
@@ -2331,7 +2373,7 @@ macro_rules! mat_impl_mat4 {
                 Self::scaling_3d(sc) * Self::translation_3d(tr)
             }
 
-            /// Returns a matrix that projects from world-space to screen-space,
+            /// Projects a world-space coordinate into screen space,
             /// for a depth clip space ranging from -1 to 1 (`GL_DEPTH_NEGATIVE_ONE_TO_ONE`,
             /// hence the `_no` suffix).
             pub fn world_to_viewport_no<V3>(obj: V3, modelview: Self, proj: Self, viewport: Rect<T, T>) -> Vec3<T>
@@ -2354,7 +2396,7 @@ macro_rules! mat_impl_mat4 {
                 tmp.into()
             }
 
-            /// Returns a matrix that projects from world-space to screen-space,
+            /// Projects a world-space coordinate into screen space,
             /// for a depth clip space ranging from 0 to 1 (`GL_DEPTH_ZERO_TO_ONE`,
             /// hence the `_zo` suffix).
             pub fn world_to_viewport_zo<V3>(obj: V3, modelview: Self, proj: Self, viewport: Rect<T, T>) -> Vec3<T>
@@ -2378,7 +2420,7 @@ macro_rules! mat_impl_mat4 {
                 tmp.into()
             }
 
-            /// Returns a matrix that unprojects from screen-space to world-space,
+            /// Projects a screen-space coordinate into world space,
             /// for a depth clip space ranging from 0 to 1 (`GL_DEPTH_ZERO_TO_ONE`,
             /// hence the `_zo` suffix).
             pub fn viewport_to_world_zo<V3>(ray: V3, modelview: Self, proj: Self, viewport: Rect<T, T>) -> Vec3<T>
@@ -2399,7 +2441,7 @@ macro_rules! mat_impl_mat4 {
 
                 obj.into()
             }
-            /// Returns a matrix that unprojects from screen-space to world-space,
+            /// Projects a screen-space coordinate into world space,
             /// for a depth clip space ranging from -1 to 1 (`GL_DEPTH_NEGATIVE_ONE_TO_ONE`,
             /// hence the `_no` suffix).
             pub fn viewport_to_world_no<V3>(ray: V3, modelview: Self, proj: Self, viewport: Rect<T, T>) -> Vec3<T>
@@ -2450,6 +2492,17 @@ macro_rules! mat_impl_mat4 {
                         Vec4::new(T::zero(), T::zero(), T::zero(), T::one())
                     )
                 }
+            }
+        }
+
+
+        #[cfg(feature="quaternion")]
+        impl<T> From<Transform<T,T,T>> for Mat4<T>
+            where T: Float + MulAdd<T,T,Output=T>
+        {
+            fn from(xform: Transform<T,T,T>) -> Self {
+                let Transform { position, orientation, scale } = xform;
+                Mat4::from(orientation).scaled_3d(scale).translated_3d(position)
             }
         }
 
@@ -2526,6 +2579,7 @@ macro_rules! mat_impl_mat4 {
             }
         }
 
+        // FIXME: This has never been tested!!!
         #[cfg(feature="quaternion")]
         impl<T> From<Mat4<T>> for Quaternion<T>
             where T: Float + Zero + One + Mul<Output=T> + Add<Output=T> + Sub<Output=T>
@@ -2548,16 +2602,15 @@ macro_rules! mat_impl_mat4 {
                 let r = (T::one() + m[p[0]][p[0]] - m[p[1]][p[1]] - m[p[2]][p[2]]).sqrt();
 
                 if r < T::epsilon() {
-                    Self::from_xyzw(T::zero(), T::zero(), T::zero(), T::one())
-                } else {
-                    let two = T::one() + T::one();
-                    Self::from_xyzw(
-                        (m[p[0]][p[1]] - m[p[1]][p[0]])/(two*r),
-                        (m[p[2]][p[0]] - m[p[0]][p[2]])/(two*r),
-                        (m[p[2]][p[1]] - m[p[1]][p[2]])/(two*r),
-                        r/two
-                    )
+                    return Self::identity();
                 }
+                let two = T::one() + T::one();
+                Self::from_xyzw(
+                    (m[p[0]][p[1]] - m[p[1]][p[0]])/(two*r),
+                    (m[p[2]][p[0]] - m[p[0]][p[2]])/(two*r),
+                    (m[p[2]][p[1]] - m[p[1]][p[2]])/(two*r),
+                    r/two
+                )
             }
         }
     };
@@ -2617,6 +2670,37 @@ macro_rules! mat_impl_mat3 {
     };
     (common $lines:ident) => {
         impl<T> Mat3<T> {
+            /// Returns an element-wise-converted copy of this matrix, using the given conversion
+            /// closure.
+            ///
+            /// ```
+            /// use vek::mat::repr_c::row_major::Mat4;
+            ///
+            /// let m = Mat4::<f32>::new(
+            ///     0.25, 1.25, 5.56, 8.66,
+            ///     8.53, 2.92, 3.86, 9.36,
+            ///     1.02, 0.28, 5.52, 6.06,
+            ///     6.20, 7.01, 4.90, 5.26
+            /// );
+            /// let m = m.map(|x| x.round() as i32);
+            /// assert_eq!(m, Mat4::new(
+            ///     0, 1, 6, 9,
+            ///     9, 3, 4, 9,
+            ///     1, 0, 6, 6,
+            ///     6, 7, 5, 5
+            /// ));
+            /// ```
+            pub fn map<D,F>(self, mut f: F) -> Mat3<D> where F: FnMut(T) -> D {
+                let m = self.$lines;
+                Mat3 {
+                    $lines: CVec3::new(
+                        Vec3::new(f(m.x.x), f(m.x.y), f(m.x.z)),
+                        Vec3::new(f(m.y.x), f(m.y.y), f(m.y.z)),
+                        Vec3::new(f(m.z.x), f(m.z.y), f(m.z.z)),
+                    )
+                }
+            }
+
             /// The matrix's transpose.
             ///
             /// For orthogonal matrices, the transpose is the same as the inverse.
@@ -2961,6 +3045,36 @@ macro_rules! mat_impl_mat2 {
     };
     (common $lines:ident) => {
         impl<T> Mat2<T> {
+            /// Returns an element-wise-converted copy of this matrix, using the given conversion
+            /// closure.
+            ///
+            /// ```
+            /// use vek::mat::repr_c::row_major::Mat4;
+            ///
+            /// let m = Mat4::<f32>::new(
+            ///     0.25, 1.25, 5.56, 8.66,
+            ///     8.53, 2.92, 3.86, 9.36,
+            ///     1.02, 0.28, 5.52, 6.06,
+            ///     6.20, 7.01, 4.90, 5.26
+            /// );
+            /// let m = m.map(|x| x.round() as i32);
+            /// assert_eq!(m, Mat4::new(
+            ///     0, 1, 6, 9,
+            ///     9, 3, 4, 9,
+            ///     1, 0, 6, 6,
+            ///     6, 7, 5, 5
+            /// ));
+            /// ```
+            pub fn map<D,F>(self, mut f: F) -> Mat2<D> where F: FnMut(T) -> D {
+                let m = self.$lines;
+                Mat2 {
+                    $lines: CVec2::new(
+                        Vec2::new(f(m.x.x), f(m.x.y)),
+                        Vec2::new(f(m.y.x), f(m.y.y)),
+                    )
+                }
+            }
+
             /// The matrix's transpose.
             ///
             /// ```
@@ -3142,6 +3256,7 @@ macro_rules! mat_impl_all_mats {
             /// 4x4 matrix.
             #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq/* , Ord, PartialOrd */)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+            #[repr(C)]
             pub struct Mat4<T> {
                 #[allow(missing_docs)]
                 pub $lines: CVec4<Vec4<T>>,
@@ -3159,6 +3274,7 @@ macro_rules! mat_impl_all_mats {
             /// 3x3 matrix.
             #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq/* , Ord, PartialOrd */)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+            #[repr(C)]
             pub struct Mat3<T> {
                 #[allow(missing_docs)]
                 pub $lines: CVec3<Vec3<T>>,
@@ -3176,6 +3292,7 @@ macro_rules! mat_impl_all_mats {
             /// 2x2 matrix.
             #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq/* , Ord, PartialOrd */)]
             #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+            #[repr(C)]
             pub struct Mat2<T> {
                 #[allow(missing_docs)]
                 pub $lines: CVec2<Vec2<T>>,
@@ -3240,6 +3357,8 @@ pub mod repr_c {
 
     #[cfg(feature="quaternion")]
     use super::quaternion::repr_c::Quaternion;
+    #[cfg(feature="quaternion")]
+    use super::transform::repr_c::Transform;
 
     mat_declare_modules!{}
 }
@@ -3264,6 +3383,8 @@ pub mod repr_simd {
 
     #[cfg(feature="quaternion")]
     use super::quaternion::repr_simd::Quaternion;
+    #[cfg(feature="quaternion")]
+    use super::transform::repr_simd::Transform;
 
     mat_declare_modules!{}
 }
@@ -3276,14 +3397,38 @@ mod tests {
     macro_rules! for_each_type {
         ($mat:ident $Mat:ident $($T:ident)+) => {
             mod $mat {
-                // repr_c matrices should be packed.
-                // repr_simd matrices are not necessarily expected to.
+                // repr_c matrices are expected to be packed, but not required to.
+                // repr_simd matrices are not necessarily expected to be packed in the first place.
                 mod repr_c {
                     $(mod $T {
                         use $crate::mat::repr_c::$Mat;
                         #[test]
+                        #[ignore] // Ignored because there's no guarantee and we don't want failing tests.
                         fn is_packed() {
                             assert!($Mat::<$T>::default().is_packed());
+                        }
+                        use ::std::rc::Rc;
+                        #[test]
+                        //#[ignore]
+                        fn rc_col_array_conversions() {
+                            let m: $Mat<Rc<i32>> = $Mat::default().map(Rc::new);
+                            let mut a = m.into_col_array();
+                            assert_eq!(Rc::strong_count(&a[0]), 1);
+                            *Rc::make_mut(&mut a[0]) = 2; // Try to write. If there's a double free, this is supposed to crash.
+                            let mut m = $Mat::from_col_array(a);
+                            assert_eq!(Rc::strong_count(&m[(0, 0)]), 1);
+                            *Rc::make_mut(&mut m[(0, 0)]) = 3; // Try to write. If there's a double free, this is supposed to crash.
+                        }
+                        #[test]
+                        //#[ignore]
+                        fn rc_row_array_conversions() {
+                            let m: $Mat<Rc<i32>> = $Mat::default().map(Rc::new);
+                            let mut a = m.into_row_array();
+                            assert_eq!(Rc::strong_count(&a[0]), 1);
+                            *Rc::make_mut(&mut a[0]) = 2; // Try to write. If there's a double free, this is supposed to crash.
+                            let mut m = $Mat::from_row_array(a);
+                            assert_eq!(Rc::strong_count(&m[(0, 0)]), 1);
+                            *Rc::make_mut(&mut m[(0, 0)]) = 3; // Try to write. If there's a double free, this is supposed to crash.
                         }
                     })+
                 }
@@ -3293,7 +3438,7 @@ mod tests {
                         use $crate::mat::repr_simd::$Mat;
                         #[test]
                         fn can_monomorphize() {
-                            let _m: $Mat<bool> = unsafe { ::core::mem::uninitialized() };
+                            let _: $Mat<bool> = $Mat::<u32>::identity().map(|x| x != 0);
                         }
                     }
                 }

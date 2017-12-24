@@ -1,3 +1,8 @@
+//! A `Rect` container (`x`, `y`, `w` and `h`).
+//!
+//! Other functionality could be added to this module later.  
+//! It is not part of `geom` because it is required by some of `Mat4`'s functions.
+
 macro_rules! rect_complete_mod {
     ($mod:ident) => {
 
@@ -33,7 +38,7 @@ macro_rules! rect_complete_mod {
                 (Vec2 { x, y }, Extent2 { w, h })
             }
             pub fn convert<DP,DE,PF,EF>(self, pf: PF, ef: EF) -> Rect<DP,DE>
-                where PF: Fn(P) -> DP, EF: Fn(E) -> DE
+                where PF: FnMut(P) -> DP, EF: FnMut(E) -> DE
             {
                 let Self { x, y, w, h } = self;
                 let Vec2 { x, y } = Vec2 { x, y }.map(pf);

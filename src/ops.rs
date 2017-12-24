@@ -1,8 +1,8 @@
 //! Operations defined by this crate, such as `MulAdd`, `Lerp`, `Clamp`, and `Wrap`.
 
-use core::num::Wrapping;
-use core::ops::*;
-use core::cmp;
+use std::num::Wrapping;
+use std::ops::*;
+use std::cmp;
 use num_traits::{Zero, One, FloatConst};
 
 /// Compares and returns the minimum of two values, using partial ordering.
@@ -14,11 +14,35 @@ pub fn partial_max<T: PartialOrd + Sized>(a: T, b: T) -> T {
 	if a >= b { a } else { b }
 }
 
-
-/// A value that can be constrained to be between two values (inclusive).
-pub trait Clamp<Bound=Self>: Sized {
+pub trait IsBetween<Bound=Self>: Sized {
 	/// `bool` for scalars, or vector of `bool`s for vectors.
-	type BoolVector;
+	type Output;
+	/// Returns whether this value is between `lower` and `upper` (inclusive).
+	///
+	/// This would rather make use of inclusive ranges, but it's an unstable
+	/// feature.
+	///
+    /// # Panics
+    /// Panics if `lower` is greater than `upper`. Swap the values yourself if necessary.
+    ///
+	/// ```
+	/// use vek::ops::IsBetween;
+	///
+	/// assert!(5_i32 .is_between(5, 10));
+	/// assert!(7_i32 .is_between(5, 10));
+	/// assert!(10_i32.is_between(5, 10));
+	/// assert!(!(4_i32 .is_between(5, 10)));
+	/// assert!(!(11_i32.is_between(5, 10)));
+	/// ```
+	fn is_between(self, lower: Bound, upper: Bound) -> Self::Output;
+	/// Returns whether this value is between 0 and 1 (inclusive).
+	fn is_between01(self) -> Self::Output where Bound: Zero + One {
+		self.is_between(Bound::zero(), Bound::one())
+	}
+}
+
+/// A scalar or vector that can be constrained to be between two values (inclusive).
+pub trait Clamp<Bound=Self>: Sized {
 	/// Constrains this value to be between `lower` and `upper` (inclusive).
 	///
 	/// This would rather make use of inclusive ranges, but it's an unstable
@@ -45,26 +69,6 @@ pub trait Clamp<Bound=Self>: Sized {
 	fn clamp(val: Self, lower: Bound, upper: Bound) -> Self {
 		val.clamped(lower, upper)
 	}
-
-	/// Returns whether this value is between `lower` and `upper` (inclusive).
-	///
-	/// This would rather make use of inclusive ranges, but it's an unstable
-	/// feature.
-	///
-    /// # Panics
-    /// Panics if `lower` is greater than `upper`. Swap the values yourself if necessary.
-    ///
-	/// ```
-	/// use vek::ops::Clamp;
-	///
-	/// assert!(5_i32 .is_between(5, 10));
-	/// assert!(7_i32 .is_between(5, 10));
-	/// assert!(10_i32.is_between(5, 10));
-	/// assert!(!(4_i32 .is_between(5, 10)));
-	/// assert!(!(11_i32.is_between(5, 10)));
-	/// ```
-	fn is_between(self, lower: Bound, upper: Bound) -> Self::BoolVector;
-
 	/// Constrains this value to be between 0 and 1 (inclusive).
 	fn clamped01(self) -> Self where Bound: Zero + One {
 		self.clamped(Bound::zero(), Bound::one())
@@ -73,26 +77,28 @@ pub trait Clamp<Bound=Self>: Sized {
 	fn clamp01(val: Self) -> Self where Bound: Zero + One {
 		Self::clamp(val, Bound::zero(), Bound::one())
 	}
-	/// Returns whether this value is between 0 and 1 (inclusive).
-	fn is_between01(self) -> Self::BoolVector where Bound: Zero + One {
-		self.is_between(Bound::zero(), Bound::one())
-	}
 }
+
+pub trait Clamp01: Clamp + Zero + One {}
+
+impl<T: Clamp + Zero + One> Clamp01 for T {}
 
 macro_rules! impl_clamp_float {
 	($($T:ty)+) => {
 		$(
 			impl Clamp for $T {
-				type BoolVector = bool;
 				fn clamped(self, lower: Self, upper: Self) -> Self {
                     assert!(lower <= upper);
 					partial_min(partial_max(self, lower), upper)
 				}
+			}
+			impl IsBetween for $T {
+				type Output = bool;
 				fn is_between(self, lower: Self, upper: Self) -> bool {
                     assert!(lower <= upper);
 					lower <= self && self <= upper
 				}
-			}
+            }
 		)+
 	}
 }
@@ -100,16 +106,18 @@ macro_rules! impl_clamp_integer {
 	($($T:ty)+) => {
 		$(
 			impl Clamp for $T {
-				type BoolVector = bool;
 				fn clamped(self, lower: Self, upper: Self) -> Self {
                     assert!(lower <= upper);
 					cmp::min(cmp::max(self, lower), upper)
 				}
+			}
+			impl IsBetween for $T {
+				type Output = bool;
 				fn is_between(self, lower: Self, upper: Self) -> bool {
                     assert!(lower <= upper);
 					lower <= self && self <= upper
 				}
-			}
+            }
 		)+
 	}
 }
@@ -194,26 +202,58 @@ impl_muladd!{integer
 
 
 /// A value that can be linearly interpolated.
+///
+/// Note that, like standard operators, this can be implement for `T` and `&T`.  
+/// You would make the difference like so:
+///
+/// ```
+/// use vek::ops::Lerp;
+///
+/// let a = Lerp::lerp(0, 10, 0.5_f32);
+/// let b = Lerp::lerp(&0, &10, 0.5_f32);
+/// let c = i32::lerp(0, 10, 0.5_f32);
+/// let d = <&i32>::lerp(&0, &10, 0.5_f32);
+/// assert_eq!(a, b);
+/// assert_eq!(a, c);
+/// assert_eq!(a, d);
+/// ```
+///
+/// This is made possible thanks to the explicit `Output` type.  
+/// Therefore, it's also convenient for `GameState` structures, which you might
+/// perfer to interpolate by reference instead of consuming them.  
+/// The interpolation of two `&GameState`s would produce a new `GameState` value.
+///
+/// ```
+/// use vek::{Lerp, Vec3};
+/// 
+/// /// A data-heavy structure that represents a current game state.  
+/// /// It's neither Copy and nor even Clone!
+/// struct GameState {
+///     pub camera_position: Vec3<f32>,
+///     // ... obviously a lot of other members following ...
+/// }
+/// // We can select the Progress type. I chose f64; the default is f32.
+/// impl<'a> Lerp<f64> for &'a GameState {
+///     type Output = GameState;
+///     fn lerp_unclamped(a: Self, b: Self, t: f64) -> GameState {
+///         GameState {
+///             camera_position: Lerp::lerp(a.camera_position, b.camera_position, t as f32),
+///             // ... etc for all relevant members...
+///         }
+///     }
+/// }
+/// let a = GameState { camera_position: Vec3::zero() };
+/// let b = GameState { camera_position: Vec3::unit_x() };
+/// let c = Lerp::lerp(&a, &b, 0.5);
+/// // Hurray! We've got an interpolated state without consuming the two previous ones.
+/// # let _ = c;
+/// ```
 pub trait Lerp<Factor=f32>: Sized
 {
-	/// Returns the linear interpolation of `from` to `to` with `factor` unconstrained.  
-	///
-	/// This would make use of inclusive ranges, but they aren't stable yet.
-	///
-	/// A possible implementation is `from*(1-factor) + to*factor`.  
-	///
-	/// ```
-	/// use vek::ops::Lerp;
-	///
-	/// assert_eq!(Lerp::lerp_unclamped_precise(10, 20, -1.0_f32),  0);
-	/// assert_eq!(Lerp::lerp_unclamped_precise(10, 20, -0.5_f32),  5);
-	/// assert_eq!(Lerp::lerp_unclamped_precise(10, 20,  0.0_f32), 10);
-	/// assert_eq!(Lerp::lerp_unclamped_precise(10, 20,  0.5_f32), 15);
-	/// assert_eq!(Lerp::lerp_unclamped_precise(10, 20,  1.0_f32), 20);
-	/// assert_eq!(Lerp::lerp_unclamped_precise(10, 20,  1.5_f32), 25);
-	/// ```
-	fn lerp_unclamped_precise(from: Self, to: Self, factor: Factor) -> Self;
-	/// Same as `lerp_unclamped_precise`, implemented as a possibly faster but less precise operation.
+    /// The resulting type after performing the LERP operation.
+    type Output;
+	/// Returns the linear interpolation of `from` to `to` with `factor` unconstrained,
+	/// using the supposedly fastest but less precise implementation.
 	///
 	/// This would make use of inclusive ranges, but they aren't stable yet.
 	///
@@ -230,7 +270,47 @@ pub trait Lerp<Factor=f32>: Sized
 	/// assert_eq!(Lerp::lerp_unclamped(10, 20,  1.0_f32), 20);
 	/// assert_eq!(Lerp::lerp_unclamped(10, 20,  1.5_f32), 25);
 	/// ```
-	fn lerp_unclamped(from: Self, to: Self, factor: Factor) -> Self;
+	fn lerp_unclamped(from: Self, to: Self, factor: Factor) -> Self::Output;
+
+	/// Returns the linear interpolation of `from` to `to` with `factor` unconstrained,
+    /// using a possibly slower but more precise operation.
+	///
+	/// This would make use of inclusive ranges, but they aren't stable yet.
+	///
+	/// A possible implementation is `from*(1-factor) + to*factor`, a.k.a
+    /// `from.mul_add(1-factor, to*factor)`.
+	///
+	/// ```
+	/// use vek::ops::Lerp;
+	///
+	/// assert_eq!(Lerp::lerp_unclamped_precise(10, 20, -1.0_f32),  0);
+	/// assert_eq!(Lerp::lerp_unclamped_precise(10, 20, -0.5_f32),  5);
+	/// assert_eq!(Lerp::lerp_unclamped_precise(10, 20,  0.0_f32), 10);
+	/// assert_eq!(Lerp::lerp_unclamped_precise(10, 20,  0.5_f32), 15);
+	/// assert_eq!(Lerp::lerp_unclamped_precise(10, 20,  1.0_f32), 20);
+	/// assert_eq!(Lerp::lerp_unclamped_precise(10, 20,  1.5_f32), 25);
+	/// ```
+	fn lerp_unclamped_precise(from: Self, to: Self, factor: Factor) -> Self::Output {
+        Self::lerp_unclamped(from, to, factor)
+    }
+
+	/// Alias to `lerp_unclamped` which constrains `factor` to be between 0 and 1
+	/// (inclusive).
+	///
+	///	```
+	/// use vek::ops::Lerp;
+	///
+	/// assert_eq!(Lerp::lerp(10, 20, -1.0_f32), 10);
+	/// assert_eq!(Lerp::lerp(10, 20, -0.5_f32), 10);
+	/// assert_eq!(Lerp::lerp(10, 20,  0.0_f32), 10);
+	/// assert_eq!(Lerp::lerp(10, 20,  0.5_f32), 15);
+	/// assert_eq!(Lerp::lerp(10, 20,  1.0_f32), 20);
+	/// assert_eq!(Lerp::lerp(10, 20,  1.5_f32), 20);
+	/// ```
+	fn lerp(from: Self, to: Self, factor: Factor) -> Self::Output where Factor: Clamp + Zero + One
+	{
+		Self::lerp_unclamped(from, to, factor.clamped01())
+	}
 
 	/// Alias to `lerp_unclamped_precise` which constrains `factor` to be between 0 and 1
 	/// (inclusive).
@@ -245,39 +325,31 @@ pub trait Lerp<Factor=f32>: Sized
 	/// assert_eq!(Lerp::lerp_precise(10, 20,  1.0_f32), 20);
 	/// assert_eq!(Lerp::lerp_precise(10, 20,  1.5_f32), 20);
 	/// ```
-	fn lerp_precise(from: Self, to: Self, factor: Factor) -> Self where Factor: Clamp + Zero + One
+	fn lerp_precise(from: Self, to: Self, factor: Factor) -> Self::Output where Factor: Clamp + Zero + One
 	{
 		Self::lerp_unclamped_precise(from, to, factor.clamped01())
 	}
-	/// Alias to `lerp_unclamped` which constrains `factor` to be between 0 and 1
-	/// (inclusive).
-	///
-	///	```
-	/// use vek::ops::Lerp;
-	///
-	/// assert_eq!(Lerp::lerp(10, 20, -1.0_f32), 10);
-	/// assert_eq!(Lerp::lerp(10, 20, -0.5_f32), 10);
-	/// assert_eq!(Lerp::lerp(10, 20,  0.0_f32), 10);
-	/// assert_eq!(Lerp::lerp(10, 20,  0.5_f32), 15);
-	/// assert_eq!(Lerp::lerp(10, 20,  1.0_f32), 20);
-	/// assert_eq!(Lerp::lerp(10, 20,  1.5_f32), 20);
-	/// ```
-	fn lerp(from: Self, to: Self, factor: Factor) -> Self where Factor: Clamp + Zero + One
-	{
-		Self::lerp_unclamped(from, to, factor.clamped01())
-	}
-
 }
 
 macro_rules! lerp_impl_float {
 	($($T:ty)+) => {
 		$(
 			impl Lerp<$T> for $T {
+                type Output = $T;
 				fn lerp_unclamped_precise(from: Self, to: Self, factor: Self) -> Self {
 					from*(Self::one()-factor) + to*factor
 				}
 				fn lerp_unclamped(from: Self, to: Self, factor: Self) -> Self {
 					factor.mul_add(to - from, from)
+				}
+			}
+			impl<'a> Lerp<$T> for &'a $T {
+                type Output = $T;
+				fn lerp_unclamped_precise(from: Self, to: Self, factor: $T) -> $T {
+                    Lerp::lerp_unclamped_precise(*from, *to, factor)
+				}
+				fn lerp_unclamped(from: Self, to: Self, factor: $T) -> $T {
+                    Lerp::lerp_unclamped(*from, *to, factor)
 				}
 			}
 		)+
@@ -287,6 +359,7 @@ macro_rules! lerp_impl_integer {
 	($($T:ty)+) => {
 		$(
 			impl Lerp<f32> for $T {
+                type Output = $T;
 				fn lerp_unclamped_precise(from: Self, to: Self, factor: f32) -> Self {
 					((from as f32)*((1f32)-factor) + (to as f32)*factor).round() as Self
 				}
@@ -294,13 +367,31 @@ macro_rules! lerp_impl_integer {
 					factor.mul_add((to - from) as f32, from as f32).round() as Self
 				}
 			}
-
 			impl Lerp<f64> for $T {
+                type Output = $T;
 				fn lerp_unclamped_precise(from: Self, to: Self, factor: f64) -> Self {
 					((from as f64)*((1f64)-factor) + (to as f64)*factor).round() as Self
 				}
 				fn lerp_unclamped(from: Self, to: Self, factor: f64) -> Self {
 					factor.mul_add((to - from) as f64, from as f64).round() as Self
+				}
+			}
+			impl<'a> Lerp<f32> for &'a $T {
+                type Output = $T;
+				fn lerp_unclamped_precise(from: Self, to: Self, factor: f32) -> $T {
+                    Lerp::lerp_unclamped_precise(*from, *to, factor)
+				}
+				fn lerp_unclamped(from: Self, to: Self, factor: f32) -> $T {
+                    Lerp::lerp_unclamped(*from, *to, factor)
+				}
+			}
+			impl<'a> Lerp<f64> for &'a $T {
+                type Output = $T;
+				fn lerp_unclamped_precise(from: Self, to: Self, factor: f64) -> $T {
+                    Lerp::lerp_unclamped_precise(*from, *to, factor)
+				}
+				fn lerp_unclamped(from: Self, to: Self, factor: f64) -> $T {
+                    Lerp::lerp_unclamped(*from, *to, factor)
 				}
 			}
 		)+
@@ -322,6 +413,22 @@ lerp_impl_integer!{
 	Wrapping<u64>
 	Wrapping<usize>
 	*/
+}
+
+/// A value that can be Spherically Linearly interpolated.
+///
+/// The `Output` type allows this trait to be meaningfully implemented for `&T` as well as `T`.
+pub trait Slerp<Factor=f32>: Sized {
+    /// The resulting type after performing the SLERP operation.
+    type Output;
+    /// Performs spherical linear interpolation without implictly constraining `factor` to
+    /// be between 0 and 1.
+    fn slerp_unclamped(from: Self, to: Self, factor: Factor) -> Self::Output;
+    /// Performs spherical linear interpolation, constraining `factor` to
+    /// be between 0 and 1.
+    fn slerp(from: Self, to: Self, factor: Factor) -> Self::Output where Factor: Clamp + Zero + One {
+        Self::slerp_unclamped(from, to, factor.clamped01())
+    }
 }
 
 /// A value that can wrap itself around given bounds.
@@ -421,6 +528,7 @@ pub trait Wrap<Bound=Self>: Sized {
 	///
     /// # Panics
     /// Panics if `upper <= 0`. See `wrapped()` for a rationale.
+    ///
 	/// ```
 	/// use vek::ops::Wrap;
 	///
@@ -587,16 +695,16 @@ pub trait ColorComponent : Zero {
 
 impl ColorComponent for f32 { fn full() -> Self { 1f32 } }
 impl ColorComponent for f64 { fn full() -> Self { 1f64 } }
-impl ColorComponent for u8  { fn full() -> Self { ::core::u8  ::MAX } }
-impl ColorComponent for u16 { fn full() -> Self { ::core::u16 ::MAX } }
-impl ColorComponent for u32 { fn full() -> Self { ::core::u32 ::MAX } }
-impl ColorComponent for u64 { fn full() -> Self { ::core::u64 ::MAX } }
-//impl ColorComponent for u128{ fn full() -> Self { ::core::u128::MAX } }
-impl ColorComponent for i8  { fn full() -> Self { ::core::i8  ::MAX } }
-impl ColorComponent for i16 { fn full() -> Self { ::core::i16 ::MAX } }
-impl ColorComponent for i32 { fn full() -> Self { ::core::i32 ::MAX } }
-impl ColorComponent for i64 { fn full() -> Self { ::core::i64 ::MAX } }
-//impl ColorComponent for i128{ fn full() -> Self { ::core::i128::MAX } }
+impl ColorComponent for u8  { fn full() -> Self { ::std::u8  ::MAX } }
+impl ColorComponent for u16 { fn full() -> Self { ::std::u16 ::MAX } }
+impl ColorComponent for u32 { fn full() -> Self { ::std::u32 ::MAX } }
+impl ColorComponent for u64 { fn full() -> Self { ::std::u64 ::MAX } }
+//impl ColorComponent for u128{ fn full() -> Self { ::std::u128::MAX } }
+impl ColorComponent for i8  { fn full() -> Self { ::std::i8  ::MAX } }
+impl ColorComponent for i16 { fn full() -> Self { ::std::i16 ::MAX } }
+impl ColorComponent for i32 { fn full() -> Self { ::std::i32 ::MAX } }
+impl ColorComponent for i64 { fn full() -> Self { ::std::i64 ::MAX } }
+//impl ColorComponent for i128{ fn full() -> Self { ::std::i128::MAX } }
 impl ColorComponent for Wrapping<u8 >  { fn full() -> Self { Wrapping(ColorComponent::full()) } }
 impl ColorComponent for Wrapping<u16>  { fn full() -> Self { Wrapping(ColorComponent::full()) } }
 impl ColorComponent for Wrapping<u32>  { fn full() -> Self { Wrapping(ColorComponent::full()) } }

@@ -2,8 +2,8 @@
 
 use num_traits::{Zero, One, Float};
 use approx::ApproxEq;
-use core::ops::*;
-use core::iter::Sum;
+use std::ops::*;
+use std::iter::Sum;
 use ops::*;
 
 macro_rules! impl_mul_by_vec {
@@ -153,7 +153,9 @@ macro_rules! quaternion_complete_mod {
                 let Vec3 { x, y, z } = pair.1.into();
                 Self { x, y, z, w: pair.0 }
             }
-            /// Converts this `Quaternion` into a scalar-and-vector pair.
+            /// Converts this `Quaternion` into a scalar-and-vector pair by destructuring.
+            ///
+            /// **Not to be confused with `into_angle_axis()`**.
             pub fn into_scalar_and_vec3(self) -> (T, Vec3<T>) {
                 let Self { x, y, z, w } = self;
                 (w, Vec3 { x, y, z })
@@ -169,10 +171,6 @@ macro_rules! quaternion_complete_mod {
                     z: T::zero(),
                     w: T::zero(),
                 }
-            }
-            /// Is this quaternion zero ?
-            pub fn is_zero(&self) -> bool where T: Zero + PartialEq {
-                self == &Self::zero()
             }
             /// Creates the identity `Quaternion`.
             ///
@@ -200,10 +198,6 @@ macro_rules! quaternion_complete_mod {
                     z: T::zero(),
                     w: T::one(),
                 }
-            }
-            /// Is this quaternion zero ?
-            pub fn is_identity(&self) -> bool where T: Zero + One + PartialEq {
-                self == &Self::identity()
             }
             /// Gets this `Quaternion`'s conjugate (copy with negated vector part).
             ///
@@ -265,10 +259,6 @@ macro_rules! quaternion_complete_mod {
             /// Gets a normalized copy of this quaternion.
             pub fn normalized(self) -> Self where T: Float + Sum {
                 self.into_vec4().normalized().into()
-            }
-            /// Is this quaternion normalized ?
-            pub fn is_normalized(self) -> bool where T: ApproxEq + Float + Sum {
-                self.into_vec4().is_normalized()
             }
 
             /// Creates a `Quaternion` that would rotate a `from` direction to `to`.
@@ -400,41 +390,77 @@ macro_rules! quaternion_complete_mod {
         }
         
         /// The `Lerp` implementation for `Quaternion` is the "Normalized LERP".
-        impl<T> Lerp<T> for Quaternion<T>
-            where T: MulAdd<T,T,Output=T> + Clamp + Sum + Float
+        impl<T, Factor> Lerp<Factor> for Quaternion<T>
+            where T: Lerp<Factor,Output=T> + Sum + Float,
+                  Factor: Copy
         {
-            fn lerp_unclamped_precise(from: Self, to: Self, factor: T) -> Self {
-                Self::lerp_unclamped_precise_unnormalized(from, to, factor).normalized()
+            type Output = Self;
+            fn lerp_unclamped_precise(from: Self, to: Self, factor: Factor) -> Self {
+                let (from, to) = (from.into_vec4(), to.into_vec4());
+                Lerp::lerp_unclamped_precise(from, to, factor).normalized().into()
             }
-            fn lerp_unclamped(from: Self, to: Self, factor: T) -> Self {
-                Self::lerp_unclamped_unnormalized(from, to, factor).normalized()
+            fn lerp_unclamped(from: Self, to: Self, factor: Factor) -> Self {
+                let (from, to) = (from.into_vec4(), to.into_vec4());
+                Lerp::lerp_unclamped(from, to, factor).normalized().into()
             }
         }
-        impl<T> Quaternion<T>
-            where T: MulAdd<T,T,Output=T> + Clamp + Sum + Float
+        /// The `Lerp` implementation for `Quaternion` is the "Normalized LERP".
+        impl<'a, T, Factor> Lerp<Factor> for &'a Quaternion<T>
+            // Float implies Copy, so no &'a T here.
+            where T: Lerp<Factor,Output=T> + Sum + Float,
+                  Factor: Copy
         {
-            /// Performs linear interpolation without normalizing the result.
-            /// For an implementation that normalizes the result (which is commonly wanted), see
-            /// the `Lerp` implementation.
-            pub fn lerp_unnormalized(from: Self, to: Self, factor: T) -> Self {
-                Self::lerp_unclamped_unnormalized(from, to, factor.clamped01())
+            type Output = Quaternion<T>;
+            fn lerp_unclamped_precise(from: Self, to: Self, factor: Factor) -> Quaternion<T> {
+                Lerp::lerp_unclamped_precise(*from, *to, factor)
             }
-            /// Performs linear interpolation without normalizing the result,
+            fn lerp_unclamped(from: Self, to: Self, factor: Factor) -> Quaternion<T> {
+                Lerp::lerp_unclamped(*from, *to, factor)
+            }
+        }
+        impl<T> Quaternion<T> 
+            where T: Copy + One + Mul<Output=T> + Sub<Output=T> + MulAdd<T,T,Output=T>
+        {
+            /// Performs linear interpolation **without normalizing the result**,
             /// using an implementation that supposedly yields a more precise result.
-            pub fn lerp_precise_unnormalized(from: Self, to: Self, factor: T) -> Self {
+            /// 
+            /// This is probably not what you're looking for.  
+            /// For an implementation that normalizes the result (which is more commonly wanted), see the `Lerp` implementation.
+            pub fn lerp_precise_unnormalized(from: Self, to: Self, factor: T) -> Self where T: Clamp + Zero {
                 Self::lerp_unclamped_precise_unnormalized(from, to, factor.clamped01())
             }
-            /// Performs linear interpolation without normalizing the result and without
-            /// implicitly constraining `factor` to be between 0 and 1.
-            pub fn lerp_unclamped_unnormalized(from: Self, to: Self, factor: T) -> Self {
-                Vec4::lerp_unclamped(from.into(), to.into(), factor).into()
-            }
-            /// Performs linear interpolation without normalizing the result and without
+            /// Performs linear interpolation **without normalizing the result** and without
             /// implicitly constraining `factor` to be between 0 and 1,
             /// using an implementation that supposedly yields a more precise result.
+            /// 
+            /// This is probably not what you're looking for.  
+            /// For an implementation that normalizes the result (which is more commonly wanted), see the `Lerp` implementation.
             pub fn lerp_unclamped_precise_unnormalized(from: Self, to: Self, factor: T) -> Self {
                 Vec4::lerp_unclamped_precise(from.into(), to.into(), factor).into()
             }
+        }
+        impl<T> Quaternion<T> 
+            where T: Copy + Sub<Output=T> + MulAdd<T,T,Output=T>
+        {
+            /// Performs linear interpolation **without normalizing the result**.
+            /// 
+            /// This is probably not what you're looking for.  
+            /// For an implementation that normalizes the result (which is more commonly wanted), see the `Lerp` implementation.
+            pub fn lerp_unnormalized(from: Self, to: Self, factor: T) -> Self where T: Clamp + Zero + One {
+                Self::lerp_unclamped_unnormalized(from, to, factor.clamped01())
+            }
+            /// Performs linear interpolation **without normalizing the result** and without
+            /// implicitly constraining `factor` to be between 0 and 1.
+            /// 
+            /// This is probably not what you're looking for.  
+            /// For an implementation that normalizes the result (which is more commonly wanted), see the `Lerp` implementation.
+            pub fn lerp_unclamped_unnormalized(from: Self, to: Self, factor: T) -> Self {
+                Vec4::lerp_unclamped(from.into(), to.into(), factor).into()
+            }
+        }
+        impl<T> Quaternion<T>
+            where T: Lerp<T,Output=T> + Sum + Float
+        {
             /// Performs spherical linear interpolation without implictly constraining `factor` to
             /// be between 0 and 1.
             ///
@@ -458,9 +484,7 @@ macro_rules! quaternion_complete_mod {
             /// # }
             /// ```
             // From GLM's source code.
-            pub fn slerp_unclamped(from: Self, mut to: Self, factor: T) -> Self 
-                where T: Neg<Output=T>
-            {
+            pub fn slerp_unclamped(from: Self, mut to: Self, factor: T) -> Self {
                 let mut cos_theta = from.dot(to);
                 // If cosTheta < 0, the interpolation will take the long way around the sphere. 
                 // To fix this, one quat must be negated.
@@ -471,15 +495,34 @@ macro_rules! quaternion_complete_mod {
 
                 // Perform a linear interpolation when cosTheta is close to 1 to avoid side effect of sin(angle) becoming a zero denominator
                 if cos_theta > T::one() - T::epsilon() {
-                    return Self::lerp(from, to, factor);
+                    return Self::lerp_unclamped(from, to, factor);
                 }
                 let angle = cos_theta.acos();
                 (from * ((T::one() - factor) * angle).sin() + to * (factor * angle).sin()) / angle.sin()
             }
             /// Perform spherical linear interpolation, constraining `factor` to
             /// be between 0 and 1.
-            pub fn slerp(from: Self, to: Self, factor: T) -> Self {
-                Self::slerp_unclamped(from, to, factor.clamped01())
+            pub fn slerp(from: Self, to: Self, factor: T) -> Self where T: Clamp {
+                Slerp::slerp(from, to, factor)
+            }
+        }
+
+        impl<T, Factor> Slerp<Factor> for Quaternion<T> 
+            where T: Lerp<T,Output=T> + Sum + Float,
+                  Factor: Into<T>
+        {
+            type Output = Self;
+            fn slerp_unclamped(from: Self, to: Self, factor: Factor) -> Self {
+                Self::slerp_unclamped(from, to, factor.into())
+            }
+        }
+        impl<'a, T, Factor> Slerp<Factor> for &'a Quaternion<T> 
+            where T: Lerp<T,Output=T> + Sum + Float,
+                  Factor: Into<T>
+        {
+            type Output = Quaternion<T>;
+            fn slerp_unclamped(from: Self, to: Self, factor: Factor) -> Quaternion<T> {
+                Quaternion::slerp_unclamped(*from, *to, factor.into())
             }
         }
 
