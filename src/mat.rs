@@ -2724,8 +2724,7 @@ macro_rules! mat_impl_mat4 {
                     }
                 }
             }
-            */
-        }
+        } */
     };
 }
 
