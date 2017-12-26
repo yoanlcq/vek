@@ -1,7 +1,7 @@
 [package]
 version = "0.8.0" # remember to update html_root_url in src/lib.rs
 authors = ["Yoan Lecoq <yoanlecoq.io@gmail.com>"]
-description = "Generic but efficient SIMD vector+matrix library for game engines, with focus on intent and the small bits that make you happier as a user."
+description = "Generic 2D-3D math swiss army knife for game engines, with SIMD support and focus on convenience."
 documentation = "https://docs.rs/vek"
 keywords = ["vector", "matrix", "simd", "quaternion", "bézier", "rgb", "rgba"]
 categories = [ "algorithms", "data-structures", "no-std", "science" ]
@@ -11,7 +11,6 @@ repository = "https://github.com/yoanlcq/vek"
 name = "vek"
 build = "build.rs"
 exclude = [
-    "previous_work/*",
     "ci/*",
     "appveyor.yml",
     ".travis.yml",
@@ -23,8 +22,7 @@ appveyor  = { repository = "yoanlcq/vek" }
 maintenance = { status = "experimental" }
 
 [features]
-default = ["geom", "bezier", "quaternion", "mat2", "mat3"]
-#default = ["serde", "repr_simd", "geom", "bezier", "quaternion", "rgba", "rgb", "mat2", "mat3"]
+default = ["repr_simd", "geom", "bezier", "quaternion", "rgba", "rgb", "mat2", "mat3"]
 # NOTE: The below ones (commented out) are enforced, because doc tests assume their availability.
 # vec2 = []
 # vec3 = []
@@ -47,8 +45,9 @@ rgb = []
 rgba = []
 uv = []
 uvw = []
-repr_align = []
 repr_simd = []
+# Deprecated : it makes tests cry because it's enabled when using --all-features
+# repr_aligned = []
 
 [build-dependencies]
 rustc_version = "0.2.1"

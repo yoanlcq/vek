@@ -395,9 +395,9 @@ macro_rules! vec_impl_vec {
             }
 
             /// Are elements of this vector tightly packed in memory ?
-            // NOTE: Not public, because it is supposed to always be true.
-            // If it's not, someone is on an exotic target and I would like
-            // them to file an issue.
+            // NOTE: Private, because assumed to be always true at compile-time!
+            // Conversion to pointer and slice are never supposed to panic!
+            // See extensive tests.
             pub(crate) fn is_packed(&self) -> bool {
                 let ptr = self as *const _ as *const T;
                 let mut i = -1isize;
@@ -1978,6 +1978,14 @@ macro_rules! vec_impl_color_rgba {
                 self.b = T::full() - self.b;
                 self
             }
+            /// Returns the average of this vector's RGB elements.
+            ///
+            /// This is not the same as `average` because `average` takes all elements into
+            /// account, which includes alpha.
+            pub fn average_rgb(self) -> T where T: Sum + Div<T, Output=T> + From<u8> {
+                let Self { r, g, b, .. } = self;
+                (r+g+b) / T::from(3)
+            }
             pub fn shuffled_argb(self) -> Self {
                 let Self { r, g, b, a } = self;
                 Self::new(a, r, g, b)
@@ -2023,6 +2031,14 @@ macro_rules! vec_impl_color_rgb {
                 self.g = T::full() - self.g;
                 self.b = T::full() - self.b;
                 self
+            }
+            /// Returns the average of this vector's RGB elements.
+            ///
+            /// For `Rgb`, this is the same as `average`, and is provided for compatibility
+            /// with `Rgba`.
+            pub fn average_rgb(self) -> T where T: Sum + Div<T, Output=T> + From<u8> {
+                let Self { r, g, b, .. } = self;
+                (r+g+b) / T::from(3)
             }
             pub fn shuffled_bgr(self) -> Self {
                 let Self { r, g, b } = self;
@@ -2726,14 +2742,46 @@ mod tests {
                 assert_eq!(Rc::strong_count(&rc), 1);
                 *Rc::make_mut(&mut rc) = 1; // Try to write. If there's a double free, this is supposed to crash.
             }
+            #[test] fn claims_to_be_packed_rc() { assert!($Vec::<$T>::default().map(::std::rc::Rc::new).is_packed()); }
+            #[test] fn claims_to_be_packed_refcell() { assert!($Vec::<$T>::default().map(::std::cell::RefCell::new).is_packed()); }
+            #[test] fn claims_to_be_packed_stdvec() { assert!($Vec::<$T>::default().map(|x| vec![x]).is_packed()); }
         };
         (repr_simd $Vec:ident<$T:ident>) => {
             test_vec_t!{common $Vec<$T>}
         };
         (common $Vec:ident<$T:ident>) => {
-            #[test]
-            fn is_packed() {
-                assert!($Vec::<$T>::default().is_packed());
+            #[test] fn claims_to_be_packed() { assert!($Vec::<$T>::default().is_packed()); }
+        };
+        (repr_simd_except_bool $Vec:ident<$T:ident>) => {
+            #[test] fn is_actually_packed() {
+                let v = $Vec::<$T>::iota();
+                let a = v.clone().into_array();
+                assert_eq!(v.as_slice(), &a);
+            }
+        };
+        (repr_c_except_bool $Vec:ident<$T:ident>) => {
+            #[test] fn is_actually_packed() {
+                let v = $Vec::<$T>::iota();
+                let a = v.clone().into_array();
+                assert_eq!(v.as_slice(), &a);
+            }
+
+            #[test] fn is_actually_packed_rc() {
+                let v = $Vec::<$T>::iota().map(::std::rc::Rc::new);
+                let a = v.clone().into_array();
+                assert_eq!(v.as_slice(), &a);
+            }
+
+            #[test] fn is_actually_packed_refcell() {
+                let v = $Vec::<$T>::iota().map(::std::cell::RefCell::new);
+                let a = v.clone().into_array();
+                assert_eq!(v.as_slice(), &a);
+            }
+
+            #[test] fn is_actually_packed_stdvec() {
+                let v = $Vec::<$T>::iota().map(|x| vec![x]);
+                let a = v.clone().into_array();
+                assert_eq!(v.as_slice(), &a);
             }
         };
     }
@@ -2745,14 +2793,24 @@ mod tests {
                     $(mod $T {
                         use super::$Vec;
                         test_vec_t!{repr_c $Vec<$T>}
+                        test_vec_t!{repr_c_except_bool $Vec<$T>}
                     })+
+                    mod bool {
+                        use super::$Vec;
+                        test_vec_t!{repr_c $Vec<bool>}
+                    }
                 }
                 #[cfg(all(nightly, feature="repr_simd"))]
                 mod repr_simd {
                     $(mod $T {
                         use $crate::vec::repr_simd::$Vec;
                         test_vec_t!{repr_simd $Vec<$T>}
+                        test_vec_t!{repr_simd_except_bool $Vec<$T>}
                     })+
+                    mod bool {
+                        use $crate::vec::repr_simd::$Vec;
+                        test_vec_t!{repr_simd $Vec<bool>}
+                    }
                 }
                 mod api {
                     use $crate::vec::repr_c::$Vec;
@@ -2788,17 +2846,18 @@ mod tests {
         };
     }
     // Vertical editing helps here :)
-    /*#[cfg(feature="vec2")]*/   for_each_type!{vec2    Vec2    bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    /*#[cfg(feature="vec3")]*/   for_each_type!{vec3    Vec3    bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    /*#[cfg(feature="vec4")]*/   for_each_type!{vec4    Vec4    bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="vec8")]       for_each_type!{vec8    Vec8    bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="vec16")]      for_each_type!{vec16   Vec16   bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="vec32")]      for_each_type!{vec32   Vec32   bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="vec64")]      for_each_type!{vec64   Vec64   bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="rgba")]       for_each_type!{rgba    Rgba    bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="rgb")]        for_each_type!{rgb     Rgb     bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="extent3")]    for_each_type!{extent3 Extent3 bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    /*#[cfg(feature="extent2")]*/for_each_type!{extent2 Extent2 bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="uv")]         for_each_type!{uv      Uv      bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="uvw")]        for_each_type!{uvw     Uvw     bool i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    /*#[cfg(feature="vec2")]*/   for_each_type!{vec2    Vec2    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    /*#[cfg(feature="vec3")]*/   for_each_type!{vec3    Vec3    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    /*#[cfg(feature="vec4")]*/   for_each_type!{vec4    Vec4    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="vec8")]       for_each_type!{vec8    Vec8    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="vec16")]      for_each_type!{vec16   Vec16   i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="vec32")]      for_each_type!{vec32   Vec32   i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    // NOTE: Don't test these, because [T; 64] implements no traits and it's a pain
+    //#[cfg(feature="vec64")]      for_each_type!{vec64   Vec64   i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="rgba")]       for_each_type!{rgba    Rgba    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="rgb")]        for_each_type!{rgb     Rgb     i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="extent3")]    for_each_type!{extent3 Extent3 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    /*#[cfg(feature="extent2")]*/for_each_type!{extent2 Extent2 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="uv")]         for_each_type!{uv      Uv      i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature="uvw")]        for_each_type!{uvw     Uvw     i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
 }

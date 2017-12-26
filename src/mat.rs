@@ -274,14 +274,18 @@ macro_rules! mat_impl_mat {
         }
 
         impl<T> $Mat<T> {
-            /// Gets the `transpose` parameter to pass to 
-            /// OpenGL `glUniformMatrix*()` functions.
+            /// Gets the `transpose` parameter to pass to OpenGL `glUniformMatrix*()` functions.
             ///
             /// The return value is a plain `bool` which you may directly cast
             /// to a `GLboolean`.
+            ///
+            /// This takes `&self` to prevent surprises when changing the type
+            /// of matrix you plan to send.
             pub fn gl_should_transpose(&self) -> bool {
                 true
             }
+            /// The `transpose` parameter to pass to OpenGL `glUniformMatrix*()` functions.
+            pub const GL_SHOULD_TRANSPOSE: bool = true;
         }
 
         use super::column_major::$Mat as Transpose;
@@ -667,14 +671,18 @@ macro_rules! mat_impl_mat {
 
 
         impl<T> $Mat<T> {
-            /// Gets the `transpose` parameter to pass to 
-            /// OpenGL `glUniformMatrix*()` functions.
+            /// Gets the `transpose` parameter to pass to OpenGL `glUniformMatrix*()` functions.
             ///
             /// The return value is a plain `bool` which you may directly cast
             /// to a `GLboolean`.
+            ///
+            /// This takes `&self` to prevent surprises when changing the type
+            /// of matrix you plan to send.
             pub fn gl_should_transpose(&self) -> bool {
                 false
             }
+            /// The `transpose` parameter to pass to OpenGL `glUniformMatrix*()` functions.
+            pub const GL_SHOULD_TRANSPOSE: bool = false;
         }
 
         use super::row_major::$Mat as Transpose;
@@ -948,23 +956,8 @@ macro_rules! mat_impl_mat {
             /// This might not be the case for matrices in the `repr_simd` module
             /// (it depends on the target architecture).
             pub fn is_packed(&self) -> bool {
-                let ptr = self as *const _ as *const T;
-                let mut i = -1isize;
-                // Maybe some of the tests are overkill
-                if !self.$lines.is_packed() {
-                    return false;
-                }
-                const_assert_eq!($nrows, $ncols);
-                $(
-                    if !self.$lines.$get.is_packed() {
-                        return false;
-                    }
-                    i += 1;
-                    if unsafe { ptr.offset(i*($nrows+1)) } != &self.$lines.$get.$get as *const _ {
-                        return false;
-                    }
-                )+
-                true
+                self.$lines.is_packed() && self.$lines[0].is_packed()
+                && mem::size_of::<Self>() == $nrows*$ncols*mem::size_of::<T>()
             }
         }
 
@@ -1799,6 +1792,31 @@ macro_rules! mat_impl_mat4 {
                 )
             }
 
+
+            /// Creates a matrix that would rotate a `from` direction to `to`.
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::{Vec4, Mat4};
+            ///
+            /// # fn main() {
+            /// let (from, to) = (Vec4::<f32>::unit_x(), Vec4::<f32>::unit_z());
+            /// let m = Mat4::<f32>::arc_rotation_3d(from, to);
+            /// assert_relative_eq!(m * from, to);
+            ///
+            /// let (from, to) = (Vec4::<f32>::unit_x(), -Vec4::<f32>::unit_x());
+            /// let m = Mat4::<f32>::arc_rotation_3d(from, to);
+            /// assert_relative_eq!(m * from, to);
+            /// # }
+            /// ```
+            #[cfg(feature="quaternion")]
+            pub fn arc_rotation_3d<V: Into<Vec3<T>>>(from: V, to: V) -> Self 
+                where T: Float + Sum
+            {
+                Self::from(Quaternion::from_arc(from, to))
+            }
+
             //
             // CHANGE OF BASIS
             //
@@ -1930,7 +1948,7 @@ macro_rules! mat_impl_mat4 {
             // VIEW
             //
 
-            /// Builds a "look at" view transform for left-handed spaces
+            /// Builds a "look at" view transform
             /// from an eye position, a target position, and up vector.
             /// Commonly used for cameras.
             ///
@@ -1941,12 +1959,22 @@ macro_rules! mat_impl_mat4 {
             /// # fn main() {
             /// let eye = Vec4::new(1_f32, 0., 1., 1.);
             /// let target = Vec4::new(2_f32, 0., 2., 1.);
-            /// let view = Mat4::<f32>::look_at_view_lh(eye, target, Vec4::up());
+            /// let view = Mat4::<f32>::look_at(eye, target, Vec4::up());
             /// assert_relative_eq!(view * eye, Vec4::unit_w());
             /// assert_relative_eq!(view * target, Vec4::new(0_f32, 0., 2_f32.sqrt(), 1.));
             /// # }
             /// ```
-            pub fn look_at_view_lh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
+            pub fn look_at<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
+                where T: Float + Sum
+            {
+                Self::look_at_lh(eye, target, up)
+            }
+
+            /// Builds a "look at" view transform for left-handed spaces
+            /// from an eye position, a target position, and up vector.
+            /// Commonly used for cameras.
+            // NOTE: Not public. Handedness makes no sense for view/model matrices until someone proves me wrong.
+            pub(crate) fn look_at_lh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
                 where T: Float + Sum
             {
                 // From GLM
@@ -1962,7 +1990,28 @@ macro_rules! mat_impl_mat4 {
                 )
             }
 
-            /// Builds a "look at" model transform for left-handed spaces
+            /// Builds a "look at" view transform for right-handed spaces
+            /// from an eye position, a target position, and up vector.
+            /// Commonly used for cameras.
+            // NOTE: Not public. Handedness makes no sense for view/model matrices until someone proves me wrong.
+            #[allow(dead_code)]
+            pub(crate) fn look_at_rh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
+                where T: Float + Sum
+            {
+                // From GLM
+                let (eye, target, up) = (eye.into(), target.into(), up.into());
+                let f = (target - eye).normalized();
+                let s = f.cross(up).normalized();
+                let u = s.cross(f);
+                Self::new(
+                     s.x,  s.y,  s.z, -s.dot(eye),
+                     u.x,  u.y,  u.z, -u.dot(eye),
+                    -f.x, -f.y, -f.z,  f.dot(eye),
+                    T::zero(), T::zero(), T::zero(), T::one()
+                )
+            }
+
+            /// Builds a "look at" model transform
             /// from an eye position, a target position, and up vector.
             /// Preferred for transforming objects.
             ///
@@ -1973,18 +2022,28 @@ macro_rules! mat_impl_mat4 {
             /// # fn main() {
             /// let eye = Vec4::new(1_f32, 0., 1., 1.);
             /// let target = Vec4::new(2_f32, 0., 2., 1.);
-            /// let model = Mat4::<f32>::look_at_model_lh(eye, target, Vec4::up());
+            /// let model = Mat4::<f32>::model_look_at(eye, target, Vec4::up());
             /// assert_relative_eq!(model * Vec4::unit_w(), eye);
             /// let d = 2_f32.sqrt();
             /// assert_relative_eq!(model * Vec4::new(0_f32, 0., d, 1.), target);
             ///
             /// // A "model" look-at essentially undoes a "view" look-at
-            /// let view = Mat4::look_at_view_lh(eye, target, Vec4::up());
+            /// let view = Mat4::look_at(eye, target, Vec4::up());
             /// assert_relative_eq!(view * model, Mat4::identity());
             /// assert_relative_eq!(model * view, Mat4::identity());
             /// # }
             /// ```
-            pub fn look_at_model_lh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
+            pub fn model_look_at<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
+                where T: Float + Sum
+            {
+                Self::model_look_at_lh(eye, target, up)
+            }
+
+            /// Builds a "look at" model transform for left-handed spaces
+            /// from an eye position, a target position, and up vector.
+            /// Preferred for transforming objects.
+            // NOTE: Not public. Handedness makes no sense for view/model matrices until someone proves me wrong.
+            pub(crate) fn model_look_at_lh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
                 where T: Float + Sum
             {
                 // Advanced 3D Game Programming with DirectX 10.0, p. 173
@@ -2003,26 +2062,9 @@ macro_rules! mat_impl_mat4 {
             /// Builds a "look at" model transform for right-handed spaces
             /// from an eye position, a target position, and up vector.
             /// Preferred for transforming objects.
-            ///
-            /// ```
-            /// # extern crate vek;
-            /// # #[macro_use] extern crate approx;
-            /// # use vek::mat::row_major::Mat4;
-            /// # use vek::Vec4;
-            /// # fn main() {
-            /// let eye = Vec4::new(1_f32, 0., 1., 1.);
-            /// let target = Vec4::new(2_f32, 0., 2., 1.);
-            /// let model = Mat4::<f32>::look_at_model_rh(eye, target, Vec4::up());
-            /// assert_relative_eq!(model * Vec4::unit_w(), Vec4::new(1_f32, 0., 1., 1.));
-            /// assert_relative_eq!(model * Vec4::new(0_f32, 0., -2_f32.sqrt(), 1.), Vec4::new(2_f32, 0., 2., 1.));
-            ///
-            /// // A "model" look-at essentially undoes a "view" look-at
-            /// let view = Mat4::<f32>::look_at_view_rh(eye, target, Vec4::up());
-            /// assert_relative_eq!(view * model, Mat4::identity());
-            /// assert_relative_eq!(model * view, Mat4::identity());
-            /// # }
-            /// ```
-            pub fn look_at_model_rh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
+            // NOTE: Not public. Handedness makes no sense for view/model matrices until someone proves me wrong.
+            #[allow(dead_code)]
+            pub(crate) fn model_look_at_rh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
                 where T: Float + Sum + MulAdd<T,T,Output=T>
             {
                 let (eye, target, up) = (eye.into(), target.into(), up.into());
@@ -2036,39 +2078,6 @@ macro_rules! mat_impl_mat4 {
                     T::zero(), T::zero(), T::zero(), T::one()
                 )
             }
-
-            /// Builds a "look at" view transform for right-handed spaces
-            /// from an eye position, a target position, and up vector.
-            /// Commonly used for cameras.
-            ///
-            /// ```
-            /// # extern crate vek;
-            /// # #[macro_use] extern crate approx;
-            /// # use vek::{Mat4, Vec4};
-            /// # fn main() {
-            /// let eye = Vec4::new(1_f32, 0., 1., 1.);
-            /// let target = Vec4::new(2_f32, 0., 2., 1.);
-            /// let view = Mat4::<f32>::look_at_view_rh(eye, target, Vec4::up());
-            /// assert_relative_eq!(view * eye, Vec4::unit_w());
-            /// assert_relative_eq!(view * target, Vec4::new(0_f32, 0., -2_f32.sqrt(), 1.));
-            /// # }
-            /// ```
-            pub fn look_at_view_rh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
-                where T: Float + Sum
-            {
-                // From GLM
-                let (eye, target, up) = (eye.into(), target.into(), up.into());
-                let f = (target - eye).normalized();
-                let s = f.cross(up).normalized();
-                let u = s.cross(f);
-                Self::new(
-                     s.x,  s.y,  s.z, -s.dot(eye),
-                     u.x,  u.y,  u.z, -u.dot(eye),
-                    -f.x, -f.y, -f.z,  f.dot(eye),
-                    T::zero(), T::zero(), T::zero(), T::one()
-                )
-            }
-
 
 
             //
@@ -2085,6 +2094,22 @@ macro_rules! mat_impl_mat4 {
                 m[(1, 3)] = - (top + bottom) / (top - bottom);
                 m
             }
+            /// Returns an orthographic projection matrix for left-handed spaces,
+            /// for a depth clip space ranging from 0 to 1 (`GL_DEPTH_ZERO_TO_ONE`,
+            /// hence the `_zo` suffix).
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::{Mat4, FrustumPlanes, Vec4};
+            /// # fn main() {
+            /// let m = Mat4::orthographic_lh_zo(FrustumPlanes {
+            ///     left: -1_f32, right: 1., bottom: -1., top: 1.,
+            ///     near: 0., far: 1.
+            /// });
+            /// let v = Vec4::new(0_f32, 0., 1., 1.); // "forward"
+            /// assert_relative_eq!(m * v, Vec4::new(0., 0., 1., 1.)); // "far"
+            /// # }
+            /// ```
             pub fn orthographic_lh_zo (o: FrustumPlanes<T>) -> Self where T: Float {
                 let FrustumPlanes { near, far, .. } = o;
                 let mut m = Self::orthographic_without_depth_planes(o);
@@ -2092,6 +2117,23 @@ macro_rules! mat_impl_mat4 {
                 m[(2, 3)] = - near / (far - near);
                 m
             }
+            /// Returns an orthographic projection matrix for left-handed spaces,
+            /// for a depth clip space ranging from -1 to 1 (`GL_DEPTH_NEGATIVE_ONE_TO_ONE`,
+            /// hence the `_no` suffix).
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::{Mat4, FrustumPlanes, Vec4};
+            /// # fn main() {
+            /// let m = Mat4::orthographic_lh_no(FrustumPlanes {
+            ///     left: -1_f32, right: 1., bottom: -1., top: 1.,
+            ///     near: 0., far: 1.
+            /// });
+            /// let v = Vec4::new(0_f32, 0., 1., 1.); // "forward"
+            /// assert_relative_eq!(m * v, Vec4::new(0., 0., 1., 1.)); // "far"
+            /// # }
+            /// ```
             pub fn orthographic_lh_no (o: FrustumPlanes<T>) -> Self where T: Float {
                 let two = T::one() + T::one();
                 let FrustumPlanes { near, far, .. } = o;
@@ -2100,6 +2142,22 @@ macro_rules! mat_impl_mat4 {
                 m[(2, 3)] = - (far + near) / (far - near);
                 m
             }
+            /// Returns an orthographic projection matrix for right-handed spaces,
+            /// for a depth clip space ranging from 0 to 1 (`GL_DEPTH_ZERO_TO_ONE`,
+            /// hence the `_zo` suffix).
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::{Mat4, FrustumPlanes, Vec4};
+            /// # fn main() {
+            /// let m = Mat4::orthographic_rh_zo(FrustumPlanes {
+            ///     left: -1_f32, right: 1., bottom: -1., top: 1.,
+            ///     near: 0., far: 1.
+            /// });
+            /// let v = Vec4::new(0_f32, 0., -1., 1.); // "forward"
+            /// assert_relative_eq!(m * v, Vec4::new(0., 0., 1., 1.)); // "far"
+            /// # }
+            /// ```
             pub fn orthographic_rh_zo (o: FrustumPlanes<T>) -> Self where T: Float {
                 let FrustumPlanes { near, far, .. } = o;
                 let mut m = Self::orthographic_without_depth_planes(o);
@@ -2107,6 +2165,23 @@ macro_rules! mat_impl_mat4 {
                 m[(2, 3)] = - near / (far - near);
                 m
             }
+            /// Returns an orthographic projection matrix for right-handed spaces,
+            /// for a depth clip space ranging from -1 to 1 (`GL_DEPTH_NEGATIVE_ONE_TO_ONE`,
+            /// hence the `_no` suffix).
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::{Mat4, FrustumPlanes, Vec4};
+            /// # fn main() {
+            /// let m = Mat4::orthographic_rh_no(FrustumPlanes {
+            ///     left: -1_f32, right: 1., bottom: -1., top: 1.,
+            ///     near: 0., far: 1.
+            /// });
+            /// let v = Vec4::new(0_f32, 0., -1., 1.); // "forward"
+            /// assert_relative_eq!(m * v, Vec4::new(0., 0., 1., 1.)); // "far"
+            /// # }
+            /// ```
             pub fn orthographic_rh_no (o: FrustumPlanes<T>) -> Self where T: Float {
                 let two = T::one() + T::one();
                 let FrustumPlanes { near, far, .. } = o;
@@ -2943,6 +3018,30 @@ macro_rules! mat_impl_mat3 {
                     oc*z*x - y*s, oc*y*z + x*s, oc*z*z + c  
                 )
             }
+            /// Creates a matrix that would rotate a `from` direction to `to`.
+            ///
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::{Vec3, Mat3};
+            ///
+            /// # fn main() {
+            /// let (from, to) = (Vec3::<f32>::unit_x(), Vec3::<f32>::unit_z());
+            /// let m = Mat3::<f32>::arc_rotation_3d(from, to);
+            /// assert_relative_eq!(m * from, to);
+            ///
+            /// let (from, to) = (Vec3::<f32>::unit_x(), -Vec3::<f32>::unit_x());
+            /// let m = Mat3::<f32>::arc_rotation_3d(from, to);
+            /// assert_relative_eq!(m * from, to);
+            /// # }
+            /// ```
+            #[cfg(feature="quaternion")]
+            pub fn arc_rotation_3d<V: Into<Vec3<T>>>(from: V, to: V) -> Self 
+                where T: Float + Sum
+            {
+                Self::from(Quaternion::from_arc(from, to))
+            }
+
         }
 
         // #[cfg(feature="mat4")] // Commented out, see rationale in Cargo.toml
@@ -3397,19 +3496,56 @@ mod tests {
     macro_rules! for_each_type {
         ($mat:ident $Mat:ident $($T:ident)+) => {
             mod $mat {
-                // repr_c matrices are expected to be packed, but not required to.
+                // repr_c matrices are expected to be packed.
                 // repr_simd matrices are not necessarily expected to be packed in the first place.
                 mod repr_c {
                     $(mod $T {
                         use $crate::mat::repr_c::$Mat;
+
                         #[test]
-                        #[ignore] // Ignored because there's no guarantee and we don't want failing tests.
-                        fn is_packed() {
-                            assert!($Mat::<$T>::default().is_packed());
+                        fn is_actually_packed() {
+                            let m = $Mat::<$T>::identity();
+                            let a = m.clone().into_row_array(); // same as into_col_array(), because identity.
+                            let mp = unsafe {
+                                ::std::slice::from_raw_parts(&m as *const _ as *const $T, a.len())
+                            };
+                            assert_eq!(mp, &a);
                         }
-                        use ::std::rc::Rc;
                         #[test]
-                        //#[ignore]
+                        fn is_actually_packed_rc() {
+                            let m = $Mat::<$T>::identity().map(::std::rc::Rc::new);
+                            let a = m.clone().into_row_array(); // same as into_col_array(), because identity.
+                            let mp = unsafe {
+                                ::std::slice::from_raw_parts(&m as *const _ as *const ::std::rc::Rc<$T>, a.len())
+                            };
+                            assert_eq!(mp, &a);
+                        }
+                        #[test]
+                        fn is_actually_packed_refcell() {
+                            let m = $Mat::<$T>::identity().map(::std::cell::RefCell::new);
+                            let a = m.clone().into_row_array(); // same as into_col_array(), because identity.
+                            let mp = unsafe {
+                                ::std::slice::from_raw_parts(&m as *const _ as *const ::std::cell::RefCell<$T>, a.len())
+                            };
+                            assert_eq!(mp, &a);
+                        }
+                        #[test]
+                        fn is_actually_packed_stdvec() {
+                            let m = $Mat::<$T>::identity().map(|x| vec![x]);
+                            let a = m.clone().into_row_array(); // same as into_col_array(), because identity.
+                            let mp = unsafe {
+                                ::std::slice::from_raw_parts(&m as *const _ as *const Vec<$T>, a.len())
+                            };
+                            assert_eq!(mp, &a);
+                        }
+                        #[test] fn claims_to_be_packed() { assert!($Mat::<$T>::default().is_packed()); }
+                        #[test] fn claims_to_be_packed_rc() { assert!($Mat::<$T>::default().map(::std::rc::Rc::new).is_packed()); }
+                        #[test] fn claims_to_be_packed_refcell() { assert!($Mat::<$T>::default().map(::std::cell::RefCell::new).is_packed()); }
+                        #[test] fn claims_to_be_packed_stdvec() { assert!($Mat::<$T>::default().map(|x| vec![x]).is_packed()); }
+
+                        use ::std::rc::Rc;
+
+                        #[test]
                         fn rc_col_array_conversions() {
                             let m: $Mat<Rc<i32>> = $Mat::default().map(Rc::new);
                             let mut a = m.into_col_array();
@@ -3420,7 +3556,6 @@ mod tests {
                             *Rc::make_mut(&mut m[(0, 0)]) = 3; // Try to write. If there's a double free, this is supposed to crash.
                         }
                         #[test]
-                        //#[ignore]
                         fn rc_row_array_conversions() {
                             let m: $Mat<Rc<i32>> = $Mat::default().map(Rc::new);
                             let mut a = m.into_row_array();
@@ -3449,4 +3584,55 @@ mod tests {
     #[cfg(feature="mat2")]    for_each_type!{mat2 Mat2 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
     #[cfg(feature="mat3")]    for_each_type!{mat3 Mat3 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
     /*#[cfg(feature="mat4")]*/for_each_type!{mat4 Mat4 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+
+    use super::Mat4;
+    use super::super::vec::Vec4;
+
+    #[test]
+    fn test_model_look_at_rh() {
+        let eye = Vec4::new(1_f32, 0., 1., 1.);
+        let target = Vec4::new(2_f32, 0., 2., 1.);
+        let model = Mat4::<f32>::model_look_at_rh(eye, target, Vec4::up());
+        assert_relative_eq!(model * Vec4::unit_w(), Vec4::new(1_f32, 0., 1., 1.));
+        assert_relative_eq!(model * Vec4::new(0_f32, 0., -2_f32.sqrt(), 1.), Vec4::new(2_f32, 0., 2., 1.));
+        
+        // A "model" look-at essentially undoes a "view" look-at
+        let view = Mat4::<f32>::look_at_rh(eye, target, Vec4::up());
+        assert_relative_eq!(view * model, Mat4::identity());
+        assert_relative_eq!(model * view, Mat4::identity());
+    }
+
+    #[test]
+    fn test_model_look_at_lh() {
+        let eye = Vec4::new(1_f32, 0., 1., 1.);
+        let target = Vec4::new(2_f32, 0., 2., 1.);
+        let model = Mat4::<f32>::model_look_at_lh(eye, target, Vec4::up());
+        assert_relative_eq!(model * Vec4::unit_w(), eye);
+        let d = 2_f32.sqrt();
+        assert_relative_eq!(model * Vec4::new(0_f32, 0., d, 1.), target);
+        
+        // A "model" look-at essentially undoes a "view" look-at
+        let view = Mat4::look_at_lh(eye, target, Vec4::up());
+        assert_relative_eq!(view * model, Mat4::identity());
+        assert_relative_eq!(model * view, Mat4::identity());
+    }
+
+    #[test]
+    fn test_look_at_rh() {
+        let eye = Vec4::new(1_f32, 0., 1., 1.);
+        let target = Vec4::new(2_f32, 0., 2., 1.);
+        let view = Mat4::<f32>::look_at_rh(eye, target, Vec4::up());
+        assert_relative_eq!(view * eye, Vec4::unit_w());
+        assert_relative_eq!(view * target, Vec4::new(0_f32, 0., -2_f32.sqrt(), 1.));
+    }
+
+    #[test]
+    fn test_look_at_lh() {
+        let eye = Vec4::new(1_f32, 0., 1., 1.);
+        let target = Vec4::new(2_f32, 0., 2., 1.);
+        let view = Mat4::<f32>::look_at_lh(eye, target, Vec4::up());
+        assert_relative_eq!(view * eye, Vec4::unit_w());
+        assert_relative_eq!(view * target, Vec4::new(0_f32, 0., 2_f32.sqrt(), 1.));
+    }
+
 }

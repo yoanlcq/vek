@@ -41,6 +41,10 @@ pub trait IsBetween<Bound=Self>: Sized {
 	}
 }
 
+pub trait IsBetween01: IsBetween + Zero + One {}
+impl<T: IsBetween + Zero + One> IsBetween01 for T {}
+
+
 /// A scalar or vector that can be constrained to be between two values (inclusive).
 pub trait Clamp<Bound=Self>: Sized {
 	/// Constrains this value to be between `lower` and `upper` (inclusive).
@@ -80,7 +84,6 @@ pub trait Clamp<Bound=Self>: Sized {
 }
 
 pub trait Clamp01: Clamp + Zero + One {}
-
 impl<T: Clamp + Zero + One> Clamp01 for T {}
 
 macro_rules! impl_clamp_float {
