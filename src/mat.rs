@@ -1802,19 +1802,19 @@ macro_rules! mat_impl_mat4 {
             ///
             /// # fn main() {
             /// let (from, to) = (Vec4::<f32>::unit_x(), Vec4::<f32>::unit_z());
-            /// let m = Mat4::<f32>::arc_rotation_3d(from, to);
+            /// let m = Mat4::<f32>::rotation_from_to_3d(from, to);
             /// assert_relative_eq!(m * from, to);
             ///
             /// let (from, to) = (Vec4::<f32>::unit_x(), -Vec4::<f32>::unit_x());
-            /// let m = Mat4::<f32>::arc_rotation_3d(from, to);
+            /// let m = Mat4::<f32>::rotation_from_to_3d(from, to);
             /// assert_relative_eq!(m * from, to);
             /// # }
             /// ```
             #[cfg(feature="quaternion")]
-            pub fn arc_rotation_3d<V: Into<Vec3<T>>>(from: V, to: V) -> Self 
+            pub fn rotation_from_to_3d<V: Into<Vec3<T>>>(from: V, to: V) -> Self 
                 where T: Float + Sum
             {
-                Self::from(Quaternion::from_arc(from, to))
+                Self::from(Quaternion::rotation_from_to_3d(from, to))
             }
 
             //
@@ -2654,42 +2654,78 @@ macro_rules! mat_impl_mat4 {
             }
         }
 
-        // FIXME: From<Mat4<T>> for Quaternion: This has never been tested!!!
-        /*
+        /* NOTE: Commented until I find an implementation that actually works
+        /// A quaternion may be obtained from a rotation matrix.
+        ///
+        /// ```
+        /// # extern crate vek;
+        /// # #[macro_use] extern crate approx;
+        /// # use vek::{Mat4, Quaternion, Vec3};
+        /// # fn main() {
+        /// let (angle, axis) = (3_f32, Vec3::new(1_f32, 3., 7.));
+        /// let a = Quaternion::rotation_3d(angle, axis);
+        /// let b = Quaternion::from(Mat4::rotation_3d(angle, axis));
+        /// assert_relative_eq!(a, b);
+        /// # }
+        /// ```
         #[cfg(feature="quaternion")]
         impl<T> From<Mat4<T>> for Quaternion<T>
             where T: Float + Zero + One + Mul<Output=T> + Add<Output=T> + Sub<Output=T>
         {
             fn from(m: Mat4<T>) -> Self {
-                use super::row_major::Mat4 as Rows4;
-                let m = Rows4::from(m).rows;
-                let r = T::zero();
-                let perm = [ 0, 1, 2, 0, 1 ];
-                let mut p = &perm[..];
-
-                for i in 0..3 {
-                    let min = m[i][i];
-                    if min < r {
-                        continue;
+                // http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/
+                // Using the most branchy one, because if you're willing to convert a matrix to
+                // quaternion in the first place, surely you don't mind this extra cost.
+                let m = Rows4::from(m);
+                let Rows4 {
+                    rows: CVec4 {
+                        x: Vec4 { x: m00, y: m01, z: m02, w: _ },
+                        y: Vec4 { x: m10, y: m11, z: m12, w: _ },
+                        z: Vec4 { x: m20, y: m21, z: m22, w: _ },
+                        w: Vec4 { x:   _, y:   _, z:   _, w: _ },
                     }
-                    p = &perm[i..];
-                }
+                } = m;
+                let tr = m00 + m11 + m22;
 
-                let r = (T::one() + m[p[0]][p[0]] - m[p[1]][p[1]] - m[p[2]][p[2]]).sqrt();
-
-                if r < T::epsilon() {
-                    return Self::identity();
+                let one = T::one();
+                let two = one + one;
+                let four = two + two;
+                if tr > T::zero() { 
+                    let s = (tr+one).sqrt() * two; // S=4*qw
+                    Self {
+                        w: s / four,
+                        x: (m21 - m12) / s,
+                        y: (m02 - m20) / s,
+                        z: (m10 - m01) / s,
+                    }
+                } else if (m00 > m11) && (m00 > m22) { 
+                    let s = (one + m00 - m11 - m22).sqrt() * two; // S=4*qx 
+                    Self {
+                        w: (m21 - m12) / s,
+                        x: s / four,
+                        y: (m01 + m10) / s,
+                        z: (m02 + m20) / s,
+                    }
+                } else if m11 > m22 { 
+                    let s = (one + m11 - m00 - m22).sqrt() * two; // S=4*qy
+                    Self {
+                        w: (m02 - m20) / s,
+                        x: (m01 + m10) / s,
+                        y: s / four,
+                        z: (m12 + m21) / s,
+                    }
+                } else { 
+                    let s = (one + m22 - m00 - m11).sqrt() * two; // S=4*qz
+                    Self {
+                        w: (m10 - m01) / s,
+                        x: (m02 + m20) / s,
+                        y: (m12 + m21) / s,
+                        z: s / four,
+                    }
                 }
-                let two = T::one() + T::one();
-                Self::from_xyzw(
-                    (m[p[0]][p[1]] - m[p[1]][p[0]])/(two*r),
-                    (m[p[2]][p[0]] - m[p[0]][p[2]])/(two*r),
-                    (m[p[2]][p[1]] - m[p[1]][p[2]])/(two*r),
-                    r/two
-                )
             }
+            */
         }
-        */
     };
 }
 
@@ -3029,19 +3065,19 @@ macro_rules! mat_impl_mat3 {
             ///
             /// # fn main() {
             /// let (from, to) = (Vec3::<f32>::unit_x(), Vec3::<f32>::unit_z());
-            /// let m = Mat3::<f32>::arc_rotation_3d(from, to);
+            /// let m = Mat3::<f32>::rotation_from_to_3d(from, to);
             /// assert_relative_eq!(m * from, to);
             ///
             /// let (from, to) = (Vec3::<f32>::unit_x(), -Vec3::<f32>::unit_x());
-            /// let m = Mat3::<f32>::arc_rotation_3d(from, to);
+            /// let m = Mat3::<f32>::rotation_from_to_3d(from, to);
             /// assert_relative_eq!(m * from, to);
             /// # }
             /// ```
             #[cfg(feature="quaternion")]
-            pub fn arc_rotation_3d<V: Into<Vec3<T>>>(from: V, to: V) -> Self 
+            pub fn rotation_from_to_3d<V: Into<Vec3<T>>>(from: V, to: V) -> Self 
                 where T: Float + Sum
             {
-                Self::from(Quaternion::from_arc(from, to))
+                Self::from(Quaternion::rotation_from_to_3d(from, to))
             }
 
         }
@@ -3084,6 +3120,20 @@ macro_rules! mat_impl_mat3 {
                 Mat4::from(q).into()
             }
         }
+        /* NOTE: Blocked by From<Mat4<T>> for Quaternion
+        /// A quaternion may be obtained from a rotation matrix.
+        ///
+        /// ```
+        /// # extern crate vek;
+        /// # #[macro_use] extern crate approx;
+        /// # use vek::{Mat3, Quaternion, Vec3};
+        /// # fn main() {
+        /// let (angle, axis) = (3_f32, Vec3::new(1_f32, 3., 7.));
+        /// let a = Quaternion::rotation_3d(angle, axis);
+        /// let b = Quaternion::from(Mat3::rotation_3d(angle, axis));
+        /// assert_relative_eq!(a, b);
+        /// # }
+        /// ```
         #[cfg(feature="quaternion")]
         impl<T> From<Mat3<T>> for Quaternion<T> 
             where T: Zero + One + Mul<Output=T> + Add<Output=T> + Sub<Output=T> + Float
@@ -3092,6 +3142,7 @@ macro_rules! mat_impl_mat3 {
                 Mat4::from(m).into()
             }
         }
+        */
 
     };
 }

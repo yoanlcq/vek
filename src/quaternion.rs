@@ -270,15 +270,15 @@ macro_rules! quaternion_complete_mod {
             ///
             /// # fn main() {
             /// let (from, to) = (Vec4::<f32>::unit_x(), Vec4::<f32>::unit_z());
-            /// let q = Quaternion::<f32>::from_arc(from, to);
+            /// let q = Quaternion::<f32>::rotation_from_to_3d(from, to);
             /// assert_relative_eq!(q * from, to);
             ///
             /// let (from, to) = (Vec4::<f32>::unit_x(), -Vec4::<f32>::unit_x());
-            /// let q = Quaternion::<f32>::from_arc(from, to);
+            /// let q = Quaternion::<f32>::rotation_from_to_3d(from, to);
             /// assert_relative_eq!(q * from, to);
             /// # }
             /// ```
-            pub fn from_arc<V: Into<Vec3<T>>>(from: V, to: V) -> Self 
+            pub fn rotation_from_to_3d<V: Into<Vec3<T>>>(from: V, to: V) -> Self 
                 where T: Float + Sum
             {
                 // From GLM
