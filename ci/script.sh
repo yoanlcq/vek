@@ -3,15 +3,15 @@
 set -ex
 
 main() {
-    cross build --target $TARGET --all-features
-    cross build --target $TARGET --all-features --release
+    cross build --target $TARGET
+    cross build --target $TARGET --release
 
     if [ ! -z $DISABLE_TESTS ]; then
         return
     fi
 
-    cross test --target $TARGET --all-features
-    cross test --target $TARGET --all-features --release
+    cross test --target $TARGET
+    cross test --target $TARGET --release
     #if [ ! $AVOID_DOC_TESTS ]; then
     #    cross test --doc --no-fail-fast --target $TARGET
     #    cross test --doc --no-fail-fast --target $TARGET --release
