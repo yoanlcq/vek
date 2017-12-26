@@ -2654,7 +2654,8 @@ macro_rules! mat_impl_mat4 {
             }
         }
 
-        // FIXME: This has never been tested!!!
+        // FIXME: From<Mat4<T>> for Quaternion: This has never been tested!!!
+        /*
         #[cfg(feature="quaternion")]
         impl<T> From<Mat4<T>> for Quaternion<T>
             where T: Float + Zero + One + Mul<Output=T> + Add<Output=T> + Sub<Output=T>
@@ -2688,6 +2689,7 @@ macro_rules! mat_impl_mat4 {
                 )
             }
         }
+        */
     };
 }
 
