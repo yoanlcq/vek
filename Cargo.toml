@@ -46,8 +46,6 @@ rgba = []
 uv = []
 uvw = []
 repr_simd = []
-# Deprecated : it makes tests cry because it's enabled when using --all-features
-# repr_aligned = []
 
 [build-dependencies]
 rustc_version = "0.2.1"

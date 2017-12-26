@@ -44,7 +44,6 @@
 #![cfg_attr(all(nightly, feature="clippy"), plugin(clippy))]
 #![cfg_attr(all(nightly, feature="repr_simd" ), feature(cfg_target_feature))]
 #![cfg_attr(all(nightly, feature="repr_simd" ), feature(repr_simd, simd_ffi))]
-#![cfg_attr(all(nightly, feature="repr_align"), feature(repr_align, attr_literals))]
 //#![cfg_attr(feature="repr_simd", allow(improper_ctypes)]
 //#![cfg_attr(feature="repr_simd", feature(link_llvm_intrinsics)]
 #![cfg_attr(all(nightly,test), feature(test))]

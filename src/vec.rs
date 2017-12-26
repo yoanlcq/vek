@@ -2697,9 +2697,6 @@ pub mod repr_c {
     vec_impl_all_vecs!{
         c
         #[repr(C)]
-        #[cfg_attr(all(nightly, feature="repr_align", any(target_arch="x86", target_arch="x86_64")), repr(align(16)))]
-        #[cfg_attr(all(nightly, feature="repr_align", target_arch="arm"), repr(align(64)))]
-        // XXX ^^^^ Not sure about the alignment on ARM ??
     }
 }
 
