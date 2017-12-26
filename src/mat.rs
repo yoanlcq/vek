@@ -856,9 +856,13 @@ macro_rules! mat_impl_mat {
             /// assert_eq!(m, Mat4::identity());
             /// ```
             pub fn numcast<D>(self) -> Option<$Mat<D>> where T: NumCast, D: NumCast {
+                // NOTE: Should use `?` for conciseness, but docs.rs uses rustc 1.22 and doesn't seem to like that.
                 Some($Mat {
                     $lines: $CVec {
-                        $($get: self.$lines.$get.numcast()?,)+
+                        $($get: match self.$lines.$get.numcast() {
+                            Some(x) => x,
+                            None => return None,
+                        },)+
                     }
                 })
             }
