@@ -393,6 +393,13 @@ macro_rules! vec_impl_vec {
             pub fn into_tuple(self) -> $Tuple {
                 ($(self.$get),+)
             }
+            /// Converts this vector into a fixed-size array.
+            #[cfg_attr(feature = "clippy", allow(type_complexity))]
+            pub fn into_array(self) -> [T; $dim] {
+                [$(self.$get, )+]
+            }
+            // NOTE: Deref<[T]> provides `to_vec()`. Don't write one here!
+
 
             /// Are elements of this vector tightly packed in memory ?
             // NOTE: Private, because assumed to be always true at compile-time!
@@ -484,10 +491,6 @@ macro_rules! vec_impl_vec {
                     None => return None,
                 }),+))
             }
-            /// Converts this vector into a fixed-size array.
-            pub fn into_array(self) -> [T; $dim] {
-                [$(self.$get, )+]
-            }
 
             /// Fused multiply-add. Returns `self * mul + add`, and may be implemented
             /// efficiently by the hardware.
@@ -518,6 +521,7 @@ macro_rules! vec_impl_vec {
                 Self::new($($namedget),+)
             }
 
+            /*
             /// Gets an iterator over immutable references of this vector's elements.
             pub fn iter(&self) -> slice::Iter<T> {
                 self.into_iter()
@@ -526,6 +530,7 @@ macro_rules! vec_impl_vec {
             pub fn iter_mut(&mut self) -> slice::IterMut<T> {
                 self.into_iter()
             }
+            */
 
             /// Is any of the elements negative ?
             ///
