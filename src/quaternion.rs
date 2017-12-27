@@ -365,10 +365,12 @@ macro_rules! quaternion_complete_mod {
             /// assert_relative_eq!(angle, PI/2.);
             /// assert_relative_eq!(axis, Vec3::unit_x());
             ///
-            /// let q = Quaternion::rotation_3d(PI*4./5., Vec3::new(1., 2., 3.));
-            /// let (angle, axis) = q.into_angle_axis();
-            /// assert_relative_eq!(angle, PI*4./5.);
-            /// assert_relative_eq!(axis, Vec3::new(1., 2., 3.));
+            /// let angle = PI*4./5.;
+            /// let axis = Vec3::new(1_f32, 2., 3.);
+            /// let q = Quaternion::rotation_3d(angle, axis);
+            /// let (a, v) = q.into_angle_axis();
+            /// assert_relative_eq!(a, angle);
+            /// assert_relative_eq!(v, axis.normalized());
             /// # }
             /// ```
             pub fn into_angle_axis(self) -> (T, Vec3<T>) where T: Float {
