@@ -2,7 +2,8 @@
 // https://pomax.github.io/bezierinfo
 
 use num_traits::Float;
-use std::ops::*;
+use std::fmt::Debug;
+use ops::*;
 use std::iter::Sum;
 use vec::repr_c::{
     Vec3 as CVec3,
@@ -18,27 +19,97 @@ use vec::repr_c::{
 
 macro_rules! bezier_impl_any {
     ($Bezier:ident $Point:ident) => {
-        impl<T> $Bezier<T> {
+        impl<T: Float> $Bezier<T> {
             /// Evaluates the normalized tangent at interpolation factor `t`.
-            pub fn normalized_tangent(self, t: T) -> $Point<T> where T: Float + Sum {
+            pub fn normalized_tangent(self, t: T) -> $Point<T> where T: Sum {
                 self.evaluate_derivative(t).normalized()
             }
             // WISH: better length approximation estimations (e.g see https://math.stackexchange.com/a/61796)
             /// Approximates the curve's length by subdividing it into step_count+1 segments.
             pub fn length_by_discretization(self, step_count: u32) -> T
-                where T: Float + AddAssign + Sum
+                where T: Sum
             {
 	            let mut length = T::zero();
 	            let mut prev_point = self.evaluate(T::zero());
                 for i in 1..step_count+2 {
     		        let t = T::from(i).unwrap()/(T::from(step_count).unwrap()+T::one());
     		        let next_point = self.evaluate(t);
-                    length += (next_point - prev_point).magnitude();
+                    length = length + (next_point - prev_point).magnitude();
     		        prev_point = next_point;
                 }
 	            length
             }
 
+            /// Returns this curve, flipping the `x` coordinate of each of its points.
+            pub fn flipped_x(self) -> Self {
+                self.into_vector().map(|mut p| {p.x = -p.x; p}).into()
+            }
+            /// Returns this curve, flipping the `y` coordinate of each of its points.
+            pub fn flipped_y(self) -> Self {
+                self.into_vector().map(|mut p| {p.y = -p.y; p}).into()
+            }
+            /// Flips the `x` coordinate of all points of this curve.
+            pub fn flip_x(&mut self) {
+                *self = self.flipped_x();
+            }
+            /// Flips the `y` coordinate of all points of this curve.
+            pub fn flip_y(&mut self) {
+                *self = self.flipped_y();
+            }
+            // TODO: Implement via Mul in src/mat.rs instead, so that all layouts have it
+            fn transformed_by_mat3(self, m: Mat3<T>) -> Self
+                where T: MulAdd<T,T,Output=T>
+            {
+                self.into_vector().map(|p| (m * Vec3::from(p)).into()).into()
+            }
+            fn transformed_by_mat4(self, m: Mat4<T>) -> Self 
+                where T: MulAdd<T,T,Output=T>
+            {
+                self.into_vector().map(|p| m.mul_point(p).into()).into()
+            }
+
+            // TODO: Test this! binary_search_point_easy
+            fn binary_search_point_easy(self, p: $Point<T>, steps: u16, epsilon: T) -> (T, $Point<T>) 
+                where T: Sum + From<u16> + Debug
+            {
+                let it = (0..(steps+1)).map(|i| {
+                    let t = <T as From<u16>>::from(i) / <T as From<u16>>::from(steps);
+                    (t, self.evaluate(t))
+                });
+                let h = <T as From<u16>>::from(steps);
+                let h = (h+h).recip();
+                self.binary_search_point(p, it, h, epsilon)
+            }
+            // TODO: Test this! binary_search_point
+            fn binary_search_point<I>(self, p: $Point<T>, coarse: I, half_interval: T, epsilon: T) -> (T, $Point<T>)
+                where T: Sum + Debug, I: IntoIterator<Item=(T, $Point<T>)>
+            {
+                debug_assert_ne!(epsilon, T::zero());
+                let mut t = T::one();
+                let mut pt = self.end;
+                let mut d = pt.distance_squared(p);
+                for (t_, pt_) in coarse {
+                    let d_ = pt_.distance_squared(p);
+                    if d_ < d {
+                        d = d_; pt = pt_; t = t_;
+                    }
+                }
+                let mut h = half_interval;
+                while h >= epsilon {
+                    let (p1, p2) = (self.evaluate(t-h), self.evaluate(t+h));
+                    let (d1, d2) = (p.distance_squared(p1), p.distance_squared(p2));
+                    if d1 < d || d2 < d {
+                        if d1 < d2 {
+                            d = d1; pt = p1; t = t - h;
+                        } else {
+                            d = d2; pt = p2; t = t + h;
+                        }
+                        continue;
+                    }
+                    h = h / (T::one() + T::one());
+                }
+                (t, pt)
+            }
         }
     }
 }
@@ -134,6 +205,11 @@ macro_rules! bezier_impl_quadratic {
             pub fn into_array(self) -> [$Point<T>; 3] {
                 self.into_vec3().into_array()
             }
+            // Convenience for this module
+            pub(crate) fn into_vector(self) -> Vec3<$Point<T>> {
+                self.into_vec3()
+            }
+
         }
         
         impl<T> From<Vec3<$Point<T>>> for $QuadraticBezier<T> {
@@ -253,8 +329,12 @@ macro_rules! bezier_impl_cubic {
             pub fn into_array(self) -> [$Point<T>; 4] {
                 self.into_vec4().into_array()
             }
+            // Convenience for this module
+            pub(crate) fn into_vector(self) -> Vec4<$Point<T>> {
+                self.into_vec4()
+            }
 
-            /// Gets the curve that approximates a unit quarter circle.
+            /// Gets the cubic Bézier curve that approximates a unit quarter circle.
             ///
             /// You can build a good-looking circle out of 4 curves by applying
             /// symmetries to this curve.
@@ -268,9 +348,16 @@ macro_rules! bezier_impl_cubic {
                     end: Vec2::unit_y().into(),
                 }
             }
-
-            // WISH: CubicBezier::circle(radius)
-            // pub fn circle(radius: T, curve_count: u32) ->
+            /// Gets the 4 cubic Bézier curves that, used together, approximate a unit quarter circle.
+            ///
+            /// The returned tuple is `(north-east, north-west, south-west, south-east)`.
+            pub fn unit_circle() -> (Self, Self, Self, Self) {
+                let a = Self::unit_quarter_circle();
+                let b = a.flipped_x();
+                let c = b.flipped_y();
+                let d = a.flipped_y();
+                (a, b, c, d)
+            }
         }
         
         impl<T> From<Vec4<$Point<T>>> for $CubicBezier<T> {

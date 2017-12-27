@@ -37,7 +37,7 @@ macro_rules! rect_complete_mod {
                 let Self { x, y, w, h } = self;
                 (Vec2 { x, y }, Extent2 { w, h })
             }
-            pub fn convert<DP,DE,PF,EF>(self, pf: PF, ef: EF) -> Rect<DP,DE>
+            pub fn map<DP,DE,PF,EF>(self, pf: PF, ef: EF) -> Rect<DP,DE>
                 where PF: FnMut(P) -> DP, EF: FnMut(E) -> DE
             {
                 let Self { x, y, w, h } = self;
@@ -45,6 +45,15 @@ macro_rules! rect_complete_mod {
                 let Extent2 { w, h } = Extent2 { w, h }.map(ef);
                 Rect { x, y, w, h }
             }
+        }
+        impl<T> Rect<T,T> {
+            /* XXX: Does it work if Y goes downwards ?
+            pub fn contains(self, p: Vec2<T>) -> bool {
+                let x = self.x <= p.x && p.x <= (self.x+self.w);
+                let y = self.y <= p.y && p.y <= (self.y+self.h);
+                x && y
+            }
+            */
             /*
             pub fn collision(self, _other: Self) -> Vec2<P> {
                 unimplemented!()    
