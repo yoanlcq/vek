@@ -9,6 +9,7 @@ use vec::repr_c::{
     Vec4 as CVec4,
 };
 
+// NOTE: We have trivial bounding triangles from quadratic Bézier curves;
 // WISH: into_iter, iter_mut, etc (for concisely applying the same xform to all points)
 // WISH: AABBs from beziers
 // WISH: OOBBs from beziers
@@ -48,7 +49,11 @@ macro_rules! bezier_impl_quadratic {
         $(#[$attrs])*
         #[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, /*PartialOrd, Ord*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        pub struct $QuadraticBezier<T>(pub $Point<T>, pub $Point<T>, pub $Point<T>);
+        pub struct $QuadraticBezier<T> {
+            pub start: $Point<T>,
+            pub ctrl: $Point<T>, 
+            pub end: $Point<T>,
+        }
         
         impl<T: Float> $QuadraticBezier<T> {
             /// Evaluates the position of the point lying on the curve at interpolation factor `t`.
@@ -62,7 +67,7 @@ macro_rules! bezier_impl_quadratic {
             pub fn evaluate(self, t: T) -> $Point<T> {
                 let l = T::one();
                 let two = l+l;
-                self.0*(l-t)*(l-t) + self.1*two*(l-t)*t + self.2*t*t
+                self.start*(l-t)*(l-t) + self.ctrl*two*(l-t)*t + self.end*t*t
             }
             /// Evaluates the derivative tangent at interpolation factor `t`, which happens to give
             /// a non-normalized tangent vector.
@@ -71,11 +76,15 @@ macro_rules! bezier_impl_quadratic {
             pub fn evaluate_derivative(self, t: T) -> $Point<T> {
                 let l = T::one();
                 let n = l+l;
-                (self.1-self.0)*(l-t)*n + (self.2-self.1)*t*n
+                (self.ctrl-self.start)*(l-t)*n + (self.end-self.ctrl)*t*n
             }
             /// Creates a quadratic Bézier curve from a single segment.
             pub fn from_line_segment(line: $LineSegment<T>) -> Self {
-                $QuadraticBezier(line.a, line.a, line.b)
+                $QuadraticBezier {
+                    start: line.a, 
+                    ctrl: line.a, 
+                    end: line.b
+                }
             }
             /// Returns the constant matrix M such that,
             /// given `T = [1, t*t, t*t*t]` and `P` the vector of control points,
@@ -100,28 +109,45 @@ macro_rules! bezier_impl_quadratic {
             pub fn split(self, t: T) -> (Self, Self) {
                 let l = T::one();
                 let two = l+l;
-                let first = $QuadraticBezier(
-                    self.0,
-                    self.1*t - self.0*(t-l),
-                    self.2*t*t - self.1*two*t*(t-l) + self.0*(t-l)*(t-l),
-                );
-                let second = $QuadraticBezier(
-                    self.2*t*t - self.1*two*t*(t-l) + self.0*(t-l)*(t-l),
-                    self.2*t - self.1*(t-l),
-                    self.2,
-                );
+                let first = $QuadraticBezier {
+                    start: self.start,
+                    ctrl:  self.ctrl*t - self.start*(t-l),
+                    end:   self.end*t*t - self.ctrl*two*t*(t-l) + self.start*(t-l)*(t-l),
+                };
+                let second = $QuadraticBezier {
+                    start: self.end*t*t - self.ctrl*two*t*(t-l) + self.start*(t-l)*(t-l),
+                    ctrl:  self.end*t - self.ctrl*(t-l),
+                    end:   self.end,
+                };
                 (first, second)
+            }
+
+            /// Converts this curve into a `Vec3` of points.
+            pub fn into_vec3(self) -> Vec3<$Point<T>> {
+                self.into()
+            }
+            /// Converts this curve into a tuple of points.
+            pub fn into_tuple(self) -> ($Point<T>, $Point<T>, $Point<T>) {
+                self.into_vec3().into_tuple()
+            }
+            /// Converts this curve into an array of points.
+            pub fn into_array(self) -> [$Point<T>; 3] {
+                self.into_vec3().into_array()
             }
         }
         
         impl<T> From<Vec3<$Point<T>>> for $QuadraticBezier<T> {
             fn from(v: Vec3<$Point<T>>) -> Self {
-                $QuadraticBezier(v.x, v.y, v.z)
+                $QuadraticBezier {
+                    start: v.x, 
+                    ctrl: v.y, 
+                    end: v.z
+                }
             }
         }
         impl<T> From<$QuadraticBezier<T>> for Vec3<$Point<T>> {
             fn from(v: $QuadraticBezier<T>) -> Self {
-                Vec3::new(v.0, v.1, v.2)
+                Vec3::new(v.start, v.ctrl, v.end)
             }
         }
         
@@ -135,7 +161,12 @@ macro_rules! bezier_impl_cubic {
         $(#[$attrs])*
         #[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, /*PartialOrd, Ord*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        pub struct $CubicBezier<T>(pub $Point<T>, pub $Point<T>, pub $Point<T>, pub $Point<T>);
+        pub struct $CubicBezier<T> {
+            pub start: $Point<T>, 
+            pub ctrl0: $Point<T>, 
+            pub ctrl1: $Point<T>,
+            pub end: $Point<T>,
+        }
 
         impl<T: Float> $CubicBezier<T> {
             /// Evaluates the position of the point lying on the curve at interpolation factor `t`.
@@ -149,7 +180,7 @@ macro_rules! bezier_impl_cubic {
             pub fn evaluate(self, t: T) -> $Point<T> {
                 let l = T::one();
                 let three = l+l+l;
-		        self.0*(l-t)*(l-t)*(l-t) + self.1*three*(l-t)*(l-t)*t + self.2*three*(l-t)*t*t + self.3*t*t*t
+		        self.start*(l-t)*(l-t)*(l-t) + self.ctrl0*three*(l-t)*(l-t)*t + self.ctrl1*three*(l-t)*t*t + self.end*t*t*t
             }
             /// Evaluates the derivative tangent at interpolation factor `t`, which happens to give
             /// a non-normalized tangent vector.
@@ -159,11 +190,16 @@ macro_rules! bezier_impl_cubic {
                 let l = T::one();
         	    let n = l+l+l;
                 let two = l+l;
-        		(self.1-self.0)*(l-t)*(l-t)*n + (self.2-self.1)*two*(l-t)*t*n + (self.3-self.2)*t*t*n
+        		(self.ctrl0-self.start)*(l-t)*(l-t)*n + (self.ctrl1-self.ctrl0)*two*(l-t)*t*n + (self.end-self.ctrl1)*t*t*n
         	}
             /// Creates a cubic Bézier curve from a single segment.
             pub fn from_line_segment(line: $LineSegment<T>) -> Self {
-                $CubicBezier(line.a, line.a, line.b, line.b)
+                $CubicBezier {
+                    start: line.a, 
+                    ctrl0: line.a, 
+                    ctrl1: line.b, 
+                    end:   line.b
+                }
             }
             /// Returns the constant matrix M such that,
             /// given `T = [1, t*t, t*t*t, t*t*t*t]` and `P` the vector of control points,
@@ -191,32 +227,65 @@ macro_rules! bezier_impl_cubic {
                 let l = T::one();
                 let two = l+l;
                 let three = l+l+l;
-                let first = $CubicBezier(
-                    self.0,
-                    self.1*t - self.0*(t-l),
-                    self.2*t*t - self.1*two*t*(t-l) + self.0*(t-l)*(t-l),
-                    self.3*t*t*t - self.2*three*t*t*(t-l) + self.1*three*t*(t-l)*(t-l) - self.0*(t-l)*(t-l)*(t-l),
-                );
-                let second = $CubicBezier(
-                    self.3*t*t*t - self.2*three*t*t*(t-l) + self.1*three*t*(t-l)*(t-l) - self.0*(t-l)*(t-l)*(t-l),
-                    self.3*t*t - self.2*two*t*(t-l) + self.1*(t-l)*(t-l),
-                    self.3*t - self.2*(t-l),
-                    self.3,
-                );
+                let first = $CubicBezier {
+                    start: self.start,
+                    ctrl0: self.ctrl0*t - self.start*(t-l),
+                    ctrl1: self.ctrl1*t*t - self.ctrl0*two*t*(t-l) + self.start*(t-l)*(t-l),
+                    end:   self.end*t*t*t - self.ctrl1*three*t*t*(t-l) + self.ctrl0*three*t*(t-l)*(t-l) - self.start*(t-l)*(t-l)*(t-l),
+                };
+                let second = $CubicBezier {
+                    start: self.end*t*t*t - self.ctrl1*three*t*t*(t-l) + self.ctrl0*three*t*(t-l)*(t-l) - self.start*(t-l)*(t-l)*(t-l),
+                    ctrl0: self.end*t*t - self.ctrl1*two*t*(t-l) + self.ctrl0*(t-l)*(t-l),
+                    ctrl1: self.end*t - self.ctrl1*(t-l),
+                    end:   self.end,
+                };
                 (first, second)
             }
+            /// Converts this curve into a `Vec4` of points.
+            pub fn into_vec4(self) -> Vec4<$Point<T>> {
+                self.into()
+            }
+            /// Converts this curve into a tuple of points.
+            pub fn into_tuple(self) -> ($Point<T>, $Point<T>, $Point<T>, $Point<T>) {
+                self.into_vec4().into_tuple()
+            }
+            /// Converts this curve into an array of points.
+            pub fn into_array(self) -> [$Point<T>; 4] {
+                self.into_vec4().into_array()
+            }
+
+            /// Gets the curve that approximates a unit quarter circle.
+            ///
+            /// You can build a good-looking circle out of 4 curves by applying
+            /// symmetries to this curve.
+            pub fn unit_quarter_circle() -> Self {
+                let (two, three) = (T::one()+T::one(), T::one()+T::one()+T::one());
+                let coeff = (two+two)*(two.sqrt()-T::one())/three;
+                Self {
+                    start: Vec2::unit_x().into(),
+                    ctrl0: (Vec2::unit_x() + Vec2::unit_y()*coeff).into(),
+                    ctrl1: (Vec2::unit_x()*coeff + Vec2::unit_y()).into(),
+                    end: Vec2::unit_y().into(),
+                }
+            }
+
             // WISH: CubicBezier::circle(radius)
             // pub fn circle(radius: T, curve_count: u32) ->
         }
         
         impl<T> From<Vec4<$Point<T>>> for $CubicBezier<T> {
             fn from(v: Vec4<$Point<T>>) -> Self {
-                $CubicBezier(v.x, v.y, v.z, v.w)
+                $CubicBezier {
+                    start: v.x, 
+                    ctrl0: v.y,
+                    ctrl1: v.z, 
+                    end: v.w
+                }
             }
         }
         impl<T> From<$CubicBezier<T>> for Vec4<$Point<T>> {
             fn from(v: $CubicBezier<T>) -> Self {
-                Vec4::new(v.0, v.1, v.2, v.3)
+                Vec4::new(v.start, v.ctrl0, v.ctrl1, v.end)
             }
         }
         
