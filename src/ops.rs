@@ -223,7 +223,7 @@ impl_muladd!{integer
 ///
 /// This is made possible thanks to the explicit `Output` type.  
 /// Therefore, it's also convenient for `GameState` structures, which you might
-/// perfer to interpolate by reference instead of consuming them.  
+/// prefer to interpolate by reference instead of consuming them.  
 /// The interpolation of two `&GameState`s would produce a new `GameState` value.
 ///
 /// ```

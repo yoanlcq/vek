@@ -2101,6 +2101,7 @@ macro_rules! mat_impl_mat4 {
             /// Returns an orthographic projection matrix for left-handed spaces,
             /// for a depth clip space ranging from 0 to 1 (`GL_DEPTH_ZERO_TO_ONE`,
             /// hence the `_zo` suffix).
+            ///
             /// ```
             /// # extern crate vek;
             /// # #[macro_use] extern crate approx;
@@ -2149,6 +2150,7 @@ macro_rules! mat_impl_mat4 {
             /// Returns an orthographic projection matrix for right-handed spaces,
             /// for a depth clip space ranging from 0 to 1 (`GL_DEPTH_ZERO_TO_ONE`,
             /// hence the `_zo` suffix).
+            ///
             /// ```
             /// # extern crate vek;
             /// # #[macro_use] extern crate approx;
