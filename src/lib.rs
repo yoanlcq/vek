@@ -71,35 +71,23 @@ extern crate approx;
 #[macro_use]
 extern crate static_assertions;
 
+#[macro_use]
+mod geom_macros;
+
 pub mod mat;
 pub use mat::*;
 pub mod vec;
 pub use vec::*;
 pub mod ops;
 pub use ops::*;
-pub mod frustum;
-pub use frustum::*;
-pub mod rect;
-pub use rect::*;
 pub mod tween;
 pub use tween::*;
-#[cfg(feature="quaternion")]
 pub mod transform;
-#[cfg(feature="quaternion")]
 pub use transform::*;
-
-#[cfg(feature="quaternion")]
 pub mod quaternion;
-#[cfg(feature="quaternion")]
 pub use quaternion::*;
-
-#[cfg(feature="bezier")]
 pub mod bezier;
-#[cfg(feature="bezier")]
 pub use bezier::*;
-
-#[cfg(feature="geom")]
 pub mod geom;
-#[cfg(feature="geom")]
 pub use geom::*;
 

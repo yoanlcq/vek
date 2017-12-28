@@ -8,45 +8,118 @@
 
 extern crate num_traits;
 
-use self::num_traits::{/*Float, Zero*/FloatConst, One};
+use self::num_traits::{Float, FloatConst, Zero, One};
 use std::ops::*;
+use std::iter::Sum;
 //use clamp::partial_max;
+
+// NOTE: There's never a sane Default for this, so don't implement or derive it!!
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
+#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+pub struct FrustumPlanes<T> {
+    pub left: T,
+    pub right: T,
+    pub bottom: T,
+    pub top: T,
+    pub near: T,
+    pub far: T,
+}
+
 
 macro_rules! geom_complete_mod {
     ($mod:ident) => {
-        // use mat::$mod::Mat2;
+
         use vec::$mod::*;
+
+        // XXX: Beware when using code that assumes that Y points downards.
+        // Luckily, our matrix functions (those that receive a viewport) do not!
+        /// 2D rectangle, by a bottom-left position, and extents.
+        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
+        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        pub struct Rect<P, E> {
+            /// X position of the top-left corner.
+            pub x: P,
+            /// Y position of the top-left corner.
+            pub y: P,
+            /// Width.
+            pub w: E,
+            /// Height, with Y axis going upwards.
+            pub h: E,
+        }
+
+        geom_impl_rect_or_rect3!{
+            Rect Vec2 Extent2 (x split_at_x y split_at_y) (w h)
+            Aabr into_aabr
+            collides_with_rect: collides_with_rect
+            collides_with_aab: collides_with_aabr
+            collision_vector_with_rect: collision_vector_with_rect
+            collision_vector_with_aab: collision_vector_with_aabr
+        }
+
+
+        /// Axis-aligned Bounding Rectangle.
+        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
+		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        pub struct Aabr<T> {
+            pub min: Vec2<T>,
+            pub max: Vec2<T>,
+        }
+
+        geom_impl_aabr_or_aabb!{
+            Aabr Vec2 (x split_at_x y split_at_y)
+            Rect into_rect
+            collides_with_aab: collides_with_aabr
+            collision_vector_with_aab: collision_vector_with_aabr
+        }
+
 
         /// A `Rect` extended to 3D.
         ///
         /// This would have been named `Box`, but it was "taken" by the standard library already.
         ///
         /// You should probably use `Aabb` because it is less confusing.
-        ///
-        /// Rect3 is only useful when using extra precise integer coordinates where `Aabb` would only
-        /// allow for representing half the possible values for the extent. 
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Rect3<P,E> {
-            /// X position of the top-left-near corner.
+            /// X position of the bottom-left-near corner.
             pub x: P,
-            /// Y position of the top-left-near corner.
+            /// Y position of the bottom-left-near corner.
             pub y: P,
-            /// Z position of the top-left-near corner.
+            /// Z position of the bottom-left-near corner.
             pub z: P,
             /// Width.
             pub w: E,
-            /// Height, with Y axis going downwards.
+            /// Height, with Y axis going upwards.
             pub h: E,
             /// Depth, with Z axis going forwards.
-            pub depth: E,
+            pub d: E,
         }
+
+        geom_impl_rect_or_rect3!{
+            Rect3 Vec3 Extent3 (x split_at_x y split_at_y z split_at_z) (w h d)
+            Aabb into_aabb
+            collides_with_rect: collides_with_rect3
+            collides_with_aab: collides_with_aabb
+            collision_vector_with_rect: collision_vector_with_rect3
+            collision_vector_with_aab: collision_vector_with_aabb
+        }
+
+
+        /// Axis-aligned Bounding Box.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        pub struct Aabb<P,E> {
-            pub center: Vec3<P>,
-            pub half_extent: Extent3<E>,
+        pub struct Aabb<T> {
+            pub min: Vec3<T>,
+            pub max: Vec3<T>,
         }
+
+        geom_impl_aabr_or_aabb!{
+            Aabb Vec3 (x split_at_x y split_at_y z split_at_z)
+            Rect3 into_rect3
+            collides_with_aab: collides_with_aabb
+            collision_vector_with_aab: collision_vector_with_aabb
+        }
+
 
         // NOTE: Only implement axis-aligned primitives (a.k.a don't go on a rampage).
         // 
@@ -68,44 +141,24 @@ macro_rules! geom_complete_mod {
         }
 
         impl<P,E> Disk<P,E> {
+            pub fn circumference(self) -> E 
+                where E: Copy + FloatConst + Mul<Output=E> + Add<Output=E>
+            {
+                (E::PI() + E::PI()) * self.radius
+            }
             pub fn area(self) -> E where E: Copy + FloatConst + Mul<Output=E> { 
-                let r = || self.radius; 
-                E::PI()*r()*r()
+                let r = self.radius; 
+                E::PI()*r*r
             }
-            pub fn diameter(self) -> E where E: Copy + Add<Output=E> { 
-                self.radius + self.radius
-            }
-            /*
-            /// Returns the magnitude of the direction vector that can push or pull
-            /// the other disk such that they both collide exactly.
-            ///
-            /// A negative value indicates that both disks collide by this amount.  
-            /// Otherwise, it's the distance such that they would collide.
-            pub fn disk_distance_magnitude(self, other: Self) -> Vec2<P> 
-                where E: Sub<Output=E>, P: Float
-            {
-                Vec2::distance(self.center, other.center) - self.radius - other.radius
-            }
-            /// How much this disk penetrates another.
-            pub fn disk_penetration_vector(self, other: Self) -> Vec2<P>
-                where P: Copy, E: Copy + Zero
-            {
-                let len = self.disk_collision_magnitude(other);
-                (self.center - other.center) * partial_max(E::zero(), len)
-            }
-            pub fn disk_distance_vector(self, other: Self) -> Vec2<P>
-                where P: Copy + Sub<Output=P>, E: Copy 
-            {
-                let len = self.disk_collision_magnitude(other);
-                (self.center - other.center) * len
-            }
-            /// Returns the direction vector such that moving `p` by it pushes it
-            /// exactly outside of the disk.
-            pub fn point_distance_magnitude(self, p: Vec2<P>) -> Vec2<P> {
-                Vec2::distance(self.center, p) - self.radius
-            }
-            */
         }
+
+        geom_impl_disk_or_sphere!{
+            Disk Vec2 (x y)
+            Extent2 Rect Aabr aabr
+            collides_with_other: collides_with_disk
+            collision_vector_with_other: collision_vector_with_disk
+        }
+
 
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
@@ -125,14 +178,15 @@ macro_rules! geom_complete_mod {
                 let r = self.radius;
                 (four*E::PI()*r*r*r)/three
             }
-            pub fn diameter(self) -> E where E: Copy + Add<Output=E> {
-                self.radius + self.radius
-            }
-            /*
-            pub fn collision(self, _other: Self) -> Vec3<P> { unimplemented!() }
-            pub fn collision_with_point(self, _p: Vec3<P>) -> Vec3<P> { unimplemented!() }
-            */
         }
+
+        geom_impl_disk_or_sphere!{
+            Sphere Vec3 (x y z)
+            Extent3 Rect3 Aabb aabb
+            collides_with_other: collides_with_sphere
+            collision_vector_with_other: collision_vector_with_sphere
+        }
+
 
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
@@ -151,14 +205,14 @@ macro_rules! geom_complete_mod {
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct LineSegment2<T> {
-            pub a: Vec2<T>,
-            pub b: Vec2<T>,
+            pub start: Vec2<T>,
+            pub end: Vec2<T>,
         }
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct LineSegment3<T> {
-            pub a: Vec3<T>,
-            pub b: Vec3<T>,
+            pub start: Vec3<T>,
+            pub end: Vec3<T>,
         }
     }
 }

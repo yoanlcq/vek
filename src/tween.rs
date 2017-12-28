@@ -37,7 +37,6 @@ impl<T, Progress> Tween<T, Progress> {
     pub fn with_progress(start: T, end: T, progress: Progress) -> Self {
         Self { start, end, progress }
     }
-    // XXX: How it is not consuming start and end ????
     /// Gets the transition's current state, clamping progress to [0;1].
     pub fn get(self) -> T where T: Lerp<Progress,Output=T>, Progress: Clamp + Zero + One {
         T::lerp(self.start, self.end, self.progress)

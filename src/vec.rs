@@ -2332,7 +2332,6 @@ macro_rules! vec_impl_all_vecs {
                     Self::new(v.x, v.y)
                 }
             }
-    	    // #[cfg(feature="vec4")] // Commented out, see rationale in Cargo.toml
             impl<T> From<Vec4<T>> for Vec2<T> {
                 fn from(v: Vec4<T>) -> Self {
                     Self::new(v.x, v.y)
@@ -2364,13 +2363,11 @@ macro_rules! vec_impl_all_vecs {
                     Self::new(v.x, v.y, T::zero())
                 }
             }
-    	    // #[cfg(feature="vec4")] // Commented out, see rationale in Cargo.toml
             impl<T> From<Vec4<T>> for Vec3<T> {
                 fn from(v: Vec4<T>) -> Self {
                     Self::new(v.x, v.y, v.z)
                 }
             }
-            #[cfg(feature="extent3")]
             impl<T> From<Extent3<T>> for Vec3<T> {
                 fn from(v: Extent3<T>) -> Self {
                     Self::new(v.w, v.h, v.d)
@@ -2391,7 +2388,6 @@ macro_rules! vec_impl_all_vecs {
         }
         pub use self::vec3::Vec3;
 
-    	// #[cfg(feature="vec4")] // Commented out, see rationale in Cargo.toml
         /// Vector type suited for homogeneous 3D spatial coordinates.
         pub mod vec4 {
             use super::*;
@@ -2434,7 +2430,6 @@ macro_rules! vec_impl_all_vecs {
             }
 
         }
-    	// #[cfg(feature="vec4")] // Commented out, see rationale in Cargo.toml
         pub use self::vec4::Vec4;
 
         #[cfg(feature="vec8")]
@@ -2526,7 +2521,6 @@ macro_rules! vec_impl_all_vecs {
         #[cfg(feature="vec64")]
         pub use self::vec64::Vec64;
 
-        #[cfg(feature="extent3")]
         /// Vector type suited for 3D extents (width, height and depth).
         pub mod extent3 {
             use super::*;
@@ -2552,7 +2546,6 @@ macro_rules! vec_impl_all_vecs {
                 }
             }
         }
-        #[cfg(feature="extent3")]
         pub use self::extent3::Extent3;
 
         /// Vector type suited for 2D extents (width and height).
@@ -2599,7 +2592,6 @@ macro_rules! vec_impl_all_vecs {
             vec_impl_color_rgba!{Rgba}
             vec_impl_shuffle_4d!(Rgba (r g b a));
 
-            #[cfg(feature="vec4")]
             impl<T> From<Vec4<T>> for Rgba<T> {
                 fn from(v: Vec4<T>) -> Self {
                     Self::new(v.x, v.y, v.z, v.w)
@@ -2858,7 +2850,7 @@ mod tests {
     //#[cfg(feature="vec64")]      for_each_type!{vec64   Vec64   i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
     #[cfg(feature="rgba")]       for_each_type!{rgba    Rgba    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
     #[cfg(feature="rgb")]        for_each_type!{rgb     Rgb     i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="extent3")]    for_each_type!{extent3 Extent3 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    /*#[cfg(feature="extent3")]*/for_each_type!{extent3 Extent3 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
     /*#[cfg(feature="extent2")]*/for_each_type!{extent2 Extent2 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
     #[cfg(feature="uv")]         for_each_type!{uv      Uv      i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
     #[cfg(feature="uvw")]        for_each_type!{uvw     Uvw     i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}

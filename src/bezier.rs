@@ -1,23 +1,43 @@
-//! Bézier curves
-// https://pomax.github.io/bezierinfo
+//! Bézier curves of low order.
+// NOTE: Most info from https://pomax.github.io/bezierinfo
 
 use num_traits::Float;
 use std::fmt::Debug;
 use ops::*;
+use std::ops::*;
 use std::iter::Sum;
 use vec::repr_c::{
     Vec3 as CVec3,
     Vec4 as CVec4,
 };
 
-// NOTE: We have trivial bounding triangles from quadratic Bézier curves;
-// WISH: into_iter, iter_mut, etc (for concisely applying the same xform to all points)
-// WISH: AABBs from beziers
 // WISH: OOBBs from beziers
 // WISH: "Tracing a curve at fixed distance intervals"
-// WISH: project a point on a curve using e.g binary search after a coarse linear search
 
 macro_rules! bezier_impl_any {
+    (3 $Bezier:ident $Point:ident) => {
+        impl<T: Float> $Bezier<T> {
+            /// Gets the Axis-Aligned Bounding Box for this curve.
+            pub fn aabb(self) -> Aabb<T> {
+                let (min_x, max_x) = self.x_bounds();
+                let (min_y, max_y) = self.y_bounds();
+                let (min_z, max_z) = self.z_bounds();
+                Aabb {
+                    min: Vec3::new(min_x, min_y, min_z),
+                    max: Vec3::new(max_x, max_y, max_z),
+                }
+            }
+            /// Returns this curve, flipping the `y` coordinate of each of its points.
+            pub fn flipped_z(self) -> Self {
+                self.into_vector().map(|mut p| {p.z = -p.z; p}).into()
+            }
+            /// Flips the `x` coordinate of all points of this curve.
+            pub fn flip_z(&mut self) {
+                *self = self.flipped_z();
+            }
+        }
+        bezier_impl_any!{$Bezier $Point}
+    };
     ($Bezier:ident $Point:ident) => {
         impl<T: Float> $Bezier<T> {
             /// Evaluates the normalized tangent at interpolation factor `t`.
@@ -40,6 +60,15 @@ macro_rules! bezier_impl_any {
 	            length
             }
 
+            /// Gets the Axis-Aligned Bounding Rectangle for this curve.
+            pub fn aabr(self) -> Aabr<T> {
+                let (min_x, max_x) = self.x_bounds();
+                let (min_y, max_y) = self.y_bounds();
+                Aabr {
+                    min: Vec2::new(min_x, min_y),
+                    max: Vec2::new(max_x, max_y),
+                }
+            }
             /// Returns this curve, flipping the `x` coordinate of each of its points.
             pub fn flipped_x(self) -> Self {
                 self.into_vector().map(|mut p| {p.x = -p.x; p}).into()
@@ -56,20 +85,9 @@ macro_rules! bezier_impl_any {
             pub fn flip_y(&mut self) {
                 *self = self.flipped_y();
             }
-            // TODO: Implement via Mul in src/mat.rs instead, so that all layouts have it
-            fn transformed_by_mat3(self, m: Mat3<T>) -> Self
-                where T: MulAdd<T,T,Output=T>
-            {
-                self.into_vector().map(|p| (m * Vec3::from(p)).into()).into()
-            }
-            fn transformed_by_mat4(self, m: Mat4<T>) -> Self 
-                where T: MulAdd<T,T,Output=T>
-            {
-                self.into_vector().map(|p| m.mul_point(p).into()).into()
-            }
 
             // TODO: Test this! binary_search_point_easy
-            fn binary_search_point_easy(self, p: $Point<T>, steps: u16, epsilon: T) -> (T, $Point<T>) 
+            pub fn binary_search_point_easy(self, p: $Point<T>, steps: u16, epsilon: T) -> (T, $Point<T>) 
                 where T: Sum + From<u16> + Debug
             {
                 let it = (0..(steps+1)).map(|i| {
@@ -81,7 +99,7 @@ macro_rules! bezier_impl_any {
                 self.binary_search_point(p, it, h, epsilon)
             }
             // TODO: Test this! binary_search_point
-            fn binary_search_point<I>(self, p: $Point<T>, coarse: I, half_interval: T, epsilon: T) -> (T, $Point<T>)
+            pub fn binary_search_point<I>(self, p: $Point<T>, coarse: I, half_interval: T, epsilon: T) -> (T, $Point<T>)
                 where T: Sum + Debug, I: IntoIterator<Item=(T, $Point<T>)>
             {
                 debug_assert_ne!(epsilon, T::zero());
@@ -111,11 +129,201 @@ macro_rules! bezier_impl_any {
                 (t, pt)
             }
         }
-    }
+        impl<T> Mul<$Bezier<T>> for Rows4<T> where T: Float + MulAdd<T,T,Output=T> {
+            type Output = $Bezier<T>;
+            fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
+                rhs.into_vector().map(|p| self.mul_point(p).into()).into()
+            }
+        }
+        impl<T> Mul<$Bezier<T>> for Cols4<T> where T: Float + MulAdd<T,T,Output=T> {
+            type Output = $Bezier<T>;
+            fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
+                rhs.into_vector().map(|p| self.mul_point(p).into()).into()
+            }
+        }
+        impl<T> Mul<$Bezier<T>> for Rows3<T> where T: Float + MulAdd<T,T,Output=T> {
+            type Output = $Bezier<T>;
+            fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
+                rhs.into_vector().map(|p| (self * Vec3::from(p)).into()).into()
+            }
+        }
+        impl<T> Mul<$Bezier<T>> for Cols3<T> where T: Float + MulAdd<T,T,Output=T> {
+            type Output = $Bezier<T>;
+            fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
+                rhs.into_vector().map(|p| (self * Vec3::from(p)).into()).into()
+            }
+        }
+    };
 }
 
+macro_rules! bezier_impl_quadratic_axis {
+    ($QuadraticBezier:ident $Point:ident $x:ident $x_inflection:ident $x_min:ident $x_max:ident $x_bounds:ident) => {
+        impl<T: Float> $QuadraticBezier<T> {
+            // Code in part taken from `lyon` crate, geom.
+            // Also explained at https://pomax.github.io/bezierinfo/#extremities
+            pub fn $x_inflection(self) -> Option<T> {
+                let div = self.start.$x - (self.ctrl.$x + self.ctrl.$x) + self.end.$x;
+                if div.abs() <= T::epsilon() {
+                    return None;
+                }
+                let t = (self.start.$x - self.ctrl.$x) / div;
+                if T::zero() <= t && t <= T::one() {
+                    return Some(t);
+                }
+                return None;
+            }
+            pub fn $x_min(self) -> T {
+                if let Some(t) = self.$x_inflection() {
+                    let p = self.evaluate(t);
+                    if p.$x < self.start.$x && p.$x < self.end.$x {
+                        return t;
+                    }
+                }
+                if self.start.$x < self.end.$x { T::zero() } else { T::one() }
+            }
+            pub fn $x_max(self) -> T {
+                if let Some(t) = self.$x_inflection() {
+                    let p = self.evaluate(t);
+                    if p.$x > self.start.$x && p.$x > self.end.$x {
+                        return t;
+                    }
+                }
+                if self.start.$x > self.end.$x { T::zero() } else { T::one() }
+            }
+            pub fn $x_bounds(self) -> (T, T) {
+                // PERF: We don't need to compute $x_inflections twice!
+                (self.$x_min(), self.$x_max())
+            }
+        }
+    };
+}
+
+macro_rules! bezier_impl_cubic_axis {
+    ($CubicBezier:ident $Point:ident $x:ident $x_inflections:ident $x_min:ident $x_max:ident $x_bounds:ident) => {
+        impl<T: Float> $CubicBezier<T> {
+            // Code in part taken from `lyon` crate, geom.
+            // Also explained at https://pomax.github.io/bezierinfo/#extremities
+            pub fn $x_inflections(self) -> Option<(T, Option<T>)> {
+                // See www.faculty.idc.ac.il/arik/quality/appendixa.html for an explanation
+                // The derivative of a cubic bezier curve is a curve representing a second degree polynomial function
+                // f(x) = a * x² + b * x + c such as :
+                let two = T::one() + T::one();
+                let three = two + T::one();
+                let four = three + T::one();
+                let six = three + three;
+                let a = three * (self.end.$x - three * self.ctrl1.$x + three * self.ctrl0.$x - self.start.$x);
+                let b = six * (self.ctrl1.$x - two * self.ctrl0.$x + self.start.$x);
+                let c = three * (self.ctrl0.$x - self.start.$x);
+
+                // If the derivative is a linear function
+                if a.abs() <= T::epsilon() {
+                    return if b.abs() <= T::epsilon() {
+                        // If the derivative is a constant function
+                        if c.abs() <= T::epsilon() {
+                            Some((T::zero(), None))
+                        } else {
+                            None
+                        }
+                    } else {
+                        Some((-c / b, None))
+                    };
+                }
+
+                // Wants to use IsBetween01, but that would annoyingly propagate the trait bound.
+                let is_between01 = |t| { T::zero() < t && t < T::one() };
+
+                let discriminant = b * b - four * a * c;
+
+                // There is no Real solution for the equation
+                if discriminant < T::zero() {
+                    return None;
+                }
+
+                // There is one Real solution for the equation
+                if discriminant.abs() <= T::epsilon() {
+                    let t = -b / (a + a);
+                    return if is_between01(t) {
+                        Some((t, None))
+                    } else {
+                        None
+                    };
+                }
+
+                // There are two Real solutions for the equation
+                let discriminant_sqrt = discriminant.sqrt();
+
+                let first_extremum = (-b - discriminant_sqrt) / (a + a);
+                let second_extremum = (-b + discriminant_sqrt) / (a + a);
+
+                if is_between01(first_extremum) {
+                    if is_between01(second_extremum) {
+                        Some((first_extremum, Some(second_extremum)))
+                    } else {
+                        Some((first_extremum, None))
+                    }
+                } else {
+                    if is_between01(second_extremum) {
+                        Some((second_extremum, None))
+                    } else {
+                        None
+                    }
+                }
+            }
+            pub fn $x_min(self) -> T {
+                if let Some((t1, t2)) = self.$x_inflections() {
+                    let p1 = self.evaluate(t1);
+                    if let Some(t2) = t2 {
+                        let p2 = self.evaluate(t2);
+                        if (p1.$x < self.start.$x && p1.$x < self.end.$x)
+                        || (p2.$x < self.start.$x && p2.$x < self.end.$x)
+                        {
+                            return if p1.$x < p2.$x { t1 } else { t2 };
+                        }
+                    } else {
+                        if p1.$x < self.start.$x && p1.$x < self.end.$x {
+                            return t1;
+                        }
+                    }
+                }
+                if self.start.$x < self.end.$x { T::zero() } else { T::one() }
+            }
+            pub fn $x_max(self) -> T {
+                if let Some((t1, t2)) = self.$x_inflections() {
+                    let p1 = self.evaluate(t1);
+                    if let Some(t2) = t2 {
+                        let p2 = self.evaluate(t2);
+                        if (p1.$x > self.start.$x && p1.$x > self.end.$x)
+                        || (p2.$x > self.start.$x && p2.$x > self.end.$x)
+                        {
+                            return if p1.$x > p2.$x { t1 } else { t2 };
+                        }
+                    } else {
+                        if p1.$x > self.start.$x && p1.$x > self.end.$x {
+                            return t1;
+                        }
+                    }
+                }
+                if self.start.$x > self.end.$x { T::zero() } else { T::one() }
+            }
+
+            pub fn $x_bounds(self) -> (T, T) {
+                // PERF: We don't need to compute $x_inflections twice!
+                (self.$x_min(), self.$x_max())
+            }
+        }
+    };
+}
 macro_rules! bezier_impl_quadratic {
-    ($(#[$attrs:meta])* $QuadraticBezier:ident $Point:ident $LineSegment:ident) => {
+    ($(#[$attrs:meta])* 3 $QuadraticBezier:ident $CubicBezier:ident $Point:ident $LineSegment:ident) => {
+        bezier_impl_quadratic!{$(#[$attrs])* $QuadraticBezier $CubicBezier $Point $LineSegment}
+        bezier_impl_quadratic_axis!{$QuadraticBezier $Point z z_inflection min_z max_z z_bounds}
+        bezier_impl_any!(3 $QuadraticBezier $Point);
+    };
+    ($(#[$attrs:meta])* 2 $QuadraticBezier:ident $CubicBezier:ident $Point:ident $LineSegment:ident) => {
+        bezier_impl_quadratic!{$(#[$attrs])* $QuadraticBezier $CubicBezier $Point $LineSegment}
+        bezier_impl_any!($QuadraticBezier $Point);
+    };
+    ($(#[$attrs:meta])* $QuadraticBezier:ident $CubicBezier:ident $Point:ident $LineSegment:ident) => {
         
         $(#[$attrs])*
         #[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, /*PartialOrd, Ord*/)]
@@ -152,9 +360,9 @@ macro_rules! bezier_impl_quadratic {
             /// Creates a quadratic Bézier curve from a single segment.
             pub fn from_line_segment(line: $LineSegment<T>) -> Self {
                 $QuadraticBezier {
-                    start: line.a, 
-                    ctrl: line.a, 
-                    end: line.b
+                    start: line.start, 
+                    ctrl: line.start, 
+                    end: line.end
                 }
             }
             /// Returns the constant matrix M such that,
@@ -192,6 +400,28 @@ macro_rules! bezier_impl_quadratic {
                 };
                 (first, second)
             }
+            /// Gets this curve reversed, i.e swaps `start` with `end`.
+            pub fn reversed(self) -> Self {
+                Self {
+                    start: self.end,
+                    ctrl: self.ctrl,
+                    end: self.start,
+                }
+            }
+            /// Reverses this curve, i.e swaps `start` with `end`.
+            pub fn reverse(&mut self) {
+                *self = self.reversed();
+            }
+
+            pub fn into_cubic(self) -> $CubicBezier<T> {
+                let three = T::one() + T::one() + T::one();
+                $CubicBezier {
+                    start: self.start,
+                    ctrl0: (self.start + self.ctrl + self.ctrl) / three,
+                    ctrl1: (self.end + self.ctrl + self.ctrl) / three,
+                    end: self.end,
+                }
+            }
 
             /// Converts this curve into a `Vec3` of points.
             pub fn into_vec3(self) -> Vec3<$Point<T>> {
@@ -209,7 +439,6 @@ macro_rules! bezier_impl_quadratic {
             pub(crate) fn into_vector(self) -> Vec3<$Point<T>> {
                 self.into_vec3()
             }
-
         }
         
         impl<T> From<Vec3<$Point<T>>> for $QuadraticBezier<T> {
@@ -227,11 +456,21 @@ macro_rules! bezier_impl_quadratic {
             }
         }
         
-        bezier_impl_any!($QuadraticBezier $Point);
+        bezier_impl_quadratic_axis!{$QuadraticBezier $Point x x_inflection min_x max_x x_bounds}
+        bezier_impl_quadratic_axis!{$QuadraticBezier $Point y y_inflection min_y max_y y_bounds}
     }
 }
 
 macro_rules! bezier_impl_cubic {
+    ($(#[$attrs:meta])* 3 $CubicBezier:ident $Point:ident $LineSegment:ident) => {
+        bezier_impl_cubic!{$(#[$attrs])* $CubicBezier $Point $LineSegment}
+        bezier_impl_cubic_axis!{$CubicBezier $Point z z_inflections min_z max_z z_bounds}
+        bezier_impl_any!(3 $CubicBezier $Point);
+    };
+    ($(#[$attrs:meta])* 2 $CubicBezier:ident $Point:ident $LineSegment:ident) => {
+        bezier_impl_cubic!{$(#[$attrs])* $CubicBezier $Point $LineSegment}
+        bezier_impl_any!($CubicBezier $Point);
+    };
     ($(#[$attrs:meta])* $CubicBezier:ident $Point:ident $LineSegment:ident) => {
         
         $(#[$attrs])*
@@ -271,10 +510,10 @@ macro_rules! bezier_impl_cubic {
             /// Creates a cubic Bézier curve from a single segment.
             pub fn from_line_segment(line: $LineSegment<T>) -> Self {
                 $CubicBezier {
-                    start: line.a, 
-                    ctrl0: line.a, 
-                    ctrl1: line.b, 
-                    end:   line.b
+                    start: line.start, 
+                    ctrl0: line.start, 
+                    ctrl1: line.end, 
+                    end:   line.end
                 }
             }
             /// Returns the constant matrix M such that,
@@ -316,6 +555,19 @@ macro_rules! bezier_impl_cubic {
                     end:   self.end,
                 };
                 (first, second)
+            }
+            /// Gets this curve reversed, i.e swaps `start` with `end` and `ctrl0` with `ctrl1`.
+            pub fn reversed(self) -> Self {
+                Self {
+                    start: self.end,
+                    ctrl0: self.ctrl1,
+                    ctrl1: self.ctrl0,
+                    end: self.start,
+                }
+            }
+            /// Reverses this curve, i.e swaps `start` with `end` and `ctrl0` with `ctrl1`.
+            pub fn reverse(&mut self) {
+                *self = self.reversed();
             }
             /// Converts this curve into a `Vec4` of points.
             pub fn into_vec4(self) -> Vec4<$Point<T>> {
@@ -376,7 +628,8 @@ macro_rules! bezier_impl_cubic {
             }
         }
         
-        bezier_impl_any!($CubicBezier $Point);
+        bezier_impl_cubic_axis!{$CubicBezier $Point x x_inflections min_x max_x x_bounds}
+        bezier_impl_cubic_axis!{$CubicBezier $Point y y_inflections min_y max_y y_bounds}
     }
 }
 
@@ -384,19 +637,19 @@ macro_rules! impl_all_beziers {
     () => {
         bezier_impl_quadratic!{
             /// A 2D curve with one control point.
-            QuadraticBezier2 Vec2 LineSegment2
+            2 QuadraticBezier2 CubicBezier2 Vec2 LineSegment2
         }
         bezier_impl_quadratic!{
             /// A 3D curve with one control point.
-            QuadraticBezier3 Vec3 LineSegment3
+            3 QuadraticBezier3 CubicBezier3 Vec3 LineSegment3
         }
         bezier_impl_cubic!{
             /// A 2D curve with two control points.
-            CubicBezier2 Vec2 LineSegment2
+            2 CubicBezier2 Vec2 LineSegment2
         }
         bezier_impl_cubic!{
             /// A 3D curve with two control points.
-            CubicBezier3 Vec3 LineSegment3
+            3 CubicBezier3 Vec3 LineSegment3
         }
     };
 }
@@ -404,16 +657,22 @@ macro_rules! impl_all_beziers {
 #[cfg(all(nightly, feature="repr_simd"))]
 pub mod repr_simd {
     use super::*;
-    use vec::repr_simd::{Vec3, Vec4, Vec2};
-    use mat::repr_simd::row_major::{Mat3, Mat4};
-    use geom::repr_simd::{LineSegment2, LineSegment3};
+    use  vec::repr_simd::{Vec3, Vec4, Vec2};
+    use  mat::repr_simd::row_major::{Mat3 as Rows3, Mat4 as Rows4};
+    use  mat::repr_simd::column_major::{Mat3 as Cols3, Mat4 as Cols4};
+    use geom::repr_simd::{LineSegment2, LineSegment3, Aabr, Aabb};
+    use self::Rows4 as Mat4;
+    use self::Rows3 as Mat3;
     impl_all_beziers!{}
 }
 pub mod repr_c {
     use super::*;
     use  vec::repr_c::{Vec3, Vec4, Vec2};
-    use  mat::repr_c::row_major::{Mat3, Mat4};
-    use geom::repr_c::{LineSegment2, LineSegment3};
+    use  mat::repr_c::row_major::{Mat3 as Rows3, Mat4 as Rows4};
+    use  mat::repr_c::column_major::{Mat3 as Cols3, Mat4 as Cols4};
+    use geom::repr_c::{LineSegment2, LineSegment3, Aabr, Aabb};
+    use self::Rows4 as Mat4;
+    use self::Rows3 as Mat3;
     impl_all_beziers!{}
 }
 

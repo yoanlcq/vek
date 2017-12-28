@@ -10,11 +10,8 @@ use num_traits::{Zero, One, Float, NumCast};
 use approx::ApproxEq;
 use ops::MulAdd;
 use vec;
-use rect::Rect;
-use frustum::FrustumPlanes;
-#[cfg(feature="quaternion")]
+use geom::{Rect, FrustumPlanes}; // NOTE: Rect is therefore always repr_c here
 use quaternion;
-#[cfg(feature="quaternion")]
 use transform;
 
 macro_rules! mat_impl_mat {
@@ -1814,7 +1811,6 @@ macro_rules! mat_impl_mat4 {
             /// assert_relative_eq!(m * from, to);
             /// # }
             /// ```
-            #[cfg(feature="quaternion")]
             pub fn rotation_from_to_3d<V: Into<Vec3<T>>>(from: V, to: V) -> Self 
                 where T: Float + Sum
             {
@@ -2543,9 +2539,7 @@ macro_rules! mat_impl_mat4 {
                 obj.into()
             }
         }
-        #[cfg(feature="mat3")]
         use super::mat3::Mat3;
-        #[cfg(feature="mat3")]
         impl<T> From<Mat3<T>> for Mat4<T> where T: Zero + One {
             fn from(m: Mat3<T>) -> Self {
                 let m = m.$lines;
@@ -2559,9 +2553,7 @@ macro_rules! mat_impl_mat4 {
                 }
             }
         }
-        #[cfg(feature="mat2")]
         use super::mat2::Mat2;
-        #[cfg(feature="mat2")]
         impl<T> From<Mat2<T>> for Mat4<T> where T: Zero + One {
             fn from(m: Mat2<T>) -> Self {
                 let m = m.$lines;
@@ -2577,7 +2569,6 @@ macro_rules! mat_impl_mat4 {
         }
 
 
-        #[cfg(feature="quaternion")]
         impl<T> From<Transform<T,T,T>> for Mat4<T>
             where T: Float + MulAdd<T,T,Output=T>
         {
@@ -2630,7 +2621,6 @@ macro_rules! mat_impl_mat4 {
         // and Mat4 would do it by converting itself from a Mat3.
         // Here, we have the other way round, and I'm fine with this, because
         // at best it's better, SIMD-wise, and at worst we don't care that much, seriously.
-        #[cfg(feature="quaternion")]
         impl<T> From<Quaternion<T>> for Mat4<T>
             where T: Copy + Zero + One + Mul<Output=T> + Add<Output=T> + Sub<Output=T>
         {
@@ -2674,7 +2664,6 @@ macro_rules! mat_impl_mat4 {
         /// assert_relative_eq!(a, b);
         /// # }
         /// ```
-        #[cfg(feature="quaternion")]
         impl<T> From<Mat4<T>> for Quaternion<T>
             where T: Float + Zero + One + Mul<Output=T> + Add<Output=T> + Sub<Output=T>
         {
@@ -3078,18 +3067,14 @@ macro_rules! mat_impl_mat3 {
             /// assert_relative_eq!(m * from, to);
             /// # }
             /// ```
-            #[cfg(feature="quaternion")]
             pub fn rotation_from_to_3d<V: Into<Vec3<T>>>(from: V, to: V) -> Self 
                 where T: Float + Sum
             {
                 Self::from(Quaternion::rotation_from_to_3d(from, to))
             }
-
         }
 
-        // #[cfg(feature="mat4")] // Commented out, see rationale in Cargo.toml
         use super::mat4::Mat4;
-        // #[cfg(feature="mat4")] // Commented out, see rationale in Cargo.toml
         impl<T> From<Mat4<T>> for Mat3<T> {
             fn from(m: Mat4<T>) -> Self {
                 let m = m.$lines;
@@ -3102,9 +3087,7 @@ macro_rules! mat_impl_mat3 {
                 }
             }
         }
-        #[cfg(feature="mat2")]
         use super::mat2::Mat2;
-        #[cfg(feature="mat2")]
         impl<T> From<Mat2<T>> for Mat3<T> where T: Zero + One {
             fn from(m: Mat2<T>) -> Self {
                 let m = m.$lines;
@@ -3117,7 +3100,6 @@ macro_rules! mat_impl_mat3 {
                 }
             }
         }
-        #[cfg(feature="quaternion")]
         impl<T> From<Quaternion<T>> for Mat3<T> 
             where T: Copy + Zero + One + Mul<Output=T> + Add<Output=T> + Sub<Output=T>
         {
@@ -3139,7 +3121,6 @@ macro_rules! mat_impl_mat3 {
         /// assert_relative_eq!(a, b);
         /// # }
         /// ```
-        #[cfg(feature="quaternion")]
         impl<T> From<Mat3<T>> for Quaternion<T> 
             where T: Zero + One + Mul<Output=T> + Add<Output=T> + Sub<Output=T> + Float
         {
@@ -3369,9 +3350,7 @@ macro_rules! mat_impl_mat2 {
                 )
             }
         }
-        #[cfg(feature="mat3")]
         use super::mat3::Mat3;
-        #[cfg(feature="mat3")]
         impl<T> From<Mat3<T>> for Mat2<T> {
             fn from(m: Mat3<T>) -> Self {
                 let m = m.$lines;
@@ -3383,9 +3362,7 @@ macro_rules! mat_impl_mat2 {
                 }
             }
         }
-        // #[cfg(feature="mat4")] // Commented out, see rationale in Cargo.toml
         use super::mat4::Mat4;
-        // #[cfg(feature="mat4")] // Commented out, see rationale in Cargo.toml
         impl<T> From<Mat4<T>> for Mat2<T> {
             fn from(m: Mat4<T>) -> Self {
                 let m = m.$lines;
@@ -3406,7 +3383,6 @@ macro_rules! mat_impl_mat2 {
 
 macro_rules! mat_impl_all_mats {
     ($lines:ident) => {
-        // #[cfg(feature="mat4")] // Commented out, see rationale in Cargo.toml
         /// 4x4 matrix.
         pub mod mat4 {
             use super::*;
@@ -3421,11 +3397,9 @@ macro_rules! mat_impl_all_mats {
             mat_impl_mat!{$lines Mat4 CVec4 Vec4 (4 x 4) (x y z w)}
             mat_impl_mat4!{$lines}
         }
-        // #[cfg(feature="mat4")] // Commented out, see rationale in Cargo.toml
         pub use self::mat4::Mat4;
 
         /// 3x3 matrix.
-        #[cfg(feature="mat3")]
         pub mod mat3 {
             use super::*;
             /// 3x3 matrix.
@@ -3439,11 +3413,9 @@ macro_rules! mat_impl_all_mats {
             mat_impl_mat!{$lines Mat3 CVec3 Vec3 (3 x 3) (x y z)}
             mat_impl_mat3!{$lines}
         }
-        #[cfg(feature="mat3")]
         pub use self::mat3::Mat3;
 
         /// 2x2 matrix.
-        #[cfg(feature="mat2")]
         pub mod mat2 {
             use super::*;
             /// 2x2 matrix.
@@ -3457,7 +3429,6 @@ macro_rules! mat_impl_all_mats {
             mat_impl_mat!{$lines Mat2 CVec2 Vec2 (2 x 2) (x y)}
             mat_impl_mat2!{$lines}
         }
-        #[cfg(feature="mat2")]
         pub use self::mat2::Mat2;
 
     }
@@ -3509,12 +3480,9 @@ pub mod repr_c {
     use super::vec::repr_c::{Vec2, Vec2 as CVec2};
     #[allow(unused_imports)]
     use super::vec::repr_c::{Vec3, Vec3 as CVec3};
-    // #[cfg(feature="vec4")] // Commented out, see rationale in Cargo.toml
     use super::vec::repr_c::{Vec4, Vec4 as CVec4};
 
-    #[cfg(feature="quaternion")]
     use super::quaternion::repr_c::Quaternion;
-    #[cfg(feature="quaternion")]
     use super::transform::repr_c::Transform;
 
     mat_declare_modules!{}
@@ -3533,14 +3501,10 @@ pub mod repr_simd {
     use super::vec::repr_simd::{Vec3};
     #[allow(unused_imports)]
     use super::vec::repr_c::{Vec3 as CVec3};
-    // #[cfg(feature="vec4")] // Commented out, see rationale in Cargo.toml
     use super::vec::repr_simd::{Vec4};
-    // #[cfg(feature="vec4")] // Commented out, see rationale in Cargo.toml
     use super::vec::repr_c::{Vec4 as CVec4};
 
-    #[cfg(feature="quaternion")]
     use super::quaternion::repr_simd::Quaternion;
-    #[cfg(feature="quaternion")]
     use super::transform::repr_simd::Transform;
 
     mat_declare_modules!{}
@@ -3639,9 +3603,9 @@ mod tests {
         };
     }
     // Vertical editing helps here :)
-    #[cfg(feature="mat2")]    for_each_type!{mat2 Mat2 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="mat3")]    for_each_type!{mat3 Mat3 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    /*#[cfg(feature="mat4")]*/for_each_type!{mat4 Mat4 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    for_each_type!{mat2 Mat2 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    for_each_type!{mat3 Mat3 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    for_each_type!{mat4 Mat4 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
 
     use super::Mat4;
     use super::super::vec::Vec4;
