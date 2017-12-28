@@ -3,6 +3,11 @@
 macro_rules! xform_complete_mod {
     ($mod:ident) => {
 
+        // WISH:
+        // forward_rh, forward_lh, etc etc
+        // look_at
+        // rotate_around
+
         use ::std::iter::Sum;
         use $crate::num_traits::{Zero, One, Float};
         use $crate::ops::*;
@@ -11,7 +16,7 @@ macro_rules! xform_complete_mod {
 
         /// A convenient position + orientation + scale container, backed by two `Vec3` and a `Quaternion.`
         ///
-        /// It can be easily interpolated and converted to a Mat4 of any layout.
+        /// It can be easily interpolated and converted to a `Mat4` of any layout.
         ///
         /// ```
         /// # extern crate vek;

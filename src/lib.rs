@@ -9,19 +9,14 @@
 //!
 //! # Cargo features
 //!
-//! - `serde` makes vectors and matrices derive `Serialize` and `Deserialize`.
-//! - `image` makes color vectors implement the `Pixel` trait from the `image` crate.
-//! - `vec8`, `vec16`, `vec32`, `vec64`, `rgba`, `rgb`, `extent3`, `uvw`, `uv`, `mat2`, `mat3`, `quaternion`
-//!   Enable these types. Restricting your selection drastically decreases compile times.  
+//! - `vec8`, `vec16`, `vec32`, `vec64`, `rgba`, `rgb`, `uvw`, `uv`
+//!   Enable these types.
 //!   Other types are always enabled for the sake of doc-tests.  
-//!   Enabling `quaternion` also unlocks the experimental `Transform` type.
-//! - `geom` enables the experimental geom module, which provides simple geometric primitives.
-//!   In the future, it will be more feature-complete and provide optimized mass-processing
-//!   routines.
-//! - `bezier` unlocks Bézier curve types.
 //! - `repr_simd` enables Nightly Rust's `repr_simd` and `simd_ffi` features, and unlock
 //!   SIMD versions of all appropriate types (though `repr_simd` modules).
 //!   On Stable, this feature has no effect.
+//! - `serde` makes vectors and matrices derive `Serialize` and `Deserialize`.
+//! - `image` makes color vectors implement the `Pixel` trait from the `image` crate.
 //! - `x86intrin` enables x86 intrinsics through the `x86intrin` crate. `vek` doesn't directly
 //!   depend on it because it won't compile on Stable and there's no way (as of this writing)
 //!   to selectively depend on a crate based on the `rustc` version, not even via build scripts.
@@ -71,17 +66,14 @@ extern crate approx;
 #[macro_use]
 extern crate static_assertions;
 
-#[macro_use]
-mod geom_macros;
-
 pub mod mat;
 pub use mat::*;
 pub mod vec;
 pub use vec::*;
 pub mod ops;
 pub use ops::*;
-pub mod tween;
-pub use tween::*;
+pub mod transition;
+pub use transition::*;
 pub mod transform;
 pub use transform::*;
 pub mod quaternion;

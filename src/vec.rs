@@ -312,6 +312,48 @@ macro_rules! vec_impl_vec {
             }
         }
 
+
+        impl $Vec<bool> {
+            // Utility for reducing bools. repr_simd doesn't like into_iter() with bool,
+            // because it can't monomorphize $Vec<ManuallyDrop<bool>>.
+            fn reduce_bool<F>(self, f: F) -> bool where F: FnMut(bool,&bool) -> bool {
+                let mut i = self.iter();
+                let first = i.next().unwrap();
+                i.fold(*first, f)
+            }
+            /// Returns the result of logical AND (`&&`) on all elements of this vector.
+            ///
+            /// ```
+            /// # use vek::vec::Vec4;
+            /// assert_eq!(true,  Vec4::new(true, true, true, true).reduce_and());
+            /// assert_eq!(false, Vec4::new(true, false, true, true).reduce_and());
+            /// assert_eq!(false, Vec4::new(true, true, true, false).reduce_and());
+            /// ```
+            pub fn reduce_and(self) -> bool {
+                self.reduce_bool(|a,b| a && *b)
+            }
+            /// Returns the result of logical OR (`||`) on all elements of this vector.
+            ///
+            /// ```
+            /// # use vek::vec::Vec4;
+            /// assert_eq!(false, Vec4::new(false, false, false, false).reduce_or());
+            /// assert_eq!(true,  Vec4::new(false, false, true, false).reduce_or());
+            /// ```
+            pub fn reduce_or(self) -> bool {
+                self.reduce_bool(|a,b| a || *b)
+            }
+            /// Reduces this vector using total inequality.
+            ///
+            /// ```
+            /// # use vek::vec::Vec4;
+            /// assert_eq!(false, Vec4::new(true, true, true, true).reduce_ne());
+            /// assert_eq!(true,  Vec4::new(true, false, true, true).reduce_ne());
+            /// ```
+            pub fn reduce_ne(self) -> bool {
+                self.reduce_bool(|a, b| a != *b)
+            }
+        }
+
         impl<T> $Vec<T> {
 
             /// Broadcasts a single value to all elements of a new vector.
@@ -583,7 +625,7 @@ macro_rules! vec_impl_vec {
             /// let m = Vec4::new(0,1,1,0);
             /// assert_eq!(m, Vec4::partial_min(a, b));
             /// ```
-            pub fn partial_min<V>(a: V, b: V) -> Self where V: Into<Self>, T: Ord {
+            pub fn partial_min<V>(a: V, b: V) -> Self where V: Into<Self>, T: PartialOrd {
                 let (a, b) = (a.into(), b.into());
                 Self::new($(partial_min(a.$get, b.$get)),+)
             }
@@ -597,7 +639,7 @@ macro_rules! vec_impl_vec {
             /// let m = Vec4::new(3,2,2,3);
             /// assert_eq!(m, Vec4::partial_max(a, b));
             /// ```
-            pub fn partial_max<V>(a: V, b: V) -> Self where V: Into<Self>, T: Ord {
+            pub fn partial_max<V>(a: V, b: V) -> Self where V: Into<Self>, T: PartialOrd {
                 let (a, b) = (a.into(), b.into());
                 Self::new($(partial_max(a.$get, b.$get)),+)
             }
@@ -631,9 +673,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(-5_f32, Vec4::new(0_f32, 5., -5., 8.).reduce_partial_min());
             /// ```
             pub fn reduce_partial_min(self) -> T where T: PartialOrd {
-                let mut i = self.into_iter();
-                let first = i.next().unwrap();
-                i.fold(first, partial_min)
+                self.reduce(partial_min)
             }
             /// Returns the element which has the highest value in this vector, using partial
             /// ordering.
@@ -643,9 +683,48 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(8_f32, Vec4::new(0_f32, 5., -5., 8.).reduce_partial_max());
             /// ```
             pub fn reduce_partial_max(self) -> T where T: PartialOrd {
+                self.reduce(partial_max)
+            }
+
+            /// Returns the result of bitwise-AND (`&`) on all elements of this vector.
+            ///
+            /// ```
+            /// # use vek::vec::Vec4;
+            /// assert_eq!(true,  Vec4::new(true, true, true, true).reduce_bitand());
+            /// assert_eq!(false, Vec4::new(true, false, true, true).reduce_bitand());
+            /// assert_eq!(false, Vec4::new(true, true, true, false).reduce_bitand());
+            /// ```
+            pub fn reduce_bitand(self) -> T where T: BitAnd<T, Output=T> {
+                self.reduce(BitAnd::bitand)
+            }
+
+            /// Returns the result of bitwise-OR (`|`) on all elements of this vector.
+            ///
+            /// ```
+            /// # use vek::vec::Vec4;
+            /// assert_eq!(false, Vec4::new(false, false, false, false).reduce_bitor());
+            /// assert_eq!(true,  Vec4::new(false, false, true, false).reduce_bitor());
+            /// ```
+            pub fn reduce_bitor(self) -> T where T: BitOr<T, Output=T> {
+                self.reduce(BitOr::bitor)
+            }
+
+            /// Returns the result of bitwise-XOR (`^`) on all elements of this vector.
+            ///
+            /// ```
+            /// # use vek::vec::Vec4;
+            /// assert_eq!(false, Vec4::new(true, true, true, true).reduce_bitxor());
+            /// assert_eq!(true,  Vec4::new(true, false, true, true).reduce_bitxor());
+            /// ```
+            pub fn reduce_bitxor(self) -> T where T: BitXor<T, Output=T> {
+                self.reduce(BitXor::bitxor)
+            }
+
+            /// Reduces this vector with the given accumulator closure.
+            pub fn reduce<F>(self, f: F) -> T where F: FnMut(T,T) -> T {
                 let mut i = self.into_iter();
                 let first = i.next().unwrap();
-                i.fold(first, partial_max)
+                i.fold(first, f)
             }
 
             /// Returns the product of each of this vector's elements.

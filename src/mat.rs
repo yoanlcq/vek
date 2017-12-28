@@ -2568,7 +2568,8 @@ macro_rules! mat_impl_mat4 {
             }
         }
 
-
+        /// A `Mat4` can be obtained from a `Transform`, by rotating, then scaling, then
+        /// translating.
         impl<T> From<Transform<T,T,T>> for Mat4<T>
             where T: Float + MulAdd<T,T,Output=T>
         {
