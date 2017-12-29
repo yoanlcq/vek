@@ -1535,6 +1535,7 @@ macro_rules! vec_impl_spatial_2d {
                 let s = Self::signed_triangle_area(a, b, c);
                 partial_max(s, -s)
             }
+
             /// Returns this vector rotated in 2D, counter-clockwise.
             ///
             /// ```
@@ -1585,6 +1586,25 @@ macro_rules! vec_impl_spatial_3d {
     ($($Vec:ident)+) => {
         $(
             impl<T> $Vec<T> {
+                /// Creates a 2D point vector in homogeneous coordinates (sets the last coordinate to 1).
+                pub fn new_point_2d(x: T, y: T) -> Self where T: One {
+                    Self::new(x, y, T::one())
+                }
+                /// Creates a 2D direction vector in homogeneous coordinates (sets the last coordinate to 0).
+                pub fn new_direction_2d(x: T, y: T) -> Self where T: Zero {
+                    Self::new(x, y, T::zero())
+                }
+                /// Turns a 2D vector into a point vector in homogeneous coordinates (sets the last coordinate to 1).
+                pub fn from_point_2d<V: Into<Vec2<T>>>(v: V) -> Self where T: One {
+                    let Vec2 { x, y } = v.into();
+                    Self::new_point_2d(x, y)
+                }
+                /// Turns a 2D vector into a direction vector in homogeneous coordinates (sets the last coordinate to 0).
+                pub fn from_direction_2d<V: Into<Vec2<T>>>(v: V) -> Self where T: Zero {
+                    let Vec2 { x, y } = v.into();
+                    Self::new_direction_2d(x, y)
+                }
+
                 /// The cross-product of this vector with another.
                 ///
                 /// On two noncolinear vectors, the result is perpendicular to the plane they

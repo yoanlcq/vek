@@ -39,6 +39,35 @@ macro_rules! bezier_impl_any {
                 *self = self.flipped_z();
             }
         }
+        impl<T> Mul<$Bezier<T>> for Rows3<T> where T: Float + MulAdd<T,T,Output=T> {
+            type Output = $Bezier<T>;
+            fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
+                rhs.into_vector().map(|p| self * p).into()
+            }
+        }
+        impl<T> Mul<$Bezier<T>> for Cols3<T> where T: Float + MulAdd<T,T,Output=T> {
+            type Output = $Bezier<T>;
+            fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
+                rhs.into_vector().map(|p| self * p).into()
+            }
+        }
+    };
+    (2 $Bezier:ident $Point:ident) => {
+
+        bezier_impl_any!{$Bezier $Point}
+
+        impl<T> Mul<$Bezier<T>> for Rows3<T> where T: Float + MulAdd<T,T,Output=T> {
+            type Output = $Bezier<T>;
+            fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
+                rhs.into_vector().map(|p| (self.mul_point_2d(p)).into()).into()
+            }
+        }
+        impl<T> Mul<$Bezier<T>> for Cols3<T> where T: Float + MulAdd<T,T,Output=T> {
+            type Output = $Bezier<T>;
+            fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
+                rhs.into_vector().map(|p| (self.mul_point_2d(p)).into()).into()
+            }
+        }
     };
     ($Bezier:ident $Point:ident) => {
         impl<T: Float> $Bezier<T> {
@@ -167,7 +196,6 @@ macro_rules! bezier_impl_any {
                 (t, pt)
             }
         }
-        // FIXME: I don't like how this could break expectations in 2D (Mat3 mul)
         impl<T> Mul<$Bezier<T>> for Rows4<T> where T: Float + MulAdd<T,T,Output=T> {
             type Output = $Bezier<T>;
             fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
@@ -180,16 +208,16 @@ macro_rules! bezier_impl_any {
                 rhs.into_vector().map(|p| self.mul_point(p).into()).into()
             }
         }
-        impl<T> Mul<$Bezier<T>> for Rows3<T> where T: Float + MulAdd<T,T,Output=T> {
+        impl<T> Mul<$Bezier<T>> for Rows2<T> where T: Float + MulAdd<T,T,Output=T> {
             type Output = $Bezier<T>;
             fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
-                rhs.into_vector().map(|p| (self * Vec3::from(p)).into()).into()
+                rhs.into_vector().map(|p| (self * Vec2::from(p)).into()).into()
             }
         }
-        impl<T> Mul<$Bezier<T>> for Cols3<T> where T: Float + MulAdd<T,T,Output=T> {
+        impl<T> Mul<$Bezier<T>> for Cols2<T> where T: Float + MulAdd<T,T,Output=T> {
             type Output = $Bezier<T>;
             fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
-                rhs.into_vector().map(|p| (self * Vec3::from(p)).into()).into()
+                rhs.into_vector().map(|p| (self * Vec2::from(p)).into()).into()
             }
         }
     };
@@ -384,7 +412,7 @@ macro_rules! bezier_impl_quadratic {
     };
     ($(#[$attrs:meta])* 2 $QuadraticBezier:ident $CubicBezier:ident $Point:ident $LineSegment:ident) => {
         bezier_impl_quadratic!{$(#[$attrs])* $QuadraticBezier $CubicBezier $Point $LineSegment}
-        bezier_impl_any!($QuadraticBezier $Point);
+        bezier_impl_any!(2 $QuadraticBezier $Point);
     };
     ($(#[$attrs:meta])* $QuadraticBezier:ident $CubicBezier:ident $Point:ident $LineSegment:ident) => {
         
@@ -541,7 +569,7 @@ macro_rules! bezier_impl_cubic {
     };
     ($(#[$attrs:meta])* 2 $QuadraticBezier:ident $CubicBezier:ident $Point:ident $LineSegment:ident) => {
         bezier_impl_cubic!{$(#[$attrs])* $QuadraticBezier $CubicBezier $Point $LineSegment}
-        bezier_impl_any!($CubicBezier $Point);
+        bezier_impl_any!(2 $CubicBezier $Point);
     };
     ($(#[$attrs:meta])* $QuadraticBezier:ident $CubicBezier:ident $Point:ident $LineSegment:ident) => {
         
@@ -734,8 +762,8 @@ macro_rules! bezier_impl_cubic {
 macro_rules! impl_all_beziers {
     ($mod:ident) => {
         use  vec::$mod::{Vec3, Vec4, Vec2};
-        use  mat::$mod::row_major::{Mat3 as Rows3, Mat4 as Rows4};
-        use  mat::$mod::column_major::{Mat3 as Cols3, Mat4 as Cols4};
+        use  mat::$mod::row_major::{Mat2 as Rows2, Mat3 as Rows3, Mat4 as Rows4};
+        use  mat::$mod::column_major::{Mat2 as Cols2, Mat3 as Cols3, Mat4 as Cols4};
         use geom::$mod::{LineSegment2, LineSegment3, Aabr, Aabb};
         use self::Rows4 as Mat4;
         use self::Rows3 as Mat3;

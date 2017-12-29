@@ -2956,6 +2956,25 @@ macro_rules! mat_impl_mat3 {
                 a*(e*i - f*h) - b*(d*i - f*g) + c*(d*h - e*g)
             }
 
+
+            //
+            // MULTIPLY BY
+            //
+
+            /// Shortcut for `self * Vec3::from_point_2d(rhs)`.
+            pub fn mul_point_2d<V: Into<Vec2<T>> + From<Vec3<T>>>(self, rhs: V) -> V
+                where T: Float + MulAdd<T,T,Output=T>
+            {
+                V::from(self * Vec3::from_point_2d(rhs))
+            }
+            /// Shortcut for `self * Vec3::from_direction_2d(rhs)`.
+            pub fn mul_direction_2d<V: Into<Vec2<T>> + From<Vec3<T>>>(self, rhs: V) -> V
+                where T: Float + MulAdd<T,T,Output=T>
+            {
+                V::from(self * Vec3::from_direction_2d(rhs))
+            }
+
+
             /// Translates this matrix in 2D.
             pub fn translate_2d<V: Into<Vec2<T>>>(&mut self, v: V)
                 where T: Float + MulAdd<T,T,Output=T>
@@ -3708,6 +3727,25 @@ mod tests {
 
     use super::Mat4;
     use super::super::vec::Vec4;
+
+
+    #[test] fn simple_mat2() {
+        use ::vec::Vec2;
+        use ::mat::row_major::Mat2 as Rows2;
+        use ::mat::column_major::Mat2 as Cols2;
+        let a = Rows2::new(
+            1, 2,
+            3, 4
+        );
+        let b = Cols2::new(
+            1, 2,
+            3, 4
+        );
+        let v = Vec2::new(2, 3);
+        assert_eq!(format!("{}", a), format!("{}", b));
+        assert_eq!(v * a, v * b);
+        assert_eq!(a * v, b * v);
+    }
 
     #[test]
     fn test_model_look_at_rh() {
