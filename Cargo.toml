@@ -1,5 +1,5 @@
 [package]
-version = "0.9.0" # remember to update html_root_url in src/lib.rs
+version = "0.9.1" # remember to update html_root_url in src/lib.rs
 authors = ["Yoan Lecoq <yoanlecoq.io@gmail.com>"]
 description = "Generic 2D-3D math swiss army knife for game engines, with SIMD support and focus on convenience."
 documentation = "https://docs.rs/vek"
@@ -46,15 +46,15 @@ uvw = []
 repr_simd = []
 
 [build-dependencies]
-rustc_version = "0.2.1"
+rustc_version = "~0.2.1"
 
 [dependencies]
-approx = "0.1.1"
-num-traits = "0.1.40"
-num-integer = "0.1.35"
-static_assertions = "0.2.5"
-image = { version = "0.17", optional = true, default-features = false }
-serde = { version = "1.0.24", optional = true, features = ["derive"] }
+approx = "~0.1.1"
+num-traits = "~0.1.40"
+num-integer = "~0.1.35"
+static_assertions = "~0.2.5"
+image = { version = "~0.17", optional = true, default-features = false }
+serde = { version = "~1.0.24", optional = true, features = ["derive"] }
 # clippy = { version = "0.0.166", optional = true }
 
 [target.'cfg(any(target_arch="x86", target_arch="x86_64"))'.dependencies]
