@@ -255,6 +255,7 @@ macro_rules! vec_impl_vec {
 
     (c $Vec:ident $vec:ident ($dim:expr) ($fmt:expr) ($($get:tt)+) ($($namedget:tt)+) ($($tupleget:tt)+) $Tuple:ty) => {
 
+        use super::super::repr_c::$vec::$Vec as CVec;
     };
     (simd $Vec:ident $vec:ident ($dim:expr) ($fmt:expr) ($($get:tt)+) ($($namedget:tt)+) ($($tupleget:tt)+) $Tuple:ty) => {
 
@@ -1127,13 +1128,6 @@ macro_rules! vec_impl_vec {
         }
 
         impl $Vec<bool> {
-            // Utility for reducing bools. repr_simd doesn't like into_iter() with bool,
-            // because it can't monomorphize $Vec<ManuallyDrop<bool>>.
-            fn reduce_bool<F>(self, f: F) -> bool where F: FnMut(bool,&bool) -> bool {
-                let mut i = self.iter();
-                let first = i.next().unwrap();
-                i.fold(*first, f)
-            }
             /// Returns the result of logical AND (`&&`) on all elements of this vector.
             ///
             /// ```
@@ -1143,7 +1137,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(false, Vec4::new(true, true, true, false).reduce_and());
             /// ```
             pub fn reduce_and(self) -> bool {
-                self.reduce_bool(|a,b| a && *b)
+                self.reduce(|a, b| a && b)
             }
             /// Returns the result of logical OR (`||`) on all elements of this vector.
             ///
@@ -1153,7 +1147,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(true,  Vec4::new(false, false, true, false).reduce_or());
             /// ```
             pub fn reduce_or(self) -> bool {
-                self.reduce_bool(|a,b| a || *b)
+                self.reduce(|a, b| a || b)
             }
             /// Reduces this vector using total inequality.
             ///
@@ -1163,7 +1157,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(true,  Vec4::new(true, false, true, true).reduce_ne());
             /// ```
             pub fn reduce_ne(self) -> bool {
-                self.reduce_bool(|a, b| a != *b)
+                self.reduce(|a, b| a != b)
             }
         }
 
@@ -1261,7 +1255,8 @@ macro_rules! vec_impl_vec {
         //#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         #[derive(Debug, Hash, PartialEq, Eq)]
         pub struct IntoIter<T> {
-            vector: $Vec<ManuallyDrop<T>>,
+            // NOTE: Use a CVec and not $Vec; repr_simd vectors can't monomorphize ManuallyDrop<T>.
+            vector: CVec<ManuallyDrop<T>>,
             start: usize,
             end: usize,
         }
@@ -1282,7 +1277,7 @@ macro_rules! vec_impl_vec {
             type IntoIter = IntoIter<T>;
             fn into_iter(self) -> Self::IntoIter {
                 Self::IntoIter {
-                    vector: self.map(ManuallyDrop::new),
+                    vector: CVec::from(self).map(ManuallyDrop::new),
                     start: 0,
                     end: $dim,
                 }
@@ -2865,6 +2860,32 @@ mod tests {
         };
         (common $Vec:ident<$T:ident>) => {
             #[test] fn claims_to_be_packed() { assert!($Vec::<$T>::default().is_packed()); }
+            #[test] fn iterator_api() {
+                let v = $Vec::<i32>::default();
+                let mut v: $Vec<i32> = (0..).into_iter().take(v.elem_count()).collect();
+                for _ in &mut v {}
+                for _ in &v {}
+                for _ in v {}
+                let mut v = $Vec::<i32>::default();
+                let _ = v.as_ptr();
+                let _ = v.as_mut_ptr();
+                let _ = v.iter_mut();
+                let _ = v.iter();
+                let _ = v.into_iter();
+                let mut v = $Vec::<i32>::default();
+                let _ = v.iter_mut().rev();
+                let _ = v.iter().rev();
+                let _ = v.into_iter().rev();
+                let mut v = $Vec::<i32>::default();
+                let _ = v[0];
+                v[0] = 0;
+                let _ = v.get(0);
+                let _ = v.get_mut(0);
+                unsafe {
+                    let _ = v.get_unchecked(0);
+                    let _ = v.get_unchecked_mut(0);
+                }
+            }
         };
         (repr_simd_except_bool $Vec:ident<$T:ident>) => {
             #[test] fn is_actually_packed() {
@@ -2924,36 +2945,6 @@ mod tests {
                     mod bool {
                         use $crate::vec::repr_simd::$Vec;
                         test_vec_t!{repr_simd $Vec<bool>}
-                    }
-                }
-                mod api {
-                    use $crate::vec::repr_c::$Vec;
-                    #[test]
-                    fn iterator() {
-                        let v = $Vec::<i32>::default();
-                        let mut v: $Vec<i32> = (0..).into_iter().take(v.elem_count()).collect();
-                        for _ in &mut v {}
-                        for _ in &v {}
-                        for _ in v {}
-                        let mut v = $Vec::<i32>::default();
-                        let _ = v.as_ptr();
-                        let _ = v.as_mut_ptr();
-                        let _ = v.iter_mut();
-                        let _ = v.iter();
-                        let _ = v.into_iter();
-                        let mut v = $Vec::<i32>::default();
-                        let _ = v.iter_mut().rev();
-                        let _ = v.iter().rev();
-                        let _ = v.into_iter().rev();
-                        let mut v = $Vec::<i32>::default();
-                        let _ = v[0];
-                        v[0] = 0;
-                        let _ = v.get(0);
-                        let _ = v.get_mut(0);
-                        unsafe {
-                            let _ = v.get_unchecked(0);
-                            let _ = v.get_unchecked_mut(0);
-                        }
                     }
                 }
             }
