@@ -22,7 +22,7 @@ appveyor  = { repository = "yoanlcq/vek" }
 maintenance = { status = "experimental" }
 
 [features]
-default = ["repr_simd", "serde", "rgba", "rgb"]
+default = ["repr_simd", "rgba", "rgb"]
 # NOTE: The below ones (commented out) are enforced, because doc tests assume their availability.
 # vec2 = []
 # vec3 = []
