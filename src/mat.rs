@@ -4,9 +4,9 @@ use std::mem;
 use std::ptr;
 use std::slice;
 use std::iter::Sum;
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Display, Formatter, Debug};
 use std::ops::*;
-use num_traits::{Zero, One, Float, NumCast};
+use num_traits::{Zero, One, Float, FloatConst, NumCast};
 use approx::ApproxEq;
 use ops::MulAdd;
 use vec;
@@ -952,6 +952,11 @@ macro_rules! mat_impl_mat {
             pub fn col_count(&self) -> usize {
                 $ncols
             }
+            /// Convenience constant representing the number of rows for matrices of this type.
+            pub const ROW_COUNT: usize = $nrows;
+            /// Convenience constant representing the number of columns for matrices of this type.
+            pub const COL_COUNT: usize = $ncols;
+
             /// Are all elements of this matrix tightly packed together in memory ?
             /// 
             /// This might not be the case for matrices in the `repr_simd` module
@@ -1595,16 +1600,19 @@ macro_rules! mat_impl_mat4 {
             // TRANSFORMS
             //
 
+            /// Translates this matrix in 2D.
             pub fn translate_2d<V: Into<Vec2<T>>>(&mut self, v: V)
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 *self = self.translated_2d(v);
             }
+            /// Returns this matrix translated in 2D.
             pub fn translated_2d<V: Into<Vec2<T>>>(self, v: V) -> Self
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::translation_2d(v) * self
             }
+            /// Creates a 2D translation matrix.
             pub fn translation_2d<V: Into<Vec2<T>>>(v: V) -> Self where T: Zero + One {
                 let Vec2 { x, y } = v.into();
                 Self::new(
@@ -1614,16 +1622,19 @@ macro_rules! mat_impl_mat4 {
                     T::zero(), T::zero(), T::zero(), T::one(),
                 )
             }
+            /// Translates this matrix in 3D.
             pub fn translate_3d<V: Into<Vec3<T>>>(&mut self, v: V)
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 *self = self.translated_3d(v);
             }
+            /// Returns this matrix translated in 3D.
             pub fn translated_3d<V: Into<Vec3<T>>>(self, v: V) -> Self
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::translation_3d(v) * self
             }
+            /// Creates a 3D translation matrix.
             pub fn translation_3d<V: Into<Vec3<T>>>(v: V) -> Self where T: Zero + One {
                 let Vec3 { x, y, z } = v.into();
                 Self::new(
@@ -1646,16 +1657,19 @@ macro_rules! mat_impl_mat4 {
                 *self = Rows4 { rows }.into();
             }
 
+            /// Scales this matrix in 3D.
             pub fn scale_3d<V: Into<Vec3<T>>>(&mut self, v: V)
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 *self = self.scaled_3d(v);
             }
+            /// Returns this matrix scaled in 3D.
             pub fn scaled_3d<V: Into<Vec3<T>>>(self, v: V) -> Self
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::scaling_3d(v) * self
             }
+            /// Creates a 3D scaling matrix.
             pub fn scaling_3d<V: Into<Vec3<T>>>(v: V) -> Self where T: Zero + One {
                 let Vec3 { x, y, z } = v.into();
                 Self::new(
@@ -1665,16 +1679,19 @@ macro_rules! mat_impl_mat4 {
                     T::zero(), T::zero(), T::zero(), T::one()
                 )
             }
+            /// Rotates this matrix around the X axis.
             pub fn rotate_x(&mut self, angle_radians: T)
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 *self = self.rotated_x(angle_radians);
             }
+            /// Returns this matrix rotated around the X axis.
             pub fn rotated_x(self, angle_radians: T) -> Self 
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::rotation_x(angle_radians) * self
             }
+            /// Creates a matrix that rotates around the X axis.
             pub fn rotation_x(angle_radians: T) -> Self where T: Float {
                 let c = angle_radians.cos();
                 let s = angle_radians.sin();
@@ -1685,16 +1702,19 @@ macro_rules! mat_impl_mat4 {
                     T::zero(), T::zero(), T::zero(), T::one()
                 )
             }
+            /// Rotates this matrix around the Y axis.
             pub fn rotate_y(&mut self, angle_radians: T)
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 *self = self.rotated_y(angle_radians);
             }
+            /// Returns this matrix rotated around the Y axis.
             pub fn rotated_y(self, angle_radians: T) -> Self
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::rotation_y(angle_radians) * self
             }
+            /// Creates a matrix that rotates around the Y axis.
             pub fn rotation_y(angle_radians: T) -> Self where T: Float {
                 let c = angle_radians.cos();
                 let s = angle_radians.sin();
@@ -1705,16 +1725,19 @@ macro_rules! mat_impl_mat4 {
                     T::zero(), T::zero(), T::zero(), T::one()
                 )
             }
+            /// Rotates this matrix around the Z axis.
             pub fn rotate_z(&mut self, angle_radians: T)
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 *self = self.rotated_z(angle_radians);
             }
+            /// Returns this matrix rotated around the Z axis.
             pub fn rotated_z(self, angle_radians: T) -> Self
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::rotation_z(angle_radians) * self
             }
+            /// Creates a matrix that rotates around the Z axis.
             pub fn rotation_z(angle_radians: T) -> Self where T: Float {
                 let c = angle_radians.cos();
                 let s = angle_radians.sin();
@@ -1725,17 +1748,22 @@ macro_rules! mat_impl_mat4 {
                     T::zero(), T::zero(), T::zero(), T::one()
                 )
             }
+            /// Rotates this matrix around a 3D axis.  
+            /// The axis is not required to be normalized.
             pub fn rotate_3d<V: Into<Vec3<T>>>(&mut self, angle_radians: T, axis: V)
                 where T: Float + MulAdd<T,T,Output=T> + Sum
             {
                 *self = self.rotated_3d(angle_radians, axis);
             }
+            /// Returns this matrix rotated around a 3D axis.  
+            /// The axis is not required to be normalized.
             pub fn rotated_3d<V: Into<Vec3<T>>>(self, angle_radians: T, axis: V) -> Self
                 where T: Float + MulAdd<T,T,Output=T> + Sum
             {
                 Self::rotation_3d(angle_radians, axis) * self
             }
-            /// 3D rotation matrix. `axis` is not required to be normalized.
+            /// Creates a matrix that rotates around a 3D axis.  
+            /// The axis is not required to be normalized.
             ///
             /// ```
             /// # extern crate vek;
@@ -1950,7 +1978,8 @@ macro_rules! mat_impl_mat4 {
 
             /// Builds a "look at" view transform
             /// from an eye position, a target position, and up vector.
-            /// Commonly used for cameras.
+            /// Commonly used for cameras - in short, it maps points from
+            /// world-space to eye-space.
             ///
             /// ```
             /// # extern crate vek;
@@ -2084,6 +2113,7 @@ macro_rules! mat_impl_mat4 {
             // PROJECTIONS
             //
 
+            /// Returns an orthographic projection matrix that doesn't use near and far planes.
             pub fn orthographic_without_depth_planes (o: FrustumPlanes<T>) -> Self where T: Float {
                 let two = T::one() + T::one();
                 let FrustumPlanes { left, right, top, bottom, .. } = o;
@@ -2193,6 +2223,8 @@ macro_rules! mat_impl_mat4 {
                 m
             }
 
+            /// Creates a perspective projection matrix from a frustum
+            /// (left-handed, zero-to-one depth clip planes).
             pub fn frustum_lh_zo (o: FrustumPlanes<T>) -> Self where T: Float {
                 let two = T::one() + T::one();
                 let FrustumPlanes { left, right, top, bottom, near, far } = o;
@@ -2206,6 +2238,8 @@ macro_rules! mat_impl_mat4 {
                 m[(2, 3)] = -(far * near) / (far - near);
                 m
             }
+            /// Creates a perspective projection matrix from a frustum
+            /// (left-handed, negative-one-to-one depth clip planes).
             pub fn frustum_lh_no (o: FrustumPlanes<T>) -> Self where T: Float {
                 let two = T::one() + T::one();
                 let FrustumPlanes { near, far, .. } = o;
@@ -2214,12 +2248,16 @@ macro_rules! mat_impl_mat4 {
                 m[(2, 3)] = -(two * far * near) / (far - near);
                 m
             }
+            /// Creates a perspective projection matrix from a frustum
+            /// (right-handed, zero-to-one depth clip planes).
             pub fn frustum_rh_zo (o: FrustumPlanes<T>) -> Self where T: Float {
                 let mut m = Self::frustum_lh_zo(o);
                 m[(2, 2)] = -m[(2, 2)];
                 m[(3, 2)] = -m[(3, 2)];
                 m
             }
+            /// Creates a perspective projection matrix from a frustum
+            /// (right-handed, negative-one-to-one depth clip planes).
             pub fn frustum_rh_no (o: FrustumPlanes<T>) -> Self where T: Float {
                 let mut m = Self::frustum_lh_no(o);
                 m[(2, 2)] = -m[(2, 2)];
@@ -2229,9 +2267,15 @@ macro_rules! mat_impl_mat4 {
 
             /// Creates a perspective projection matrix for right-handed spaces, with zero-to-one depth clip planes.
             pub fn perspective_rh_zo (fov_y_radians: T, aspect_ratio: T, near: T, far: T) -> Self 
-                where T: Float
+                where T: Float + FloatConst + Debug
             {
-                assert!((aspect_ratio - T::epsilon()).abs() > T::zero());
+                // Assertions from cgmath
+                debug_assert!(fov_y_radians > T::zero(), "The vertical field of view cannot be below zero, found: {:?}", fov_y_radians);
+                debug_assert!(fov_y_radians < (T::PI()+T::PI()), "The vertical field of view cannot be greater than a half turn, found: {:?} radians", fov_y_radians);
+                debug_assert!(aspect_ratio > T::zero(), "The aspect ratio cannot be below zero, found: {:?}", aspect_ratio);
+                debug_assert!(near > T::zero(), "The near plane distance cannot be below zero, found: {:?}", near);
+                debug_assert!(far  > T::zero(), "The far plane distance cannot be below zero, found: {:?}", far);
+                debug_assert!(far  > near, "The far plane cannot be closer than the near plane, found: far: {:?}, near: {:?}", far, near);
                 let two = T::one() + T::one();
                 let tan_half_fovy = (fov_y_radians / two).tan();
                 let m00 = T::one() / (aspect_ratio * tan_half_fovy);
@@ -2248,7 +2292,7 @@ macro_rules! mat_impl_mat4 {
             }
             /// Creates a perspective projection matrix for left-handed spaces, with zero-to-one depth clip planes.
             pub fn perspective_lh_zo (fov_y_radians: T, aspect_ratio: T, near: T, far: T) -> Self 
-                where T: Float
+                where T: Float + FloatConst + Debug
             {
                 let mut m = Self::perspective_rh_zo(fov_y_radians, aspect_ratio, near, far);
                 m[(2, 2)] = -m[(2, 2)];
@@ -2258,9 +2302,15 @@ macro_rules! mat_impl_mat4 {
 
             /// Creates a perspective projection matrix for right-handed spaces, with negative-one-to-one depth clip planes.
             pub fn perspective_rh_no (fov_y_radians: T, aspect_ratio: T, near: T, far: T) -> Self 
-                where T: Float
+                where T: Float + FloatConst + Debug
             {
-                assert!((aspect_ratio - T::epsilon()).abs() > T::zero());
+                // Assertions from cgmath
+                debug_assert!(fov_y_radians > T::zero(), "The vertical field of view cannot be below zero, found: {:?}", fov_y_radians);
+                debug_assert!(fov_y_radians < (T::PI()+T::PI()), "The vertical field of view cannot be greater than a half turn, found: {:?} radians", fov_y_radians);
+                debug_assert!(aspect_ratio > T::zero(), "The aspect ratio cannot be below zero, found: {:?}", aspect_ratio);
+                debug_assert!(near > T::zero(), "The near plane distance cannot be below zero, found: {:?}", near);
+                debug_assert!(far  > T::zero(), "The far plane distance cannot be below zero, found: {:?}", far);
+                debug_assert!(far  > near, "The far plane cannot be closer than the near plane, found: far: {:?}, near: {:?}", far, near);
                 let two = T::one() + T::one();
                 let tan_half_fovy = (fov_y_radians / two).tan();
                 let m00 = T::one() / (aspect_ratio * tan_half_fovy);
@@ -2277,7 +2327,7 @@ macro_rules! mat_impl_mat4 {
             }
             /// Creates a perspective projection matrix for left-handed spaces, with negative-one-to-one depth clip planes.
             pub fn perspective_lh_no (fov_y_radians: T, aspect_ratio: T, near: T, far: T) -> Self 
-                where T: Float
+                where T: Float + FloatConst + Debug
             {
                 let mut m = Self::perspective_rh_no(fov_y_radians, aspect_ratio, near, far);
                 m[(2, 2)] = -m[(2, 2)];
@@ -2290,11 +2340,16 @@ macro_rules! mat_impl_mat4 {
             /// # Panics
             /// `width`, `height` and `fov_y_radians` must all be strictly greater than zero.
             pub fn perspective_fov_rh_zo (fov_y_radians: T, width: T, height: T, near: T, far: T) -> Self 
-                where T: Float
+                where T: Float + FloatConst + Debug
             {
-                assert!(width > T::zero());
-                assert!(height > T::zero());
-                assert!(fov_y_radians > T::zero());
+                debug_assert!(width > T::zero(), "viewport width cannot be below zero, found: {:?}", width);
+                debug_assert!(height > T::zero(), "viewport height cannot be below zero, found: {:?}", height);
+                // Assertions from cgmath
+                debug_assert!(fov_y_radians > T::zero(), "The vertical field of view cannot be below zero, found: {:?}", fov_y_radians);
+                debug_assert!(fov_y_radians < (T::PI()+T::PI()), "The vertical field of view cannot be greater than a half turn, found: {:?} radians", fov_y_radians);
+                debug_assert!(near > T::zero(), "The near plane distance cannot be below zero, found: {:?}", near);
+                debug_assert!(far  > T::zero(), "The far plane distance cannot be below zero, found: {:?}", far);
+                debug_assert!(far  > near, "The far plane cannot be closer than the near plane, found: far: {:?}, near: {:?}", far, near);
 
                 let two = T::one() + T::one();
                 let rad = fov_y_radians;
@@ -2319,7 +2374,7 @@ macro_rules! mat_impl_mat4 {
             /// # Panics
             /// `width`, `height` and `fov_y_radians` must all be strictly greater than zero.
             pub fn perspective_fov_lh_zo (fov_y_radians: T, width: T, height: T, near: T, far: T) -> Self 
-                where T: Float
+                where T: Float + FloatConst + Debug
             {
                 let mut m = Self::perspective_fov_rh_zo(fov_y_radians, width, height, near, far);
                 m[(2, 2)] = -m[(2, 2)];
@@ -2332,11 +2387,16 @@ macro_rules! mat_impl_mat4 {
             /// # Panics
             /// `width`, `height` and `fov_y_radians` must all be strictly greater than zero.
             pub fn perspective_fov_rh_no (fov_y_radians: T, width: T, height: T, near: T, far: T) -> Self 
-                where T: Float
+                where T: Float + FloatConst + Debug
             {
-                assert!(width > T::zero());
-                assert!(height > T::zero());
-                assert!(fov_y_radians > T::zero());
+                debug_assert!(width > T::zero(), "viewport width cannot be below zero, found: {:?}", width);
+                debug_assert!(height > T::zero(), "viewport height cannot be below zero, found: {:?}", height);
+                // Assertions from cgmath
+                debug_assert!(fov_y_radians > T::zero(), "The vertical field of view cannot be below zero, found: {:?}", fov_y_radians);
+                debug_assert!(fov_y_radians < (T::PI()+T::PI()), "The vertical field of view cannot be greater than a half turn, found: {:?} radians", fov_y_radians);
+                debug_assert!(near > T::zero(), "The near plane distance cannot be below zero, found: {:?}", near);
+                debug_assert!(far  > T::zero(), "The far plane distance cannot be below zero, found: {:?}", far);
+                debug_assert!(far  > near, "The far plane cannot be closer than the near plane, found: far: {:?}, near: {:?}", far, near);
 
                 let two = T::one() + T::one();
                 let rad = fov_y_radians;
@@ -2360,7 +2420,7 @@ macro_rules! mat_impl_mat4 {
             /// # Panics
             /// `width`, `height` and `fov_y_radians` must all be strictly greater than zero.
             pub fn perspective_fov_lh_no (fov_y_radians: T, width: T, height: T, near: T, far: T) -> Self 
-                where T: Float 
+                where T: Float + FloatConst + Debug
             {
                 let mut m = Self::perspective_fov_rh_no(fov_y_radians, width, height, near, far);
                 m[(2, 2)] = -m[(2, 2)];
@@ -2374,8 +2434,14 @@ macro_rules! mat_impl_mat4 {
 	        /// [Link to PDF](http://www.terathon.com/gdc07_lengyel.pdf)
             // From GLM
             pub fn tweaked_infinite_perspective_rh (fov_y_radians: T, aspect_ratio: T, near: T, epsilon: T) -> Self 
-                where T: Float
+                where T: Float + FloatConst + Debug
             {
+                // Assertions from cgmath
+                debug_assert!(fov_y_radians > T::zero(), "The vertical field of view cannot be below zero, found: {:?}", fov_y_radians);
+                debug_assert!(fov_y_radians < (T::PI()+T::PI()), "The vertical field of view cannot be greater than a half turn, found: {:?} radians", fov_y_radians);
+                debug_assert!(aspect_ratio > T::zero(), "The aspect ratio cannot be below zero, found: {:?}", aspect_ratio);
+                debug_assert!(near > T::zero(), "The near plane distance cannot be below zero, found: {:?}", near);
+
                 let two = T::one() + T::one();
                 let range = (fov_y_radians / two).tan() * near;
                 let left = -range * aspect_ratio;
@@ -2398,7 +2464,7 @@ macro_rules! mat_impl_mat4 {
 
             /// Creates an infinite perspective projection matrix for left-handed spaces.
             pub fn tweaked_infinite_perspective_lh (fov_y_radians: T, aspect_ratio: T, near: T, epsilon: T) -> Self 
-                where T: Float
+                where T: Float + FloatConst + Debug
             {
                 let mut m = Self::tweaked_infinite_perspective_rh(fov_y_radians, aspect_ratio, near, epsilon);
                 m[(2, 2)] = -m[(2, 2)];
@@ -2408,14 +2474,14 @@ macro_rules! mat_impl_mat4 {
 
             /// Creates an infinite perspective projection matrix for right-handed spaces.
             pub fn infinite_perspective_rh (fov_y_radians: T, aspect_ratio: T, near: T) -> Self 
-                where T: Float
+                where T: Float + FloatConst + Debug
             {
                 Self::tweaked_infinite_perspective_rh(fov_y_radians, aspect_ratio, near, T::zero())
             }
 
             /// Creates an infinite perspective projection matrix for left-handed spaces.
             pub fn infinite_perspective_lh (fov_y_radians: T, aspect_ratio: T, near: T) -> Self 
-                where T: Float
+                where T: Float + FloatConst + Debug
             {
                 Self::tweaked_infinite_perspective_lh(fov_y_radians, aspect_ratio, near, T::zero())
             }
@@ -2890,16 +2956,19 @@ macro_rules! mat_impl_mat3 {
                 a*(e*i - f*h) - b*(d*i - f*g) + c*(d*h - e*g)
             }
 
+            /// Translates this matrix in 2D.
             pub fn translate_2d<V: Into<Vec2<T>>>(&mut self, v: V)
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 *self = self.translated_2d(v);
             }
+            /// Returns this matrix translated in 2D.
             pub fn translated_2d<V: Into<Vec2<T>>>(self, v: V) -> Self
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::translation_2d(v) * self
             }
+            /// Creates a 2D translation matrix.
             pub fn translation_2d<V: Into<Vec2<T>>>(v: V) -> Self where T: Zero + One {
                 let v = v.into();
                 Self::new(
@@ -2908,16 +2977,19 @@ macro_rules! mat_impl_mat3 {
                     T::zero(), T::zero(), T::one()
                 )
             }
+            /// Scales this matrix in 3D.
             pub fn scale_3d<V: Into<Vec3<T>>>(&mut self, v: V)
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 *self = self.scaled_3d(v);
             }
+            /// Returns this matrix scaled in 3D.
             pub fn scaled_3d<V: Into<Vec3<T>>>(self, v: V) -> Self
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::scaling_3d(v) * self
             }
+            /// Creates a 3D scaling matrix.
             pub fn scaling_3d<V: Into<Vec3<T>>>(v: V) -> Self where T: Zero {
                 let Vec3 { x, y, z } = v.into();
                 Self::new(
@@ -2926,16 +2998,19 @@ macro_rules! mat_impl_mat3 {
                     T::zero(), T::zero(), z
                 )
             }
+            /// Rotates this matrix around the X axis.
             pub fn rotate_x(&mut self, angle_radians: T)
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 *self = self.rotated_x(angle_radians);
             }
+            /// Returns this matrix rotated around the X axis.
             pub fn rotated_x(self, angle_radians: T) -> Self
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::rotation_x(angle_radians) * self
             }
+            /// Creates a matrix that rotates around the X axis.
             pub fn rotation_x(angle_radians: T) -> Self where T: Float {
                 let c = angle_radians.cos();
                 let s = angle_radians.sin();
@@ -2945,16 +3020,19 @@ macro_rules! mat_impl_mat3 {
                     T::zero(), s, c
                 )
             }
+            /// Rotates this matrix around the Y axis.
             pub fn rotate_y(&mut self, angle_radians: T)
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 *self = self.rotated_y(angle_radians);
             }
+            /// Returns this matrix rotated around the Y axis.
             pub fn rotated_y(self, angle_radians: T) -> Self
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::rotation_y(angle_radians) * self
             }
+            /// Creates a matrix that rotates around the Y axis.
             pub fn rotation_y(angle_radians: T) -> Self where T: Float {
                 let c = angle_radians.cos();
                 let s = angle_radians.sin();
@@ -2964,16 +3042,19 @@ macro_rules! mat_impl_mat3 {
                     -s, T::zero(), c
                 )
             }
+            /// Rotates this matrix around the Z axis.
             pub fn rotate_z(&mut self, angle_radians: T)
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 *self = self.rotated_z(angle_radians);
             }
+            /// Returns this matrix rotated around the Z axis.
             pub fn rotated_z(self, angle_radians: T) -> Self
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::rotation_z(angle_radians) * self
             }
+            /// Creates a matrix that rotates around the Z axis.
             pub fn rotation_z(angle_radians: T) -> Self where T: Float {
                 let c = angle_radians.cos();
                 let s = angle_radians.sin();
@@ -2984,17 +3065,22 @@ macro_rules! mat_impl_mat3 {
                 )
             }
 
+            /// Rotates this matrix around a 3D axis.  
+            /// The axis is not required to be normalized.
             pub fn rotate_3d<V: Into<Vec3<T>>>(&mut self, angle_radians: T, axis: V)
                 where T: Float + MulAdd<T,T,Output=T> + Sum
             {
                 *self = self.rotated_3d(angle_radians, axis);
             }
+            /// Returns this matrix rotated around a 3D axis.  
+            /// The axis is not required to be normalized.
             pub fn rotated_3d<V: Into<Vec3<T>>>(self, angle_radians: T, axis: V) -> Self
                 where T: Float + MulAdd<T,T,Output=T> + Sum
             {
                 Self::rotation_3d(angle_radians, axis) * self
             }
-            /// 3D rotation matrix. `axis` is not required to be normalized.
+            /// Creates a matrix that rotates around a 3D axis.  
+            /// The axis is not required to be normalized.
             ///
             /// ```
             /// # extern crate vek;
@@ -3283,16 +3369,19 @@ macro_rules! mat_impl_mat2 {
                 a*d - c*b
             }
 
+            /// Rotates this matrix around the Z axis (counter-clockwise rotation in 2D).
             pub fn rotate_z(&mut self, angle_radians: T)
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 *self = self.rotated_z(angle_radians);
             }
+            /// Rotates this matrix around the Z axis (counter-clockwise rotation in 2D).
             pub fn rotated_z(self, angle_radians: T) -> Self
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::rotation_z(angle_radians) * self
             }
+            /// Creates a matrix that rotates around the Z axis (counter-clockwise rotation in 2D).
             pub fn rotation_z(angle_radians: T) -> Self where T: Float {
                 let c = angle_radians.cos();
                 let s = angle_radians.sin();
@@ -3301,16 +3390,19 @@ macro_rules! mat_impl_mat2 {
                     s,  c
                 )
             }
+            /// Scales this matrix in 2D.
             pub fn scale_2d<V: Into<Vec2<T>>>(&mut self, v: V)
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 *self = self.scaled_2d(v);
             }
+            /// Returns this matrix scaled in 2D.
             pub fn scaled_2d<V: Into<Vec2<T>>>(self, v: V) -> Self
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::scaling_2d(v) * self
             }
+            /// Creates a 2D scaling matrix.
             pub fn scaling_2d<V: Into<Vec2<T>>>(v: V) -> Self where T: Zero {
                 let Vec2 { x, y } = v.into();
                 Self::new(
@@ -3318,32 +3410,38 @@ macro_rules! mat_impl_mat2 {
                     T::zero(), y
                 )
             }
+            /// Shears this matrix along the X axis.
             pub fn shear_x(&mut self, k: T)
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 *self = self.sheared_x(k);
             }
+            /// Returns this matrix sheared along the X axis.
             pub fn sheared_x(self, k: T) -> Self
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::shearing_x(k) * self
             }
+            /// Creates a 2D shearing matrix along the X axis.
             pub fn shearing_x(k: T) -> Self where T: Zero + One {
                 Self::new(
                     T::one(), k,
                     T::zero(), T::one()
                 )
             }
+            /// Shears this matrix along the Y axis.
             pub fn shear_y(&mut self, k: T)
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 *self = self.sheared_y(k);
             }
+            /// Returns this matrix sheared along the Y axis.
             pub fn sheared_y(self, k: T) -> Self
                 where T: Float + MulAdd<T,T,Output=T>
             {
                 Self::shearing_y(k) * self
             }
+            /// Creates a 2D shearing matrix along the Y axis.
             pub fn shearing_y(k: T) -> Self where T: Zero + One {
                 Self::new(
                     T::one(), T::zero(),

@@ -1,4 +1,18 @@
 //! Convenience structures for representing a transition from one value to another.
+//!
+//! The `Transition` struct is useful in animation, especially since it allows
+//! you to customize the interpolation function via what's called a "Progress Mapper", i.e
+//! an object that also acts as a function which, given a "progress" value, returns
+//! the LERP factor to use.
+//!
+//! This is especially powerful since it allows for any kind of interpolation curve :
+//! exponential, logarithmic, sines, squares... One could even imagine a Progress Mapper based
+//! on Bézier curves.
+
+// WISH: Another kind of Transition that not only takes two ends, but any
+// number of them. There should be two :
+// - TransitionFrames, that take I: IntoIterator<Item=T>
+// - RefTransitionFrames, that take I: IntoIterator<Item=&T>
 
 use num_traits::{Zero, One};
 use std::ops::Range;
@@ -6,6 +20,10 @@ use ops::{Lerp, Clamp};
 
 /// A functor that maps a progress value to a LERP factor.
 pub trait ProgressMapper<Progress=f32> {
+    /// Maps an unconstrained progress value to a LERP factor.
+    ///
+    /// The input progress value should be between zero and one, but is not required to.  
+    /// The returned LERP factor should be between zero and one, but is not required to.
     fn map_progress(&self, progress: Progress) -> Progress;
 }
 
@@ -24,7 +42,21 @@ impl<Progress> ProgressMapper<Progress> for IdentityProgressMapper {
 /// A function pointer container that can map a progress value to a LERP factor.
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 // #[cfg_attr(feature="serde", derive(Serialize, Deserialize))] NOTE: Fails with cargo test.
-pub struct ProgressMapperFn<T>(fn(T) -> T);
+pub struct ProgressMapperFn<T>(pub fn(T) -> T);
+
+/// The default value for a `ProgressMapperFn` is the identity function.
+impl<T> Default for ProgressMapperFn<T> {
+    fn default() -> Self {
+        fn identity<T>(x: T) -> T { x }
+        ProgressMapperFn(identity)
+    }
+}
+
+impl<T> From<fn(T) -> T> for ProgressMapperFn<T> {
+    fn from(f: fn(T) -> T) -> Self {
+        ProgressMapperFn(f)
+    }
+}
 
 // Many progress
 // Much wow
@@ -33,6 +65,8 @@ impl<Progress> ProgressMapper<Progress> for ProgressMapperFn<Progress> {
         self.0(progress)
     }
 }
+
+
 
 /// A convenience structure for storing a progression from one value to another.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -44,7 +78,7 @@ pub struct Transition<T, F, Progress=f32> {
     pub end: T,
     /// Expected to be between 0 and 1.
     pub progress: Progress,
-    /// Functor that maps the current progress value to a linear interpolation factor.
+    /// Functor that maps the current progress value to a LERP factor.
     pub progress_mapper: F,
 }
 impl<T: Default, F: Default, Progress: Zero> Default for Transition<T, F, Progress> {

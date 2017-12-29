@@ -2,9 +2,8 @@
 //!
 //! See [the wiki](https://github.com/yoanlcq/vek/wiki) for an overview, FAQ, guides, and other info.
 //!
-//! This crate is still in its alpha days!
+//! This crate is still in its beta days!
 //! The public API is quite close to being stable, but it hasn't been battle-tested enough.  
-//! Also, some parts, such as `geom` and `bezier`, definitely miss some functionalities.  
 //! Issues and bug reports are very welcome!
 //!
 //! # Cargo features
@@ -31,7 +30,7 @@
 	//html_logo_url = "https://yoanlcq.github.io/vek/logo.png",
 	//html_favicon_url = "https://yoanlcq.github.io/vek/favicon.ico",
 )]
-//#![warn(missing_docs)]
+#![warn(missing_docs)]
 //#![deny(warnings)]
 //#![allow(unknown_lints)]
 //#![deny(incoherent_fundamental_impls)]
@@ -66,18 +65,18 @@ extern crate approx;
 #[macro_use]
 extern crate static_assertions;
 
-pub mod mat;
-pub use mat::*;
-pub mod vec;
-pub use vec::*;
 pub mod ops;
 pub use ops::*;
+pub mod vec;
+pub use vec::*;
+pub mod mat;
+pub use mat::*;
+pub mod quaternion;
+pub use quaternion::*;
 pub mod transition;
 pub use transition::*;
 pub mod transform;
 pub use transform::*;
-pub mod quaternion;
-pub use quaternion::*;
 pub mod bezier;
 pub use bezier::*;
 pub mod geom;

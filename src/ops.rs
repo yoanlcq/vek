@@ -14,6 +14,7 @@ pub fn partial_max<T: PartialOrd + Sized>(a: T, b: T) -> T {
 	if a >= b { a } else { b }
 }
 
+/// A value that can tell whether or not it is between two bounds (inclusive).
 pub trait IsBetween<Bound=Self>: Sized {
 	/// `bool` for scalars, or vector of `bool`s for vectors.
 	type Output;
@@ -41,6 +42,7 @@ pub trait IsBetween<Bound=Self>: Sized {
 	}
 }
 
+/// A value that can tell whether or not it is between 0 and 1 (inclusive).
 pub trait IsBetween01: IsBetween + Zero + One {}
 impl<T: IsBetween + Zero + One> IsBetween01 for T {}
 
@@ -83,6 +85,7 @@ pub trait Clamp<Bound=Self>: Sized {
 	}
 }
 
+/// A scalar or vector that can be constrained to be between 0 and 1 (inclusive).
 pub trait Clamp01: Clamp + Zero + One {}
 impl<T: Clamp + Zero + One> Clamp01 for T {}
 

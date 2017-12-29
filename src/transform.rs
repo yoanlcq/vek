@@ -1,6 +1,6 @@
 //! A convenient position + orientation + scale container, backed by two `Vec3` and a `Quaternion.`
 
-macro_rules! xform_complete_mod {
+macro_rules! transform_complete_mod {
     ($mod:ident) => {
 
         // WISH:
@@ -38,8 +38,12 @@ macro_rules! xform_complete_mod {
         #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Transform<P,O,S> {
+            /// Local position.
             pub position: Vec3<P>,
+            /// Local orientation; It is not named `rotation` because `rotation` denotes an
+            /// operation, but not a current state.
             pub orientation: Quaternion<O>,
+            /// Local scale.
             pub scale: Vec3<S>,
         }
 
@@ -118,9 +122,11 @@ macro_rules! xform_complete_mod {
 
 #[cfg(all(nightly, feature="repr_simd"))]
 pub mod repr_simd {
-    xform_complete_mod!(repr_simd);
+    //! `Transform` struct that uses `#[repr(simd)]` vectors and quaternions.
+    transform_complete_mod!(repr_simd);
 }
 pub mod repr_c {
-    xform_complete_mod!(repr_c);
+    //! `Transform` struct that uses `#[repr(C)]` vectors and quaternions.
+    transform_complete_mod!(repr_c);
 }
 pub use self::repr_c::*;

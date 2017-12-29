@@ -1,8 +1,4 @@
 //! Common and trivial geometric primitives.
-//!
-//! This module is still a work-in-progress. A lot of useful operations remain to be implemented.
-
-// WISH add useful impls to this module (inclusing basic conversions from rect to vec pairs)
 
 // NOTE: in this module, the type parameters <P,E> usually stand for Position and Extent.
 
@@ -11,11 +7,10 @@ extern crate num_traits;
 use self::num_traits::{Float, FloatConst, Zero, One};
 use std::ops::*;
 use std::iter::Sum;
-//use clamp::partial_max;
 
-// TODO:
-// lerp for all shapes
-// More intersections (e.g line_segment vs box, etc)
+// WISH: add useful impls to this module (inclusing basic conversions from rect to vec pairs)
+// WISH: lerp for all shapes
+// WISH: More intersections (e.g line_segment vs box, etc)
 
 macro_rules! geom_impl_line_segment {
     ($LineSegment:ident $Vec:ident) => {
@@ -26,6 +21,7 @@ macro_rules! geom_impl_line_segment {
             }
         }
         impl<T> $LineSegment<T> {
+            /// Converts this line segment into a range of points.
             pub fn into_range(self) -> Range<$Vec<T>> {
                 let Self { start, end } = self;
                 Range { start, end }
@@ -46,21 +42,27 @@ macro_rules! geom_impl_rect_or_rect3 {
         collision_vector_with_aab: $collision_vector_with_aab:ident
     ) => {
         impl<P,E> $Rect<P,E> {
+            /// Creates a new rectangle from position elements and extent elements.
             pub fn new($($p: P,)+ $($e: E),+) -> Self {
                 Self { $($p,)+ $($e),+ }
             }
+            /// Gets this rectangle's position.
             pub fn position(self) -> $Vec<P> {
                 let Self { $($p,)+ .. } = self;
                 $Vec { $($p,)+ }
             }
+            /// Gets this rectangle's extent (size).
             pub fn extent(self) -> $Extent<E> {
                 let Self { $($e,)+ .. } = self;
                 $Extent { $($e,)+ }
             }
-            pub fn into_pair(self) -> ($Vec<P>, $Extent<E>) {
+            /// Gets this rectangle's position and extent (size).
+            pub fn position_extent(self) -> ($Vec<P>, $Extent<E>) {
                 let Self { $($p,)+ $($e,)+ } = self;
                 ($Vec { $($p,)+ }, $Extent { $($e,)+ })
             }
+            /// Returns this rectangle, converted with the given closures (one for position
+            /// elements, the other for extent elements).
             pub fn map<DP,DE,PF,EF>(self, pf: PF, ef: EF) -> $Rect<DP,DE>
                 where PF: FnMut(P) -> DP, EF: FnMut(E) -> DE
             {
@@ -71,24 +73,29 @@ macro_rules! geom_impl_rect_or_rect3 {
             }
         }
         impl<T> $Rect<T,T> where T: Copy + Add<T, Output=T> {
+            /// Converts this into the matching axis-aligned bounding shape representation.
             pub fn $into_aab(self) -> $Aab<T> {
                 self.into()
             }
+            /// Does this rectangle contain the given point ?
             pub fn contains_point(self, p: $Vec<T>) -> bool where T: PartialOrd {
                 self.$into_aab().contains_point(p)
             }
+            /// Does this rectangle fully contain the given one ?
             pub fn $contains_rect(self, other: Self) -> bool where T: PartialOrd {
                 self.$into_aab().$contains_aab(other.into())
             }
+            /// Does this rectangle collide with another ?
             pub fn $collides_with_rect(self, other: Self) -> bool where T: PartialOrd {
                 self.$into_aab().$collides_with_aab(other.into())
             }
+            /// Gets this rectangle's center.
             pub fn center(self) -> $Vec<T> where T: One + Div<T,Output=T> {
                 self.$into_aab().center()
             }
         }
         impl<T> $Rect<T,T> where T: Copy + PartialOrd + Sub<T, Output=T> + Add<T, Output=T> {
-            /// Gets a copy of this shape so that it contains the given point.
+            /// Returns this shape so that it contains the given point.
             pub fn expanded_to_contain_point(self, p: $Vec<T>) -> Self where T: PartialOrd {
                 self.$into_aab().expanded_to_contain_point(p).into()
             }
@@ -96,11 +103,21 @@ macro_rules! geom_impl_rect_or_rect3 {
             pub fn expand_to_contain_point(&mut self, p: $Vec<T>) where T: PartialOrd {
                 *self = self.expanded_to_contain_point(p);
             }
+            /// Gets the smallest rectangle that contains both this one and another.
             pub fn union(self, other: Self) -> Self {
                 self.$into_aab().union(other.into()).into()
             }
+            /// Gets the largest rectangle contained by both this one and another.
             pub fn intersection(self, other: Self) -> Self {
                 self.$into_aab().intersection(other.into()).into()
+            }
+            /// Sets this rectangle to the union of itself with another.
+            pub fn expand_to_contain(&mut self, other: Self) {
+                *self = self.union(other);
+            }
+            /// Sets this rectangle to the intersection of itself with another.
+            pub fn intersect(&mut self, other: Self) {
+                *self = self.intersection(other);
             }
             /// Gets a vector that tells how much `self` penetrates `other`.
             pub fn $collision_vector_with_rect(self, other: Self) -> $Vec<T> 
@@ -162,11 +179,26 @@ macro_rules! geom_impl_aabr_or_aabb {
         collision_vector_with_aab: $collision_vector_with_aab:ident
     ) => {
         impl<T> $Aab<T> {
+            /// Is this bounding shape valid ?
+            /// True only if all elements of `self.min` are less than or equal to those of `self.max`.
+            pub fn is_valid(&self) -> bool where T: PartialOrd {
+                self.min.partial_cmple(&self.max).reduce_and()
+            }
+            /// Makes this bounding shape valid by swapping elements of `self.min` with `self.max` as needed.
+            pub fn make_valid(&mut self) where T: PartialOrd {
+                $(if self.min.$p > self.max.$p { ::std::mem::swap(&mut self.min.$p, &mut self.max.$p); })+
+            }
+            /// Returns this bounding shape made valid by swapping elements of `self.min` with `self.max` as needed.
+            pub fn made_valid(mut self) -> Self where T: PartialOrd {
+                self.make_valid();
+                self
+            }
             /// Creates a new bounding shape from a single point.
             pub fn new_empty(p: $Vec<T>) -> Self where T: Copy {
                 let (min, max) = (p, p);
                 Self { min, max }
             }
+            /// Converts this bounding shape to the matching rectangle representation.
             pub fn $into_rect(self) -> $Rect<T,T> 
                 where T: Copy + Sub<T, Output=T>
             {
@@ -204,6 +236,14 @@ macro_rules! geom_impl_aabr_or_aabb {
                     max: $Vec::partial_min(self.max, other.max),
                 }
             }
+            /// Sets this bounding shape to the union of itself with another.
+            pub fn expand_to_contain(&mut self, other: Self) where T: Copy + PartialOrd {
+                *self = self.union(other);
+            }
+            /// Sets this bounding shape to the intersection of itself with another.
+            pub fn intersect(&mut self, other: Self) where T: Copy + PartialOrd {
+                *self = self.intersection(other);
+            }
             /// Gets a copy of this shape so that it contains the given point.
             pub fn expanded_to_contain_point(self, p: $Vec<T>) -> Self where T: Copy + PartialOrd {
                 self.union(Self::new_empty(p))
@@ -212,16 +252,19 @@ macro_rules! geom_impl_aabr_or_aabb {
             pub fn expand_to_contain_point(&mut self, p: $Vec<T>) where T: Copy + PartialOrd {
                 *self = self.expanded_to_contain_point(p);
             }
+            /// Does this bounding shape contain the given point ?
             pub fn contains_point(self, p: $Vec<T>) -> bool 
                 where T: PartialOrd
             {
                 true $(&& self.min.$p <= p.$p && p.$p <= self.max.$p)+
             }
+            /// Does this bounding shape fully contain another ?
             pub fn $contains_aab(self, other: Self) -> bool 
                 where T: PartialOrd
             {
                 true $(&& self.min.$p <= other.min.$p && other.max.$p <= self.max.$p)+
             }
+            /// Does this bounding shape collide with another ?
             pub fn $collides_with_aab(self, other: Self) -> bool 
                 where T: PartialOrd
             {
@@ -264,6 +307,7 @@ macro_rules! geom_impl_aabr_or_aabb {
             }
             )+
 
+            /// Returns this bounding shape, converted element-wise using the given closure.
             pub fn map<D,F>(self, mut f: F) -> $Aab<D> where F: FnMut(T) -> D
             {
                 let Self { min, max } = self;
@@ -308,7 +352,7 @@ macro_rules! geom_impl_disk_or_sphere {
             pub fn diameter(self) -> E where E: Copy + Add<Output=E> {
                 self.radius + self.radius
             }
-            /// Gets the bounding rectangle.
+            /// Gets the bounding rectangle for this shape.
             pub fn $rect(self) -> $Rect<P,E> 
                 where P: Sub<P,Output=P> + From<E> + Copy, E: Copy + Add<E,Output=E>
             {
@@ -353,6 +397,7 @@ macro_rules! geom_impl_disk_or_sphere {
 /// Data that represents distance offsets of frustum planes from an origin.
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+#[allow(missing_docs)]
 pub struct FrustumPlanes<T> {
     pub left: T,
     pub right: T,
@@ -388,13 +433,13 @@ macro_rules! geom_complete_mod {
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Rect<P, E> {
-            /// X position of the top-left corner.
+            /// X position of the **bottom-left** corner.
             pub x: P,
-            /// Y position of the top-left corner.
+            /// Y position of the **bottom-left** corner.
             pub y: P,
             /// Width.
             pub w: E,
-            /// Height, with Y axis going upwards.
+            /// Height, **with Y axis going upwards**.
             pub h: E,
         }
 
@@ -413,11 +458,15 @@ macro_rules! geom_complete_mod {
         /// Axis-aligned Bounding Rectangle (2D), represented by `min` and `max` points.
         ///
         /// **N.B:** You are responsible for ensuring that all respective elements of
-        /// `min` are indeed less than or equal to those of `max`.
+        /// `min` are indeed less than or equal to those of `max`.  
+        /// The `is_valid()`, `make_valid()` and `made_valid()` methods are designed to help you
+        /// with this.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Aabr<T> {
+            /// Minimum coordinates of bounds.
             pub min: Vec2<T>,
+            /// Maximum coordinates of bounds.
             pub max: Vec2<T>,
         }
 
@@ -439,17 +488,17 @@ macro_rules! geom_complete_mod {
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Rect3<P,E> {
-            /// X position of the bottom-left-near corner.
+            /// X position of the **bottom-left-near** corner.
             pub x: P,
-            /// Y position of the bottom-left-near corner.
+            /// Y position of the **bottom-left-near** corner.
             pub y: P,
-            /// Z position of the bottom-left-near corner.
+            /// Z position of the **bottom-left-near** corner.
             pub z: P,
             /// Width.
             pub w: E,
-            /// Height, with Y axis going upwards.
+            /// Height, **with Y axis going upwards**.
             pub h: E,
-            /// Depth, with Z axis going forwards.
+            /// Depth, **with Z axis going forwards**.
             pub d: E,
         }
 
@@ -468,11 +517,15 @@ macro_rules! geom_complete_mod {
         /// Axis-aligned Bounding Box (3D), represented by `min` and `max` points.
         ///
         /// **N.B:** You are responsible for ensuring that all respective elements of
-        /// `min` are indeed less than or equal to those of `max`.
+        /// `min` are indeed less than or equal to those of `max`.  
+        /// The `is_valid()`, `make_valid()` and `made_valid()` methods are designed to help you
+        /// with this.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Aabb<T> {
+            /// Minimum coordinates of bounds.
             pub min: Vec3<T>,
+            /// Maximum coordinates of bounds.
             pub max: Vec3<T>,
         }
 
@@ -500,18 +553,21 @@ macro_rules! geom_complete_mod {
         /// Disk (2D), represented by center and radius.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[allow(missing_docs)]
         pub struct Disk<P,E> {
             pub center: Vec2<P>,
             pub radius: E,
         }
 
         impl<P,E> Disk<P,E> {
+            /// Gets this disk's circumference.
             pub fn circumference(self) -> E 
                 where E: Copy + FloatConst + Mul<Output=E> + Add<Output=E>
             {
                 let pi = E::PI();
                 (pi + pi) * self.radius
             }
+            /// Gets this disk's area.
             pub fn area(self) -> E where E: Copy + FloatConst + Mul<Output=E> { 
                 let r = self.radius; 
                 E::PI()*r*r
@@ -529,16 +585,19 @@ macro_rules! geom_complete_mod {
         /// Sphere (3D), represented by center and radius.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[allow(missing_docs)]
         pub struct Sphere<P,E> {
             pub center: Vec3<P>,
             pub radius: E,
         }
         impl<P,E> Sphere<P,E> {
+            /// Gets this sphere's surface area.
             pub fn surface_area(self) -> E where E: Copy + One + FloatConst + Add<Output=E> + Mul<Output=E> {
                 let four = E::one() + E::one() + E::one() + E::one();
                 let r = self.radius;
                 four*E::PI()*r*r
             }
+            /// Gets this sphere's volume.
             pub fn volume(self) -> E where E: Copy + One + FloatConst + Add<Output=E> + Mul<Output=E> + Div<Output=E> {
                 let four = E::one() + E::one() + E::one() + E::one();
                 let three = E::one() + E::one() + E::one();
@@ -558,6 +617,7 @@ macro_rules! geom_complete_mod {
         /// Ellipsis (2D), represented by center and radius in both axii.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[allow(missing_docs)]
         pub struct Ellipsis<P,E> {
             pub center: Vec2<P>,
             pub radius: Extent2<E>,
@@ -565,6 +625,7 @@ macro_rules! geom_complete_mod {
         /// Nobody can possibly use this ???
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[allow(missing_docs)]
         pub struct Potato<P,E> {
             pub center: Vec3<P>,
             pub radius: Extent3<E>,
@@ -573,6 +634,7 @@ macro_rules! geom_complete_mod {
         /// 2D Line segment, represented by two points, `start` and `end`.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[allow(missing_docs)]
         pub struct LineSegment2<T> {
             pub start: Vec2<T>,
             pub end: Vec2<T>,
@@ -580,6 +642,7 @@ macro_rules! geom_complete_mod {
         /// 3D Line segment, represented by two points, `start` and `end`.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[allow(missing_docs)]
         pub struct LineSegment3<T> {
             pub start: Vec3<T>,
             pub end: Vec3<T>,
@@ -592,11 +655,13 @@ macro_rules! geom_complete_mod {
 
 #[cfg(all(nightly, feature="repr_simd"))]
 pub mod repr_simd {
+    //! Basic geometric primitives that use `#[repr(simd)]` vectors.
     use super::*;
     geom_complete_mod!(repr_simd);
 }
 
 pub mod repr_c {
+    //! Basic geometric primitives that use `#[repr(C)]` vectors.
     use super::*;
     geom_complete_mod!(repr_c);
 }

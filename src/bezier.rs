@@ -125,7 +125,9 @@ macro_rules! bezier_impl_any {
             /// This parameter is used for a "broad phase" - the point yielded by `coarse` that is
             /// closest to `p` is the starting point for the binary search.  
             /// `coarse` may very well yield a single pair; Also, it was designed so that,
-            /// if you already have the values handy, there is no need to recompute them.
+            /// if you already have the values handy, there is no need to recompute them.  
+            /// This function doesn't panic if `coarse` yields no element, but then it would be
+            /// very unlikely for the result to be satisfactory.
             ///
             /// `half_interval` is the starting value for the half of the binary search interval.
             ///
@@ -165,7 +167,7 @@ macro_rules! bezier_impl_any {
                 (t, pt)
             }
         }
-        // XXX: I don't like how this could break expectations in 2D (Mat3 mul)
+        // FIXME: I don't like how this could break expectations in 2D (Mat3 mul)
         impl<T> Mul<$Bezier<T>> for Rows4<T> where T: Float + MulAdd<T,T,Output=T> {
             type Output = $Bezier<T>;
             fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
@@ -194,8 +196,11 @@ macro_rules! bezier_impl_any {
 }
 
 macro_rules! bezier_impl_quadratic_axis {
-    ($QuadraticBezier:ident $Point:ident $x:ident $x_inflection:ident $x_min:ident $x_max:ident $x_bounds:ident) => {
+    ($QuadraticBezier:ident $Point:ident ($x_s:expr) $x:ident $x_inflection:ident $x_min:ident $x_max:ident $x_bounds:ident) => {
         impl<T: Float> $QuadraticBezier<T> {
+            /// Returns the evaluation factor that gives an inflection point along the
+            #[doc=$x_s]
+            /// axis, if any.
             // Code in part taken from `lyon` crate, geom.
             // Also explained at https://pomax.github.io/bezierinfo/#extremities
             pub fn $x_inflection(self) -> Option<T> {
@@ -209,6 +214,9 @@ macro_rules! bezier_impl_quadratic_axis {
                 }
                 return None;
             }
+            /// Returns the evaluation factor that gives the point on the curve which
+            #[doc=$x_s]
+            /// coordinate is the minimum.
             pub fn $x_min(self) -> T {
                 if let Some(t) = self.$x_inflection() {
                     let p = self.evaluate(t);
@@ -218,6 +226,9 @@ macro_rules! bezier_impl_quadratic_axis {
                 }
                 if self.start.$x < self.end.$x { T::zero() } else { T::one() }
             }
+            /// Returns the evaluation factor that gives the point on the curve which
+            #[doc=$x_s]
+            /// coordinate is the maximum.
             pub fn $x_max(self) -> T {
                 if let Some(t) = self.$x_inflection() {
                     let p = self.evaluate(t);
@@ -227,6 +238,9 @@ macro_rules! bezier_impl_quadratic_axis {
                 }
                 if self.start.$x > self.end.$x { T::zero() } else { T::one() }
             }
+            /// Returns the evaluation factors that give the points on the curve which
+            #[doc=$x_s]
+            /// coordinates are the respective minimum and maximum.
             pub fn $x_bounds(self) -> (T, T) {
                 // PERF: We don't need to compute $x_inflections twice!
                 (self.$x_min(), self.$x_max())
@@ -236,8 +250,11 @@ macro_rules! bezier_impl_quadratic_axis {
 }
 
 macro_rules! bezier_impl_cubic_axis {
-    ($CubicBezier:ident $Point:ident $x:ident $x_inflections:ident $x_min:ident $x_max:ident $x_bounds:ident) => {
+    ($CubicBezier:ident $Point:ident ($x_s:expr) $x:ident $x_inflections:ident $x_min:ident $x_max:ident $x_bounds:ident) => {
         impl<T: Float> $CubicBezier<T> {
+            /// Returns the evaluation factor that gives an inflection point along the
+            #[doc=$x_s]
+            /// axis, if any.
             // Code in part taken from `lyon` crate, geom.
             // Also explained at https://pomax.github.io/bezierinfo/#extremities
             pub fn $x_inflections(self) -> Option<(T, Option<T>)> {
@@ -306,6 +323,9 @@ macro_rules! bezier_impl_cubic_axis {
                     }
                 }
             }
+            /// Returns the evaluation factor that gives the point on the curve which
+            #[doc=$x_s]
+            /// coordinate is the minimum.
             pub fn $x_min(self) -> T {
                 if let Some((t1, t2)) = self.$x_inflections() {
                     let p1 = self.evaluate(t1);
@@ -324,6 +344,9 @@ macro_rules! bezier_impl_cubic_axis {
                 }
                 if self.start.$x < self.end.$x { T::zero() } else { T::one() }
             }
+            /// Returns the evaluation factor that gives the point on the curve which
+            #[doc=$x_s]
+            /// coordinate is the maximum.
             pub fn $x_max(self) -> T {
                 if let Some((t1, t2)) = self.$x_inflections() {
                     let p1 = self.evaluate(t1);
@@ -343,6 +366,9 @@ macro_rules! bezier_impl_cubic_axis {
                 if self.start.$x > self.end.$x { T::zero() } else { T::one() }
             }
 
+            /// Returns the evaluation factors that give the points on the curve which
+            #[doc=$x_s]
+            /// coordinates are the respective minimum and maximum.
             pub fn $x_bounds(self) -> (T, T) {
                 // PERF: We don't need to compute $x_inflections twice!
                 (self.$x_min(), self.$x_max())
@@ -353,7 +379,7 @@ macro_rules! bezier_impl_cubic_axis {
 macro_rules! bezier_impl_quadratic {
     ($(#[$attrs:meta])* 3 $QuadraticBezier:ident $CubicBezier:ident $Point:ident $LineSegment:ident) => {
         bezier_impl_quadratic!{$(#[$attrs])* $QuadraticBezier $CubicBezier $Point $LineSegment}
-        bezier_impl_quadratic_axis!{$QuadraticBezier $Point z z_inflection min_z max_z z_bounds}
+        bezier_impl_quadratic_axis!{$QuadraticBezier $Point ("Z") z z_inflection min_z max_z z_bounds}
         bezier_impl_any!(3 $QuadraticBezier $Point);
     };
     ($(#[$attrs:meta])* 2 $QuadraticBezier:ident $CubicBezier:ident $Point:ident $LineSegment:ident) => {
@@ -365,9 +391,16 @@ macro_rules! bezier_impl_quadratic {
         $(#[$attrs])*
         #[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, /*PartialOrd, Ord*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        ///
+        /// Also note that quadratic Bézier curves are quite bad at approximating circles.
+        /// See [the relevant section of "A Primer on Bézier Curves"](https://pomax.github.io/bezierinfo/#circles)
+        /// for an explanation.
         pub struct $QuadraticBezier<T> {
+            /// Starting point of the curve.
             pub start: $Point<T>,
+            /// Control point of the curve.
             pub ctrl: $Point<T>, 
+            /// End point of the curve.
             pub end: $Point<T>,
         }
         
@@ -494,17 +527,16 @@ macro_rules! bezier_impl_quadratic {
                 Self::from($LineSegment::from(range))
             }
         }
-
         
-        bezier_impl_quadratic_axis!{$QuadraticBezier $Point x x_inflection min_x max_x x_bounds}
-        bezier_impl_quadratic_axis!{$QuadraticBezier $Point y y_inflection min_y max_y y_bounds}
+        bezier_impl_quadratic_axis!{$QuadraticBezier $Point ("X") x x_inflection min_x max_x x_bounds}
+        bezier_impl_quadratic_axis!{$QuadraticBezier $Point ("Y") y y_inflection min_y max_y y_bounds}
     }
 }
 
 macro_rules! bezier_impl_cubic {
     ($(#[$attrs:meta])* 3 $QuadraticBezier:ident $CubicBezier:ident $Point:ident $LineSegment:ident) => {
         bezier_impl_cubic!{$(#[$attrs])* $QuadraticBezier $CubicBezier $Point $LineSegment}
-        bezier_impl_cubic_axis!{$CubicBezier $Point z z_inflections min_z max_z z_bounds}
+        bezier_impl_cubic_axis!{$CubicBezier $Point ("Z") z z_inflections min_z max_z z_bounds}
         bezier_impl_any!(3 $CubicBezier $Point);
     };
     ($(#[$attrs:meta])* 2 $QuadraticBezier:ident $CubicBezier:ident $Point:ident $LineSegment:ident) => {
@@ -517,9 +549,13 @@ macro_rules! bezier_impl_cubic {
         #[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, /*PartialOrd, Ord*/)]
 		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct $CubicBezier<T> {
+            /// Starting point of the curve.
             pub start: $Point<T>, 
+            /// First control point of the curve, associated with `start`.
             pub ctrl0: $Point<T>, 
+            /// Second control point of the curve, associated with `end`.
             pub ctrl1: $Point<T>,
+            /// End point of the curve.
             pub end: $Point<T>,
         }
 
@@ -690,8 +726,8 @@ macro_rules! bezier_impl_cubic {
             }
         }
         
-        bezier_impl_cubic_axis!{$CubicBezier $Point x x_inflections min_x max_x x_bounds}
-        bezier_impl_cubic_axis!{$CubicBezier $Point y y_inflections min_y max_y y_bounds}
+        bezier_impl_cubic_axis!{$CubicBezier $Point ("X") x x_inflections min_x max_x x_bounds}
+        bezier_impl_cubic_axis!{$CubicBezier $Point ("Y") y y_inflections min_y max_y y_bounds}
     }
 }
 
@@ -704,19 +740,19 @@ macro_rules! impl_all_beziers {
         use self::Rows4 as Mat4;
         use self::Rows3 as Mat3;
         bezier_impl_quadratic!{
-            /// A 2D curve with one control point.
+            /// A 2D Bézier curve with one control point.
             2 QuadraticBezier2 CubicBezier2 Vec2 LineSegment2
         }
         bezier_impl_quadratic!{
-            /// A 3D curve with one control point.
+            /// A 3D Bézier curve with one control point.
             3 QuadraticBezier3 CubicBezier3 Vec3 LineSegment3
         }
         bezier_impl_cubic!{
-            /// A 2D curve with two control points.
+            /// A 2D Bézier curve with two control points.
             2 QuadraticBezier2 CubicBezier2 Vec2 LineSegment2
         }
         bezier_impl_cubic!{
-            /// A 3D curve with two control points.
+            /// A 3D Bézier curve with two control points.
             3 QuadraticBezier3 CubicBezier3 Vec3 LineSegment3
         }
     };
@@ -724,10 +760,12 @@ macro_rules! impl_all_beziers {
 
 #[cfg(all(nightly, feature="repr_simd"))]
 pub mod repr_simd {
+    //! Bézier curve structs that use `#[repr(simd)]` vectors.
     use super::*;
     impl_all_beziers!{repr_simd}
 }
 pub mod repr_c {
+    //! Bézier curve structs that use `#[repr(C)]` vectors.
     use super::*;
     impl_all_beziers!{repr_c}
 }
@@ -749,7 +787,7 @@ mod tests {
                     let l = || $Vec::<f32>::unit_x() .. $Vec::<f32>::unit_y();
                     let c = $Bezier::from(l());
                     for t in t_iter {
-                        assert_relative_eq!(c.evaluate(t), Lerp::lerp(l().start, l().end, t))
+                        assert_relative_eq!(c.evaluate(t), Lerp::lerp_unclamped_precise(l().start, l().end, t))
                     }
                 }
             }

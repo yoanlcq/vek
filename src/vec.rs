@@ -290,11 +290,13 @@ macro_rules! vec_impl_vec {
         */
 
         impl<T> $Vec<T> {
+            /// Converts this vector into its `#[repr(C)]` counterpart.
             pub fn into_repr_c(self) -> CVec<T> {
                 self.into()
             }
         }
         impl<T> CVec<T> {
+            /// Converts this vector into its `#[repr(simd)]` counterpart.
             pub fn into_repr_simd(self) -> $Vec<T> {
                 self.into()
             }
@@ -312,47 +314,6 @@ macro_rules! vec_impl_vec {
             }
         }
 
-
-        impl $Vec<bool> {
-            // Utility for reducing bools. repr_simd doesn't like into_iter() with bool,
-            // because it can't monomorphize $Vec<ManuallyDrop<bool>>.
-            fn reduce_bool<F>(self, f: F) -> bool where F: FnMut(bool,&bool) -> bool {
-                let mut i = self.iter();
-                let first = i.next().unwrap();
-                i.fold(*first, f)
-            }
-            /// Returns the result of logical AND (`&&`) on all elements of this vector.
-            ///
-            /// ```
-            /// # use vek::vec::Vec4;
-            /// assert_eq!(true,  Vec4::new(true, true, true, true).reduce_and());
-            /// assert_eq!(false, Vec4::new(true, false, true, true).reduce_and());
-            /// assert_eq!(false, Vec4::new(true, true, true, false).reduce_and());
-            /// ```
-            pub fn reduce_and(self) -> bool {
-                self.reduce_bool(|a,b| a && *b)
-            }
-            /// Returns the result of logical OR (`||`) on all elements of this vector.
-            ///
-            /// ```
-            /// # use vek::vec::Vec4;
-            /// assert_eq!(false, Vec4::new(false, false, false, false).reduce_or());
-            /// assert_eq!(true,  Vec4::new(false, false, true, false).reduce_or());
-            /// ```
-            pub fn reduce_or(self) -> bool {
-                self.reduce_bool(|a,b| a || *b)
-            }
-            /// Reduces this vector using total inequality.
-            ///
-            /// ```
-            /// # use vek::vec::Vec4;
-            /// assert_eq!(false, Vec4::new(true, true, true, true).reduce_ne());
-            /// assert_eq!(true,  Vec4::new(true, false, true, true).reduce_ne());
-            /// ```
-            pub fn reduce_ne(self) -> bool {
-                self.reduce_bool(|a, b| a != *b)
-            }
-        }
 
         impl<T> $Vec<T> {
 
@@ -429,6 +390,8 @@ macro_rules! vec_impl_vec {
             pub fn elem_count(&self) -> usize {
                 $dim
             }
+            /// Convenience constant representing the number of elements for this vector type.
+            pub const ELEM_COUNT: usize = $dim;
 
             /// Converts this into a tuple with the same number of elements by consuming.
             #[cfg_attr(feature = "clippy", allow(type_complexity))]
@@ -562,17 +525,6 @@ macro_rules! vec_impl_vec {
                 )+
                 Self::new($($namedget),+)
             }
-
-            /*
-            /// Gets an iterator over immutable references of this vector's elements.
-            pub fn iter(&self) -> slice::Iter<T> {
-                self.into_iter()
-            }
-            /// Gets an iterator over mutable references of this vector's elements.
-            pub fn iter_mut(&mut self) -> slice::IterMut<T> {
-                self.into_iter()
-            }
-            */
 
             /// Is any of the elements negative ?
             ///
@@ -1052,20 +1004,6 @@ macro_rules! vec_impl_vec {
 
         // OPS
 
-        /*
-        impl<T, Factor> Lerp<Factor> for $Vec<T>
-            where T: Copy + One + Mul<T,Output=T> + Sub<T,Output=T> + MulAdd<T,T,Output=T>,
-                  Factor: Into<$Vec<T>>
-        {
-            type Output = Self;
-            fn lerp_unclamped_precise(from: Self, to: Self, factor: Factor) -> Self {
-                Self::lerp_unclamped_precise(from, to, factor)
-            }
-            fn lerp_unclamped(from: Self, to: Self, factor: Factor) -> Self {
-                Self::lerp_unclamped(from, to, factor)
-            }
-        }
-        */
         impl<T, Factor> Lerp<Factor> for $Vec<T>
             where T: Lerp<Factor,Output=T>,
                   Factor: Copy
@@ -1185,6 +1123,47 @@ macro_rules! vec_impl_vec {
                     }
                 }
                 true
+            }
+        }
+
+        impl $Vec<bool> {
+            // Utility for reducing bools. repr_simd doesn't like into_iter() with bool,
+            // because it can't monomorphize $Vec<ManuallyDrop<bool>>.
+            fn reduce_bool<F>(self, f: F) -> bool where F: FnMut(bool,&bool) -> bool {
+                let mut i = self.iter();
+                let first = i.next().unwrap();
+                i.fold(*first, f)
+            }
+            /// Returns the result of logical AND (`&&`) on all elements of this vector.
+            ///
+            /// ```
+            /// # use vek::vec::Vec4;
+            /// assert_eq!(true,  Vec4::new(true, true, true, true).reduce_and());
+            /// assert_eq!(false, Vec4::new(true, false, true, true).reduce_and());
+            /// assert_eq!(false, Vec4::new(true, true, true, false).reduce_and());
+            /// ```
+            pub fn reduce_and(self) -> bool {
+                self.reduce_bool(|a,b| a && *b)
+            }
+            /// Returns the result of logical OR (`||`) on all elements of this vector.
+            ///
+            /// ```
+            /// # use vek::vec::Vec4;
+            /// assert_eq!(false, Vec4::new(false, false, false, false).reduce_or());
+            /// assert_eq!(true,  Vec4::new(false, false, true, false).reduce_or());
+            /// ```
+            pub fn reduce_or(self) -> bool {
+                self.reduce_bool(|a,b| a || *b)
+            }
+            /// Reduces this vector using total inequality.
+            ///
+            /// ```
+            /// # use vek::vec::Vec4;
+            /// assert_eq!(false, Vec4::new(true, true, true, true).reduce_ne());
+            /// assert_eq!(true,  Vec4::new(true, false, true, true).reduce_ne());
+            /// ```
+            pub fn reduce_ne(self) -> bool {
+                self.reduce_bool(|a, b| a != *b)
             }
         }
 
@@ -1470,17 +1449,17 @@ macro_rules! vec_impl_spatial {
                 self.magnitude_squared().relative_eq(&T::one(), T::default_epsilon(), T::default_max_relative())
             }
             /// Get the smallest angle, in radians, between two direction vectors.
-            pub fn angle_radians(self, v: Self) -> T where T: Sum + Float {
+            pub fn angle_between(self, v: Self) -> T where T: Sum + Float {
                 self.normalized().dot(v.normalized()).acos()
             }
             /// Get the smallest angle, in degrees, between two direction vectors.
-            pub fn angle_degrees(self, v: Self) -> T
+            pub fn angle_between_degrees(self, v: Self) -> T
                 where T: From<u16> + Sum + Float
             {
-                <T as From<u16>>::from(360_u16) * self.angle_radians(v)
+                <T as From<u16>>::from(360_u16) * self.angle_between(v)
             }
             /// The reflection direction for this vector on a surface which normal is given.
-            pub fn reflect(self, surface_normal: Self) -> Self 
+            pub fn reflected(self, surface_normal: Self) -> Self 
                 where T: Copy + Sum + Mul<Output=T> + Sub<Output=T> + Add<Output=T>
             {
                 let dot = self.dot(surface_normal);
@@ -1493,7 +1472,7 @@ macro_rules! vec_impl_spatial {
             }
             /// The refraction vector for this incident vector, a surface normal and a ratio of
             /// indices of refraction (`eta`).
-            pub fn refract(self, surface_normal: Self, eta: T) -> Self
+            pub fn refracted(self, surface_normal: Self, eta: T) -> Self
                 where T: Float + Sum + Mul<Output=T>
             {
                 let n = surface_normal;
@@ -1543,15 +1522,20 @@ macro_rules! vec_impl_spatial_2d {
                 d1 - d2
             }
             /// The signed area of the triangle defined by points `(a, b, c)`.
-            pub fn signed_triangle_area(a: Self, b: Self, c: Self) -> T where T: Float {
+            pub fn signed_triangle_area(a: Self, b: Self, c: Self) -> T
+                where T: Copy + Sub<Output=T> + Mul<Output=T> + One + Div<Output=T> + Add<Output=T>
+            {
                 let two = T::one() + T::one();
                 c.determine_side(a, b)/two
             }
             /// The area of the triangle defined by points `(a, b, c)`.
-            pub fn triangle_area(a: Self, b: Self, c: Self) -> T where T: Float {
-                Self::signed_triangle_area(a, b, c).abs()
+            pub fn triangle_area(a: Self, b: Self, c: Self) -> T
+                where T: Copy + Sub<Output=T> + Mul<Output=T> + One + Div<Output=T> + Add<Output=T> + PartialOrd + Neg<Output=T>
+            {
+                let s = Self::signed_triangle_area(a, b, c);
+                partial_max(s, -s)
             }
-            /// Gets a 2D-rotated copy of this vector.
+            /// Returns this vector rotated in 2D, counter-clockwise.
             ///
             /// ```
             /// # extern crate vek;
@@ -1608,7 +1592,7 @@ macro_rules! vec_impl_spatial_3d {
                 ///
                 /// The result's facing direction depends on the handedness of your
                 /// coordinate system:
-                /// If we let `f` a forward vector and `u` an up vector, then we have :
+                /// If we let `f` be a forward vector and `u` an up vector, then we have :
                 ///
                 /// - Right-handed: `f.cross(u)` points to the right.
                 /// - Left-handed: `f.cross(u)` points to the left.
@@ -1617,6 +1601,8 @@ macro_rules! vec_impl_spatial_3d {
                 /// spread your fingers such that your middle finger points upwards
                 /// and your index finger points forwards, then your thumb points
                 /// in the direction of `f.cross(u)`.
+                ///
+                /// The following example demonstrates an identity that is easy to remember.
                 ///
                 /// ```
                 /// # extern crate vek;
@@ -2010,17 +1996,21 @@ macro_rules! vec_impl_color_rgba {
         vec_impl_pixel_rgba!{$Vec}
 
         impl<T: ColorComponent> Rgba<T> {
+            /// Creates an RGBA color from RGB elements and full alpha.
             pub fn new_opaque(r: T, g: T, b: T) -> Self {
                 Self::new(r, g, b, T::full())
             }
+            /// Creates an RGBA color from RGB elements and zero alpha.
             pub fn new_transparent(r: T, g: T, b: T) -> Self {
                 Self::new(r, g, b, T::zero())
             }
+            /// Creates an RGBA color from an RGB vector and full alpha.
             #[cfg(feature="rgb")]
             pub fn from_opaque<V: Into<Rgb<T>>>(color: V) -> Self {
                 let Rgb { r, g, b } = color.into();
                 Self::new_opaque(r, g, b)
             }
+            /// Creates an RGBA color from an RGB vector and zero alpha.
             #[cfg(feature="rgb")]
             pub fn from_transparent<V: Into<Rgb<T>>>(color: V) -> Self {
                 let Rgb { r, g, b } = color.into();
@@ -2028,12 +2018,14 @@ macro_rules! vec_impl_color_rgba {
             }
         }
         impl<T> Rgba<T> {
+            /// Creates an RGBA color from an RGB vector and variable alpha.
             #[cfg(feature="rgb")]
             pub fn from_translucent<V: Into<Rgb<T>>>(color: V, opacity: T) -> Self {
                 let Rgb { r, g, b } = color.into();
                 Self::new(r, g, b, opacity)
             }
         }
+        #[allow(missing_docs)]
         impl<T: ColorComponent> $Vec<T> {
             pub fn black   () -> Self { Self::new_opaque(T::zero(), T::zero(), T::zero()) }
             pub fn white   () -> Self { Self::new_opaque(T::full(), T::full(), T::full()) }
@@ -2044,7 +2036,7 @@ macro_rules! vec_impl_color_rgba {
             pub fn magenta () -> Self { Self::new_opaque(T::full(), T::zero(), T::full()) }
             pub fn yellow  () -> Self { Self::new_opaque(T::full(), T::full(), T::zero()) }
             pub fn gray(value: T) -> Self where T: Copy { Self::new_opaque(value, value, value) }
-            pub fn grey(value: T) -> Self where T: Copy { Self::new_opaque(value, value, value) }
+            pub fn grey(value: T) -> Self where T: Copy { Self::gray(value) }
 
             /// Returns this color with RGB elements inverted. Alpha is preserved.
             ///
@@ -2065,20 +2057,43 @@ macro_rules! vec_impl_color_rgba {
             /// Returns the average of this vector's RGB elements.
             ///
             /// This is not the same as `average` because `average` takes all elements into
-            /// account, which includes alpha.
+            /// account, which includes alpha.  
+            /// Be careful when calling this on integer vectors. See the `average()` method
+            /// of vectors for a discussion and example.
             pub fn average_rgb(self) -> T where T: Sum + Div<T, Output=T> + From<u8> {
                 let Self { r, g, b, .. } = self;
                 (r+g+b) / T::from(3)
             }
+            /// Returns this vector with elements shuffled to map RGBA to ARGB.
             pub fn shuffled_argb(self) -> Self {
                 let Self { r, g, b, a } = self;
                 Self::new(a, r, g, b)
             }
+            /// Returns this vector with elements shuffled to map RGBA to BGRA.
             pub fn shuffled_bgra(self) -> Self {
                 let Self { r, g, b, a } = self;
                 Self::new(b, g, r, a)
             }
         }
+        /* WISH: FromStr for Rgba and Rgb and vectors in general
+        impl<T> FromStr for $Vec<T> {
+            fn from_str(s: &str) -> Option<Self> {
+                let (mut i, c) = match s.chars().enumerate().skip_while(|c| !(c==&'#'||c==&'('||c==&'r'||c==&'R')).next() {
+                    None => return None,
+                    Some((i, c)) => (i, c),
+                };
+                i += 1;
+                match c {
+                    '#' => unimplemented!{},
+                    '(' => unimplemented!{},
+                    c if c=='r' || c=='R' => {
+                        match s[i..].chars().enumerate().skip_while()
+                    },
+                    _ => return None,
+                }
+            }
+        }
+        */
     };
 }
 
@@ -2089,6 +2104,7 @@ macro_rules! vec_impl_color_rgb {
         #[cfg(feature="image")]
         vec_impl_pixel_rgb!{$Vec}
 
+        #[allow(missing_docs)]
         impl<T: ColorComponent> $Vec<T> {
             pub fn black   () -> Self { Self::new(T::zero(), T::zero(), T::zero()) }
             pub fn white   () -> Self { Self::new(T::full(), T::full(), T::full()) }
@@ -2120,10 +2136,13 @@ macro_rules! vec_impl_color_rgb {
             ///
             /// For `Rgb`, this is the same as `average`, and is provided for compatibility
             /// with `Rgba`.
+            /// Be careful when calling this on integer vectors. See the `average()` method
+            /// of vectors for a discussion and example.
             pub fn average_rgb(self) -> T where T: Sum + Div<T, Output=T> + From<u8> {
                 let Self { r, g, b, .. } = self;
                 (r+g+b) / T::from(3)
             }
+            /// Returns this vector with R and B elements swapped.
             pub fn shuffled_bgr(self) -> Self {
                 let Self { r, g, b } = self;
                 Self::new(b, g, r)
@@ -2160,10 +2179,12 @@ impl From<[usize; 4]> for ShuffleMask4 {
     }
 }
 impl ShuffleMask4 {
+    /// Creates a new shuffle mask from indices.
     #[inline]
     pub fn new(m0: usize, m1: usize, m2: usize, m3: usize) -> Self {
         ShuffleMask4(((m0&3) | ((m1&3)<<2) | ((m2&3)<<4) | ((m3&3)<<6)) as _)
     }
+    /// Extracts indices from this shuffle mask.
     pub fn to_indices(&self) -> (usize, usize, usize, usize) {
         let m = self.0 as usize;
         (m&3, (m>>2)&3, (m>>4)&3, (m>>6)&3)

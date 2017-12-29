@@ -1,4 +1,4 @@
-//! `Quaternion`s are a convenient representation for rotations in 3D spaces.
+//! Quaternions are a convenient representation for rotations in 3D spaces.
 
 use num_traits::{Zero, One, Float};
 use approx::ApproxEq;
@@ -83,22 +83,22 @@ macro_rules! quaternion_vec3_vec4 {
 
         impl_mul_by_vec!{$Vec3 $Vec4}
 
-        /// A `Quaternion` can be created directly from a `Vec4`'s `x`, `y`, `z` and `w` elements.
-        /// **You are responsible for ensuring that the resulting `Quaternion` is normalized.**
+        /// A quaternion can be created directly from a `Vec4`'s `x`, `y`, `z` and `w` elements.
+        /// **You are responsible for ensuring that the resulting quaternion is normalized.**
         impl<T> From<$Vec4<T>> for Quaternion<T> {
             fn from(v: $Vec4<T>) -> Self {
                 let $Vec4 { x, y, z, w } = v;
                 Self { x, y, z, w }
             }
         }
-        /// A `Vec4` can be created directly from a `Quaternion`'s `x`, `y`, `z` and `w` elements.
+        /// A `Vec4` can be created directly from a quaternion's `x`, `y`, `z` and `w` elements.
         impl<T> From<Quaternion<T>> for $Vec4<T> {
             fn from(v: Quaternion<T>) -> Self {
                 let Quaternion { x, y, z, w } = v;
                 Self { x, y, z, w }
             }
         }
-        /// A `Vec3` can be created directly from a `Quaternion`'s `x`, `y` and `z` elements.
+        /// A `Vec3` can be created directly from a quaternion's `x`, `y` and `z` elements.
         impl<T> From<Quaternion<T>> for $Vec3<T> {
             fn from(v: Quaternion<T>) -> Self {
                 let Quaternion { x, y, z, .. } = v;
@@ -113,7 +113,7 @@ macro_rules! quaternion_complete_mod {
 
         use vec::$mod::*;
 
-        /// `Quaternion`s are a convenient representation for rotations in 3D spaces.
+        /// Quaternions are a convenient representation for rotations in 3D spaces.
         ///
         /// **IMPORTANT**: Quaternions are only valid as rotations as long as they are
         /// **normalized** (i.e their magnitude is 1). Most operations assume
@@ -125,9 +125,10 @@ macro_rules! quaternion_complete_mod {
         #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         #[$attrs]
+        #[allow(missing_docs)]
         pub struct Quaternion<T> { pub x: T, pub y: T, pub z: T, pub w: T }
 
-        /// The default value for a `Quaternion` is the identity.
+        /// The default value for a quaternion is the identity.
         ///
         /// ```
         /// # use vek::Quaternion;
@@ -140,30 +141,30 @@ macro_rules! quaternion_complete_mod {
         }
 
         impl<T> Quaternion<T> {
-            /// Creates a new `Quaternion` with `x`, `y`, `z` and `w` elements in order.
+            /// Creates a new quaternion with `x`, `y`, `z` and `w` elements in order.
             ///
-            /// **You are responsible for ensuring that the resulting `Quaternion` is normalized.**
+            /// **You are responsible for ensuring that the resulting quaternion is normalized.**
             pub fn from_xyzw(x: T, y: T, z: T, w: T) -> Self {
                 Self { x, y, z, w }
             }
-            /// Creates a new `Quaternion` from a scalar-and-vector pair.
+            /// Creates a new quaternion from a scalar-and-vector pair.
             ///
-            /// **You are responsible for ensuring that the resulting `Quaternion` is normalized.**
+            /// **You are responsible for ensuring that the resulting quaternion is normalized.**
             pub fn from_scalar_and_vec3<V: Into<Vec3<T>>>(pair: (T, V)) -> Self {
                 let Vec3 { x, y, z } = pair.1.into();
                 Self { x, y, z, w: pair.0 }
             }
-            /// Converts this `Quaternion` into a scalar-and-vector pair by destructuring.
+            /// Converts this quaternion into a scalar-and-vector pair by destructuring.
             ///
             /// **Not to be confused with `into_angle_axis()`**.
             pub fn into_scalar_and_vec3(self) -> (T, Vec3<T>) {
                 let Self { x, y, z, w } = self;
                 (w, Vec3 { x, y, z })
             }
-            /// Creates a new `Quaternion` with all elements set to zero.
+            /// Creates a new quaternion with all elements set to zero.
             ///
-            /// Be careful: since it has a magnitude equal to zero, it is not
-            /// valid to use for most operations.
+            /// **Be careful: since it has a magnitude equal to zero, it is not
+            /// valid to use for most operations.**
             pub fn zero() -> Self where T: Zero {
                 Self { 
                     x: T::zero(),
@@ -172,7 +173,7 @@ macro_rules! quaternion_complete_mod {
                     w: T::zero(),
                 }
             }
-            /// Creates the identity `Quaternion`.
+            /// Creates the identity quaternion.
             ///
             /// ```
             /// # extern crate vek;
@@ -199,9 +200,9 @@ macro_rules! quaternion_complete_mod {
                     w: T::one(),
                 }
             }
-            /// Gets this `Quaternion`'s conjugate (copy with negated vector part).
+            /// Gets this quaternion's conjugate (copy with negated vector part).
             ///
-            /// On normalized `Quaternion`s, the conjugate also happens to be the inverse.
+            /// On normalized quaternions, the conjugate also happens to be the inverse.
             ///
             /// ```
             /// # extern crate vek;
@@ -226,9 +227,9 @@ macro_rules! quaternion_complete_mod {
                     w:  self.w,
                 }
             }
-            /// Gets this `Quaternion`'s inverse, i.e the one that reverses its effect.
+            /// Gets this quaternion's inverse, i.e the one that reverses its effect.
             ///
-            /// On normalized `Quaternion`s, the inverse happens to be the conjugate.
+            /// On normalized quaternions, the inverse happens to be the conjugate.
             ///
             /// ```
             /// # extern crate vek;
@@ -269,7 +270,7 @@ macro_rules! quaternion_complete_mod {
                 self.into_vec4().magnitude().into()
             }
 
-            /// Creates a `Quaternion` that would rotate a `from` direction to `to`.
+            /// Creates a quaternion that would rotate a `from` direction to `to`.
             ///
             /// ```
             /// # extern crate vek;
@@ -277,9 +278,10 @@ macro_rules! quaternion_complete_mod {
             /// # use vek::{Vec4, Quaternion};
             ///
             /// # fn main() {
-            /// let (from, to) = (Vec4::<f32>::unit_x(), Vec4::<f32>::unit_z());
+            /// let (from, to) = (Vec4::<f32>::unit_x(), Vec4::<f32>::unit_y());
             /// let q = Quaternion::<f32>::rotation_from_to_3d(from, to);
             /// assert_relative_eq!(q * from, to);
+            /// assert_relative_eq!(q * Vec4::unit_y(), -Vec4::unit_x());
             ///
             /// let (from, to) = (Vec4::<f32>::unit_x(), -Vec4::<f32>::unit_x());
             /// let q = Quaternion::<f32>::rotation_from_to_3d(from, to);
@@ -306,7 +308,8 @@ macro_rules! quaternion_complete_mod {
                 Self { x, y, z, w }.normalized()
             }
 
-            /// Creates a `Quaternion` from an angle and axis.
+            /// Creates a quaternion from an angle and axis.  
+            /// The axis is not required to be normalized.
             pub fn rotation_3d<V: Into<Vec3<T>>>(angle_radians: T, axis: V) -> Self
                 where T: Float + Sum
             {
@@ -316,36 +319,49 @@ macro_rules! quaternion_complete_mod {
                 let w = (angle_radians/two).cos();
                 Self { x, y, z, w }
             }
+            /// Creates a quaternion from an angle for a rotation around the X axis.
             pub fn rotation_x(angle_radians: T) -> Self where T: Float + Sum {
                 Self::rotation_3d(angle_radians, Vec3::unit_x())
             }
+            /// Creates a quaternion from an angle for a rotation around the Y axis.
             pub fn rotation_y(angle_radians: T) -> Self where T: Float + Sum {
                 Self::rotation_3d(angle_radians, Vec3::unit_y())
             }
+            /// Creates a quaternion from an angle for a rotation around the Y axis.
             pub fn rotation_z(angle_radians: T) -> Self where T: Float + Sum {
                 Self::rotation_3d(angle_radians, Vec3::unit_z())
             }
+            /// Returns this quaternion rotated around the given axis with given angle.  
+            /// The axis is not required to be normalized.
             pub fn rotated_3d<V: Into<Vec3<T>>>(self, angle_radians: T, axis: V) -> Self where T: Float + Sum {
                 Self::rotation_3d(angle_radians, axis) * self
             }
+            /// Returns this quaternion rotated around the X axis with given angle.  
             pub fn rotated_x(self, angle_radians: T) -> Self where T: Float + Sum {
                 Self::rotation_x(angle_radians) * self
             }
+            /// Returns this quaternion rotated around the Y axis with given angle.  
             pub fn rotated_y(self, angle_radians: T) -> Self where T: Float + Sum {
                 Self::rotation_y(angle_radians) * self
             }
+            /// Returns this quaternion rotated around the Z axis with given angle.  
             pub fn rotated_z(self, angle_radians: T) -> Self where T: Float + Sum {
                 Self::rotation_z(angle_radians) * self
             }
+            /// Rotates this quaternion around the given axis with given angle.  
+            /// The axis is not required to be normalized.
             pub fn rotate_3d<V: Into<Vec3<T>>>(&mut self, angle_radians: T, axis: V) where T: Float + Sum {
                 *self = self.rotated_3d(angle_radians, axis);
             }
+            /// Rotates this quaternion around the X axis with given angle.  
             pub fn rotate_x(&mut self, angle_radians: T) where T: Float + Sum {
                 *self = self.rotated_x(angle_radians);
             }
+            /// Rotates this quaternion around the Y axis with given angle.  
             pub fn rotate_y(&mut self, angle_radians: T) where T: Float + Sum {
                 *self = self.rotated_y(angle_radians);
             }
+            /// Rotates this quaternion around the Z axis with given angle.  
             pub fn rotate_z(&mut self, angle_radians: T) where T: Float + Sum {
                 *self = self.rotated_z(angle_radians);
             }
@@ -388,18 +404,22 @@ macro_rules! quaternion_complete_mod {
                 (angle, axis)
             }
 
+            /// Converts this quaternion to a `Vec4` by destructuring.
             pub fn into_vec4(self) -> Vec4<T> {
                 self.into()
             }
+            /// Creates a quaternion from a `Vec4` by destructuring.  
+            /// **You are responsible for ensuring that the resulting quaternion is normalized.**
             pub fn from_vec4(v: Vec4<T>) -> Self {
                 v.into()
             }
+            /// Converts this quaternion to a `Vec3` by destructuring, dropping the `w` element.
             pub fn into_vec3(self) -> Vec3<T> {
                 self.into()
             }
         }
         
-        /// The `Lerp` implementation for `Quaternion` is the "Normalized LERP".
+        /// The `Lerp` implementation for quaternion is the "Normalized LERP".
         impl<T, Factor> Lerp<Factor> for Quaternion<T>
             where T: Lerp<Factor,Output=T> + Sum + Float,
                   Factor: Copy
@@ -414,7 +434,7 @@ macro_rules! quaternion_complete_mod {
                 Lerp::lerp_unclamped(from, to, factor).normalized().into()
             }
         }
-        /// The `Lerp` implementation for `Quaternion` is the "Normalized LERP".
+        /// The `Lerp` implementation for quaternion is the "Normalized LERP".
         impl<'a, T, Factor> Lerp<Factor> for &'a Quaternion<T>
             // Float implies Copy, so no &'a T here.
             where T: Lerp<Factor,Output=T> + Sum + Float,
@@ -584,7 +604,7 @@ macro_rules! quaternion_complete_mod {
             }
         }
 
-        /// The `Mul` implementation for `Quaternion`s is concatenation, a.k.a Grassman product.
+        /// The `Mul` implementation for quaternions is concatenation, a.k.a Grassman product.
         ///
         /// ```
         /// # extern crate vek;
@@ -679,6 +699,7 @@ macro_rules! quaternion_complete_mod {
 
 #[cfg(all(nightly, feature="repr_simd"))]
 pub mod repr_simd {
+    //! `Quaternion`s which are marked `#[repr(simd)]`.
     use super::*;
     use super::super::vec::repr_c::{Vec3 as CVec3, Vec4 as CVec4};
     quaternion_complete_mod!(repr_simd #[repr(simd)]);
@@ -686,6 +707,7 @@ pub mod repr_simd {
     quaternion_vec3_vec4!(CVec3 CVec4);
 }
 pub mod repr_c {
+    //! `Quaternion`s which are marked `#[repr(C)]`.
     use super::*;
     quaternion_complete_mod!(repr_c #[repr(C)]);
     quaternion_vec3_vec4!(Vec3 Vec4);
