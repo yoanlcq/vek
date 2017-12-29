@@ -1,7 +1,7 @@
 //! Low-order (quadratic and cubic) Bézier curves.
 // NOTE: Most info from https://pomax.github.io/bezierinfo
 
-use num_traits::Float;
+use num_traits::{Zero, Float};
 use ops::*;
 use std::ops::*;
 use std::iter::Sum;
@@ -51,21 +51,45 @@ macro_rules! bezier_impl_any {
                 rhs.into_vector().map(|p| self * p).into()
             }
         }
+        impl<T> Mul<$Bezier<T>> for Rows4<T> where T: Float + MulAdd<T,T,Output=T> {
+            type Output = $Bezier<T>;
+            fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
+                rhs.into_vector().map(|p| self.mul_point(p).into()).into()
+            }
+        }
+        impl<T> Mul<$Bezier<T>> for Cols4<T> where T: Float + MulAdd<T,T,Output=T> {
+            type Output = $Bezier<T>;
+            fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
+                rhs.into_vector().map(|p| self.mul_point(p).into()).into()
+            }
+        }
     };
     (2 $Bezier:ident $Point:ident) => {
 
         bezier_impl_any!{$Bezier $Point}
 
+        impl<T> Mul<$Bezier<T>> for Rows2<T> where T: Float + MulAdd<T,T,Output=T> {
+            type Output = $Bezier<T>;
+            fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
+                rhs.into_vector().map(|p| self * p).into()
+            }
+        }
+        impl<T> Mul<$Bezier<T>> for Cols2<T> where T: Float + MulAdd<T,T,Output=T> {
+            type Output = $Bezier<T>;
+            fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
+                rhs.into_vector().map(|p| self * p).into()
+            }
+        }
         impl<T> Mul<$Bezier<T>> for Rows3<T> where T: Float + MulAdd<T,T,Output=T> {
             type Output = $Bezier<T>;
             fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
-                rhs.into_vector().map(|p| (self.mul_point_2d(p)).into()).into()
+                rhs.into_vector().map(|p| self.mul_point_2d(p).into()).into()
             }
         }
         impl<T> Mul<$Bezier<T>> for Cols3<T> where T: Float + MulAdd<T,T,Output=T> {
             type Output = $Bezier<T>;
             fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
-                rhs.into_vector().map(|p| (self.mul_point_2d(p)).into()).into()
+                rhs.into_vector().map(|p| self.mul_point_2d(p).into()).into()
             }
         }
     };
@@ -77,13 +101,13 @@ macro_rules! bezier_impl_any {
             }
             // WISH: better length approximation estimations (e.g see https://math.stackexchange.com/a/61796)
             /// Approximates the curve's length by subdividing it into step_count+1 segments.
-            pub fn length_by_discretization(self, step_count: u32) -> T
-                where T: Sum
+            pub fn length_by_discretization(self, step_count: u16) -> T
+                where T: Sum + From<u16>
             {
 	            let mut length = T::zero();
 	            let mut prev_point = self.evaluate(T::zero());
-                for i in 1..step_count+2 {
-    		        let t = T::from(i).unwrap()/(T::from(step_count).unwrap()+T::one());
+                for i in 1..(step_count+2) {
+    		        let t = <T as From<u16>>::from(i)/(<T as From<u16>>::from(step_count)+T::one());
     		        let next_point = self.evaluate(t);
                     length = length + (next_point - prev_point).magnitude();
     		        prev_point = next_point;
@@ -194,30 +218,6 @@ macro_rules! bezier_impl_any {
                     h = h / (T::one() + T::one());
                 }
                 (t, pt)
-            }
-        }
-        impl<T> Mul<$Bezier<T>> for Rows4<T> where T: Float + MulAdd<T,T,Output=T> {
-            type Output = $Bezier<T>;
-            fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
-                rhs.into_vector().map(|p| self.mul_point(p).into()).into()
-            }
-        }
-        impl<T> Mul<$Bezier<T>> for Cols4<T> where T: Float + MulAdd<T,T,Output=T> {
-            type Output = $Bezier<T>;
-            fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
-                rhs.into_vector().map(|p| self.mul_point(p).into()).into()
-            }
-        }
-        impl<T> Mul<$Bezier<T>> for Rows2<T> where T: Float + MulAdd<T,T,Output=T> {
-            type Output = $Bezier<T>;
-            fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
-                rhs.into_vector().map(|p| (self * Vec2::from(p)).into()).into()
-            }
-        }
-        impl<T> Mul<$Bezier<T>> for Cols2<T> where T: Float + MulAdd<T,T,Output=T> {
-            type Output = $Bezier<T>;
-            fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
-                rhs.into_vector().map(|p| (self * Vec2::from(p)).into()).into()
             }
         }
     };
@@ -490,22 +490,24 @@ macro_rules! bezier_impl_quadratic {
                 };
                 (first, second)
             }
-            /// Gets this curve reversed, i.e swaps `start` with `end`.
-            pub fn reversed(self) -> Self {
-                Self {
-                    start: self.end,
-                    ctrl: self.ctrl,
-                    end: self.start,
-                }
-            }
-            /// Reverses this curve, i.e swaps `start` with `end`.
-            pub fn reverse(&mut self) {
-                *self = self.reversed();
-            }
-
             /// Elevates this curve into a cubic Bézier curve.
             pub fn into_cubic(self) -> $CubicBezier<T> {
                 self.into()
+            }
+        }
+        impl<T> $QuadraticBezier<T> {
+            /// Gets this curve reversed, i.e swaps `start` with `end`.
+            pub fn reversed(mut self) -> Self {
+                self.reverse();
+                self
+            }
+            /// Reverses this curve, i.e swaps `start` with `end`.
+            pub fn reverse(&mut self) {
+                ::std::mem::swap(&mut self.start, &mut self.end);
+            }
+            // Convenience for this module
+            pub(crate) fn into_vector(self) -> Vec3<$Point<T>> {
+                self.into_vec3()
             }
             /// Converts this curve into a `Vec3` of points.
             pub fn into_vec3(self) -> Vec3<$Point<T>> {
@@ -518,10 +520,6 @@ macro_rules! bezier_impl_quadratic {
             /// Converts this curve into an array of points.
             pub fn into_array(self) -> [$Point<T>; 3] {
                 self.into_vec3().into_array()
-            }
-            // Convenience for this module
-            pub(crate) fn into_vector(self) -> Vec3<$Point<T>> {
-                self.into_vec3()
             }
         }
         
@@ -559,6 +557,39 @@ macro_rules! bezier_impl_quadratic {
         bezier_impl_quadratic_axis!{$QuadraticBezier $Point ("X") x x_inflection min_x max_x x_bounds}
         bezier_impl_quadratic_axis!{$QuadraticBezier $Point ("Y") y y_inflection min_y max_y y_bounds}
     }
+}
+
+// NOTE: The reason to split 2D-3D conversion into two macros is
+// to make sure that each is displayed in the correct documentation page.
+macro_rules! bezier_impl_2d_into_3d {
+    ($Bezier2:ident $Bezier3:ident) => {
+        impl<T: Zero> $Bezier2<T> {
+            /// Converts this 2D curve to a 3D one, setting the `z` elements to zero.
+            pub fn into_3d(self) -> $Bezier3<T> {
+                self.into()
+            }
+        }
+        impl<T: Zero> From<$Bezier2<T>> for $Bezier3<T> {
+            fn from(c: $Bezier2<T>) -> Self {
+                c.into_vector().map(Into::into).into()
+            }
+        }
+    };
+}
+macro_rules! bezier_impl_3d_into_2d {
+    ($Bezier3:ident $Bezier2:ident) => {
+        impl<T> $Bezier3<T> {
+            /// Converts this 3D curve to a 2D one, dropping the `z` elements.
+            pub fn into_2d(self) -> $Bezier2<T> { 
+                self.into() 
+            }
+        }
+        impl<T> From<$Bezier3<T>> for $Bezier2<T> {
+            fn from(c: $Bezier3<T>) -> Self {
+                c.into_vector().map(Into::into).into()
+            }
+        }
+    };
 }
 
 macro_rules! bezier_impl_cubic {
@@ -651,36 +682,6 @@ macro_rules! bezier_impl_cubic {
                 };
                 (first, second)
             }
-            /// Gets this curve reversed, i.e swaps `start` with `end` and `ctrl0` with `ctrl1`.
-            pub fn reversed(self) -> Self {
-                Self {
-                    start: self.end,
-                    ctrl0: self.ctrl1,
-                    ctrl1: self.ctrl0,
-                    end: self.start,
-                }
-            }
-            /// Reverses this curve, i.e swaps `start` with `end` and `ctrl0` with `ctrl1`.
-            pub fn reverse(&mut self) {
-                *self = self.reversed();
-            }
-            /// Converts this curve into a `Vec4` of points.
-            pub fn into_vec4(self) -> Vec4<$Point<T>> {
-                self.into()
-            }
-            /// Converts this curve into a tuple of points.
-            pub fn into_tuple(self) -> ($Point<T>, $Point<T>, $Point<T>, $Point<T>) {
-                self.into_vec4().into_tuple()
-            }
-            /// Converts this curve into an array of points.
-            pub fn into_array(self) -> [$Point<T>; 4] {
-                self.into_vec4().into_array()
-            }
-            // Convenience for this module
-            pub(crate) fn into_vector(self) -> Vec4<$Point<T>> {
-                self.into_vec4()
-            }
-
             /// Gets the cubic Bézier curve that approximates a unit quarter circle.
             ///
             /// You can build a good-looking circle out of 4 curves by applying
@@ -704,6 +705,34 @@ macro_rules! bezier_impl_cubic {
                 let c = b.flipped_y();
                 let d = a.flipped_y();
                 (a, b, c, d)
+            }
+        }
+        impl<T> $CubicBezier<T> {
+            /// Gets this curve reversed, i.e swaps `start` with `end` and `ctrl0` with `ctrl1`.
+            pub fn reversed(mut self) -> Self {
+                self.reverse();
+                self
+            }
+            /// Reverses this curve, i.e swaps `start` with `end` and `ctrl0` with `ctrl1`.
+            pub fn reverse(&mut self) {
+                ::std::mem::swap(&mut self.start, &mut self.end);
+                ::std::mem::swap(&mut self.ctrl0, &mut self.ctrl1);
+            }
+            // Convenience for this module
+            pub(crate) fn into_vector(self) -> Vec4<$Point<T>> {
+                self.into_vec4()
+            }
+            /// Converts this curve into a `Vec4` of points.
+            pub fn into_vec4(self) -> Vec4<$Point<T>> {
+                self.into()
+            }
+            /// Converts this curve into a tuple of points.
+            pub fn into_tuple(self) -> ($Point<T>, $Point<T>, $Point<T>, $Point<T>) {
+                self.into_vec4().into_tuple()
+            }
+            /// Converts this curve into an array of points.
+            pub fn into_array(self) -> [$Point<T>; 4] {
+                self.into_vec4().into_array()
             }
         }
         
@@ -769,20 +798,32 @@ macro_rules! impl_all_beziers {
         use self::Rows3 as Mat3;
         bezier_impl_quadratic!{
             /// A 2D Bézier curve with one control point.
+            ///
+            /// 2x2 and 3x3 matrices can be multiplied by a Bézier curve to transform all of its points.
             2 QuadraticBezier2 CubicBezier2 Vec2 LineSegment2
         }
+        bezier_impl_2d_into_3d!{QuadraticBezier2 QuadraticBezier3}
         bezier_impl_quadratic!{
             /// A 3D Bézier curve with one control point.
+            ///
+            /// 3x3 and 4x4 matrices can be multiplied by a Bézier curve to transform all of its points.
             3 QuadraticBezier3 CubicBezier3 Vec3 LineSegment3
         }
+        bezier_impl_3d_into_2d!{QuadraticBezier3 QuadraticBezier2}
         bezier_impl_cubic!{
             /// A 2D Bézier curve with two control points.
+            ///
+            /// 2x2 and 3x3 matrices can be multiplied by a Bézier curve to transform all of its points.
             2 QuadraticBezier2 CubicBezier2 Vec2 LineSegment2
         }
+        bezier_impl_2d_into_3d!{CubicBezier2 CubicBezier3}
         bezier_impl_cubic!{
             /// A 3D Bézier curve with two control points.
+            ///
+            /// 3x3 and 4x4 matrices can be multiplied by a Bézier curve to transform all of its points.
             3 QuadraticBezier3 CubicBezier3 Vec3 LineSegment3
         }
+        bezier_impl_3d_into_2d!{CubicBezier3 CubicBezier2}
     };
 }
 
