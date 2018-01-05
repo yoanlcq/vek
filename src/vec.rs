@@ -1126,8 +1126,23 @@ macro_rules! vec_impl_vec {
                 true
             }
         }
-
         impl $Vec<bool> {
+            // NOTE: We DO NEED this method.
+            // Otherwise, on rustc rustc 1.24.0-nightly (77e189cd7 2017-12-28),
+            // we get an ICE, with #[repr(simd)] bool vectors, when running `cargo test --release` :
+            //     Invalid bitcast
+            //     %1 = bitcast i8 %0 to i1
+            //     Invalid bitcast
+            //     %3 = bitcast i8 %2 to i1
+            //     Invalid bitcast
+            //     %5 = bitcast i8 %4 to i1
+            //     LLVM ERROR: Broken function found, compilation aborted!
+            // Using iter() instead of into_iter() in this special case solves this.
+            fn reduce_bool<F>(&self, f: F) -> bool where F: FnMut(bool,&bool) -> bool {
+                let mut i = self.iter();
+                let first = i.next().unwrap();
+                i.fold(*first, f)
+            }
             /// Returns the result of logical AND (`&&`) on all elements of this vector.
             ///
             /// ```
@@ -1137,7 +1152,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(false, Vec4::new(true, true, true, false).reduce_and());
             /// ```
             pub fn reduce_and(self) -> bool {
-                self.reduce(|a, b| a && b)
+                self.reduce_bool(|a, b| a && *b)
             }
             /// Returns the result of logical OR (`||`) on all elements of this vector.
             ///
@@ -1147,7 +1162,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(true,  Vec4::new(false, false, true, false).reduce_or());
             /// ```
             pub fn reduce_or(self) -> bool {
-                self.reduce(|a, b| a || b)
+                self.reduce_bool(|a, b| a || *b)
             }
             /// Reduces this vector using total inequality.
             ///
@@ -1157,10 +1172,9 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(true,  Vec4::new(true, false, true, true).reduce_ne());
             /// ```
             pub fn reduce_ne(self) -> bool {
-                self.reduce(|a, b| a != b)
+                self.reduce_bool(|a, b| a != *b)
             }
         }
-
         vec_impl_trinop!{impl MulAdd for $Vec { mul_add } ($($namedget)+)}
         vec_impl_unop!{ impl Neg for $Vec { neg } ($($get)+)}
         vec_impl_binop!{impl Add for $Vec { add } ($($get)+)}
