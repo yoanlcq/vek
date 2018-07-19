@@ -9,7 +9,7 @@ macro_rules! transform_complete_mod {
         // rotate_around
 
         use ::std::iter::Sum;
-        use $crate::num_traits::{Zero, One, Float};
+        use $crate::num_traits::{Zero, One, real::Real};
         use $crate::ops::*;
         use vec::$mod::*;
         use quaternion::$mod::*;
@@ -74,7 +74,7 @@ macro_rules! transform_complete_mod {
             where Factor: Copy + Into<O>,
                   P: Lerp<Factor,Output=P>,
                   S: Lerp<Factor,Output=S>,
-                  O: Lerp<O,Output=O> + Float + Sum,
+                  O: Lerp<O,Output=O> + Real + Sum,
         {
             type Output = Self;
             fn lerp_unclamped(a: Self, b: Self, t: Factor) -> Self {
@@ -99,7 +99,7 @@ macro_rules! transform_complete_mod {
             where Factor: Copy + Into<O>,
                   &'a P: Lerp<Factor,Output=P>,
                   &'a S: Lerp<Factor,Output=S>,
-                  O: Lerp<O,Output=O> + Float + Sum,
+                  O: Lerp<O,Output=O> + Real + Sum,
         {
             type Output = Transform<P,O,S>;
             fn lerp_unclamped(a: Self, b: Self, t: Factor) -> Self::Output {

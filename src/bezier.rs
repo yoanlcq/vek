@@ -1,7 +1,7 @@
 //! Low-order (quadratic and cubic) Bézier curves.
 // NOTE: Most info from https://pomax.github.io/bezierinfo
 
-use num_traits::{Zero, Float};
+use num_traits::{Zero, real::Real};
 use ops::*;
 use std::ops::*;
 use std::iter::Sum;
@@ -19,7 +19,7 @@ macro_rules! bezier_impl_any {
 
         bezier_impl_any!{$Bezier $Point}
 
-        impl<T: Float> $Bezier<T> {
+        impl<T: Real> $Bezier<T> {
             /// Gets the Axis-Aligned Bounding Box for this curve.
             pub fn aabb(self) -> Aabb<T> {
                 let (min_x, max_x) = self.x_bounds();
@@ -39,25 +39,25 @@ macro_rules! bezier_impl_any {
                 *self = self.flipped_z();
             }
         }
-        impl<T> Mul<$Bezier<T>> for Rows3<T> where T: Float + MulAdd<T,T,Output=T> {
+        impl<T> Mul<$Bezier<T>> for Rows3<T> where T: Real + MulAdd<T,T,Output=T> {
             type Output = $Bezier<T>;
             fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
                 rhs.into_vector().map(|p| self * p).into()
             }
         }
-        impl<T> Mul<$Bezier<T>> for Cols3<T> where T: Float + MulAdd<T,T,Output=T> {
+        impl<T> Mul<$Bezier<T>> for Cols3<T> where T: Real + MulAdd<T,T,Output=T> {
             type Output = $Bezier<T>;
             fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
                 rhs.into_vector().map(|p| self * p).into()
             }
         }
-        impl<T> Mul<$Bezier<T>> for Rows4<T> where T: Float + MulAdd<T,T,Output=T> {
+        impl<T> Mul<$Bezier<T>> for Rows4<T> where T: Real + MulAdd<T,T,Output=T> {
             type Output = $Bezier<T>;
             fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
                 rhs.into_vector().map(|p| self.mul_point(p).into()).into()
             }
         }
-        impl<T> Mul<$Bezier<T>> for Cols4<T> where T: Float + MulAdd<T,T,Output=T> {
+        impl<T> Mul<$Bezier<T>> for Cols4<T> where T: Real + MulAdd<T,T,Output=T> {
             type Output = $Bezier<T>;
             fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
                 rhs.into_vector().map(|p| self.mul_point(p).into()).into()
@@ -68,25 +68,25 @@ macro_rules! bezier_impl_any {
 
         bezier_impl_any!{$Bezier $Point}
 
-        impl<T> Mul<$Bezier<T>> for Rows2<T> where T: Float + MulAdd<T,T,Output=T> {
+        impl<T> Mul<$Bezier<T>> for Rows2<T> where T: Real + MulAdd<T,T,Output=T> {
             type Output = $Bezier<T>;
             fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
                 rhs.into_vector().map(|p| self * p).into()
             }
         }
-        impl<T> Mul<$Bezier<T>> for Cols2<T> where T: Float + MulAdd<T,T,Output=T> {
+        impl<T> Mul<$Bezier<T>> for Cols2<T> where T: Real + MulAdd<T,T,Output=T> {
             type Output = $Bezier<T>;
             fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
                 rhs.into_vector().map(|p| self * p).into()
             }
         }
-        impl<T> Mul<$Bezier<T>> for Rows3<T> where T: Float + MulAdd<T,T,Output=T> {
+        impl<T> Mul<$Bezier<T>> for Rows3<T> where T: Real + MulAdd<T,T,Output=T> {
             type Output = $Bezier<T>;
             fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
                 rhs.into_vector().map(|p| self.mul_point_2d(p).into()).into()
             }
         }
-        impl<T> Mul<$Bezier<T>> for Cols3<T> where T: Float + MulAdd<T,T,Output=T> {
+        impl<T> Mul<$Bezier<T>> for Cols3<T> where T: Real + MulAdd<T,T,Output=T> {
             type Output = $Bezier<T>;
             fn mul(self, rhs: $Bezier<T>) -> $Bezier<T> {
                 rhs.into_vector().map(|p| self.mul_point_2d(p).into()).into()
@@ -94,7 +94,7 @@ macro_rules! bezier_impl_any {
         }
     };
     ($Bezier:ident $Point:ident) => {
-        impl<T: Float> $Bezier<T> {
+        impl<T: Real> $Bezier<T> {
             /// Evaluates the normalized tangent at interpolation factor `t`.
             pub fn normalized_tangent(self, t: T) -> $Point<T> where T: Sum {
                 self.evaluate_derivative(t).normalized()
@@ -225,7 +225,7 @@ macro_rules! bezier_impl_any {
 
 macro_rules! bezier_impl_quadratic_axis {
     ($QuadraticBezier:ident $Point:ident ($x_s:expr) $x:ident $x_inflection:ident $x_min:ident $x_max:ident $x_bounds:ident) => {
-        impl<T: Float> $QuadraticBezier<T> {
+        impl<T: Real> $QuadraticBezier<T> {
             /// Returns the evaluation factor that gives an inflection point along the
             #[doc=$x_s]
             /// axis, if any.
@@ -279,7 +279,7 @@ macro_rules! bezier_impl_quadratic_axis {
 
 macro_rules! bezier_impl_cubic_axis {
     ($CubicBezier:ident $Point:ident ($x_s:expr) $x:ident $x_inflections:ident $x_min:ident $x_max:ident $x_bounds:ident) => {
-        impl<T: Float> $CubicBezier<T> {
+        impl<T: Real> $CubicBezier<T> {
             /// Returns the evaluation factor that gives an inflection point along the
             #[doc=$x_s]
             /// axis, if any.
@@ -432,7 +432,7 @@ macro_rules! bezier_impl_quadratic {
             pub end: $Point<T>,
         }
         
-        impl<T: Float> $QuadraticBezier<T> {
+        impl<T: Real> $QuadraticBezier<T> {
             /// Evaluates the position of the point lying on the curve at interpolation factor `t`.
             ///
             /// This is one of the most important Bézier curve operations,
@@ -538,7 +538,7 @@ macro_rules! bezier_impl_quadratic {
             }
         }
 
-        impl<T: Float> From<$LineSegment<T>> for $QuadraticBezier<T> {
+        impl<T: Real> From<$LineSegment<T>> for $QuadraticBezier<T> {
             fn from(line_segment: $LineSegment<T>) -> Self {
                 let ctrl = (line_segment.start + line_segment.end) / (T::one() + T::one());
                 Self {
@@ -548,7 +548,7 @@ macro_rules! bezier_impl_quadratic {
                 }
             }
         }
-        impl<T: Float> From<Range<$Point<T>>> for $QuadraticBezier<T> {
+        impl<T: Real> From<Range<$Point<T>>> for $QuadraticBezier<T> {
             fn from(range: Range<$Point<T>>) -> Self {
                 Self::from($LineSegment::from(range))
             }
@@ -618,7 +618,7 @@ macro_rules! bezier_impl_cubic {
             pub end: $Point<T>,
         }
 
-        impl<T: Float> $CubicBezier<T> {
+        impl<T: Real> $CubicBezier<T> {
             /// Evaluates the position of the point lying on the curve at interpolation factor `t`.
             ///
             /// This is one of the most important Bézier curve operations,
@@ -751,7 +751,7 @@ macro_rules! bezier_impl_cubic {
                 Vec4::new(v.start, v.ctrl0, v.ctrl1, v.end)
             }
         }
-        impl<T: Float + Lerp<T,Output=T>> From<$LineSegment<T>> for $CubicBezier<T> 
+        impl<T: Real + Lerp<T,Output=T>> From<$LineSegment<T>> for $CubicBezier<T> 
         {
             fn from(line_segment: $LineSegment<T>) -> Self {
                 let three = T::one() + T::one() + T::one();
@@ -766,12 +766,12 @@ macro_rules! bezier_impl_cubic {
                 }
             }
         }
-        impl<T: Float + Lerp<T, Output=T>> From<Range<$Point<T>>> for $CubicBezier<T> {
+        impl<T: Real + Lerp<T, Output=T>> From<Range<$Point<T>>> for $CubicBezier<T> {
             fn from(range: Range<$Point<T>>) -> Self {
                 Self::from($LineSegment::from(range))
             }
         }
-        impl<T: Float> From<$QuadraticBezier<T>> for $CubicBezier<T> {
+        impl<T: Real> From<$QuadraticBezier<T>> for $CubicBezier<T> {
             fn from(b: $QuadraticBezier<T>) -> Self {
                 let three = T::one() + T::one() + T::one();
                 $CubicBezier {

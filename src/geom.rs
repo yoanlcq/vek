@@ -2,9 +2,7 @@
 
 // NOTE: in this module, the type parameters <P,E> usually stand for Position and Extent.
 
-extern crate num_traits;
-
-use self::num_traits::{Float, FloatConst, Zero, One};
+use num_traits::{real::Real, FloatConst, Zero, One};
 use std::ops::*;
 use std::iter::Sum;
 
@@ -372,7 +370,7 @@ macro_rules! geom_impl_disk_or_sphere {
                 }
             }
         }
-        impl<T: Float + Sum> $Shape<T,T> {
+        impl<T: Real + Sum> $Shape<T,T> {
             /// Does this shape contain the given point ?
             pub fn contains_point(self, p: $Vec<T>) -> bool where T: PartialOrd {
                 self.center.distance(p) <= self.radius
@@ -650,6 +648,55 @@ macro_rules! geom_complete_mod {
 
         geom_impl_line_segment!{LineSegment2 Vec2}
         geom_impl_line_segment!{LineSegment3 Vec3}
+
+        /// 3D ray, represented by a starting point and a normalized direction vector.
+        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
+		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        pub struct Ray<T> {
+            /// The ray's starting point.
+            pub origin: Vec3<T>,
+            /// The ray's direction. **Methods expect it to be normalized**.
+            pub direction: Vec3<T>,
+        }
+
+        impl<T: Real + Sum> Ray<T> {
+            /// Creates a `Ray` from a starting point and direction.
+            /// 
+            /// This doesn't check if `direction` is normalized, because either you know it is, or
+            /// it isn't and maybe it doesn't matter for your use case.
+            pub fn new(origin: Vec3<T>, direction: Vec3<T>) -> Self {
+                Self { origin, direction }
+            }
+            /// Tests if this ray intersects the given triangle, returning the distance from
+            /// the ray's origin along its direction where the intersection lies.
+            /// 
+            /// If the returned value is `Some(x)` where `x < EPSILON`, then you should
+            /// assume there was a line intersection, **NOT** a ray intersection.
+            /// 
+            /// This uses the [Möller–Trumbore intersection algorithm](https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm).
+            pub fn triangle_intersection(&self, tri: [Vec3<T>; 3]) -> Option<T> {
+                let (v0, v1, v2) = (tri[0], tri[1], tri[2]);
+                let edge1 = v1 - v0;
+                let edge2 = v2 - v0;
+                let h = self.direction.cross(edge2);
+                let a = edge1.dot(h);
+                if a > -T::epsilon() && a < T::epsilon() {
+                    return None;
+                }
+                let f = a.recip();
+                let s = self.origin - v0;
+                let u = f * s.dot(h);
+                if u < T::zero() || u > T::one() {
+                    return None;
+                }
+                let q = s.cross(edge1);
+                let v = f * self.direction.dot(q);
+                if v < T::zero() || u + v > T::one() {
+                    return None;
+                }
+                Some(f * edge2.dot(q))
+            }
+        }
     }
 }
 

@@ -13,7 +13,7 @@ use std::ptr;
 use std::cmp;
 use std::ops::*;
 use std::slice::{self, /*SliceIndex*/}; // NOTE: Will want to use SliceIndex once it's stabilized
-use num_traits::{Zero, One, NumCast, Signed, Float};
+use num_traits::{Zero, One, NumCast, Signed, real::Real};
 use approx::ApproxEq;
 use ops::*;
 
@@ -745,7 +745,7 @@ macro_rules! vec_impl_vec {
             /// let s = Vec4::new(1f32, 4f32, 9f32, 16f32);
             /// assert_eq!(v, s.sqrt());
             /// ```
-            pub fn sqrt(self) -> Self where T: Float {
+            pub fn sqrt(self) -> Self where T: Real {
                 Self::new($(self.$get.sqrt()),+)
             }
 
@@ -758,7 +758,7 @@ macro_rules! vec_impl_vec {
             /// let s = Vec4::new(1f32, 4f32, 9f32, 16f32);
             /// assert_eq!(v, s.rsqrt());
             /// ```
-            pub fn rsqrt(self) -> Self where T: Float {
+            pub fn rsqrt(self) -> Self where T: Real {
                 self.sqrt().recip()
             }
             /// Returns a new vector which elements are the respective reciprocal 
@@ -771,7 +771,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(v, s.recip());
             /// assert_eq!(s, v.recip());
             /// ```
-            pub fn recip(self) -> Self where T: Float {
+            pub fn recip(self) -> Self where T: Real {
                 Self::new($(self.$get.recip()),+)
             }
             /// Returns a new vector which elements are rounded to the nearest greater integer.
@@ -781,7 +781,7 @@ macro_rules! vec_impl_vec {
             /// let v = Vec4::new(0_f32, 1., 1.8, 3.14);
             /// assert_eq!(v.ceil(), Vec4::new(0f32, 1f32, 2f32, 4f32));
             /// ```
-            pub fn ceil(self) -> Self where T: Float {
+            pub fn ceil(self) -> Self where T: Real {
                 Self::new($(self.$get.ceil()),+)
             }
             /// Returns a new vector which elements are rounded down to the nearest lower integer.
@@ -791,7 +791,7 @@ macro_rules! vec_impl_vec {
             /// let v = Vec4::new(0_f32, 1., 1.8, 3.14);
             /// assert_eq!(v.floor(), Vec4::new(0f32, 1f32, 1f32, 3f32));
             /// ```
-            pub fn floor(self) -> Self where T: Float {
+            pub fn floor(self) -> Self where T: Real {
                 Self::new($(self.$get.floor()),+)
             }
             /// Returns a new vector which elements are rounded to the nearest integer.
@@ -801,7 +801,7 @@ macro_rules! vec_impl_vec {
             /// let v = Vec4::new(0_f32, 1., 1.8, 3.14);
             /// assert_eq!(v.round(), Vec4::new(0f32, 1f32, 2f32, 3f32));
             /// ```
-            pub fn round(self) -> Self where T: Float {
+            pub fn round(self) -> Self where T: Real {
                 Self::new($(self.$get.round()),+)
             }
 
@@ -1087,7 +1087,7 @@ macro_rules! vec_impl_vec {
         impl<T: One> One for $Vec<T> {
             fn one() -> Self { Self::one() }
         }
-        // WISH: impl Float for Vec<Float> ?
+        // WISH: impl Real for Vec<Real> ?
         // NOPE: Vectors can't implement these items :
         // - fn classify(self) -> FpCategory;
         // - fn integer_decode(self) -> (u64, i16, i8);
@@ -1433,7 +1433,7 @@ macro_rules! vec_impl_spatial {
                 self.dot(self)
             }
             /// The magnitude of a vector is its spatial length.
-            pub fn magnitude(self) -> T where T: Sum + Float {
+            pub fn magnitude(self) -> T where T: Sum + Real {
                 self.magnitude_squared().sqrt()
             }
             /// Squared distance between two point vectors.
@@ -1442,28 +1442,28 @@ macro_rules! vec_impl_spatial {
                 (self - v).magnitude_squared()
             }
             /// Distance between two point vectors.
-            pub fn distance(self, v: Self) -> T where T: Sum + Float {
+            pub fn distance(self, v: Self) -> T where T: Sum + Real {
                 (self - v).magnitude()
             }
             /// Get a copy of this direction vector such that its length equals 1.
-            pub fn normalized(self) -> Self where T: Sum + Float {
+            pub fn normalized(self) -> Self where T: Sum + Real {
                 self / self.magnitude()
             }
             /// Divide this vector's components such that its length equals 1.
-            pub fn normalize(&mut self) where T: Sum + Float {
+            pub fn normalize(&mut self) where T: Sum + Real {
                 *self = self.normalized();
             }
             /// Is this vector normalized ? (Uses `ApproxEq`)
-            pub fn is_normalized(self) -> bool where T: ApproxEq + Sum + Float {
+            pub fn is_normalized(self) -> bool where T: ApproxEq + Sum + Real {
                 self.magnitude_squared().relative_eq(&T::one(), T::default_epsilon(), T::default_max_relative())
             }
             /// Get the smallest angle, in radians, between two direction vectors.
-            pub fn angle_between(self, v: Self) -> T where T: Sum + Float {
+            pub fn angle_between(self, v: Self) -> T where T: Sum + Real {
                 self.normalized().dot(v.normalized()).acos()
             }
             /// Get the smallest angle, in degrees, between two direction vectors.
             pub fn angle_between_degrees(self, v: Self) -> T
-                where T: From<u16> + Sum + Float
+                where T: From<u16> + Sum + Real
             {
                 <T as From<u16>>::from(360_u16) * self.angle_between(v)
             }
@@ -1482,7 +1482,7 @@ macro_rules! vec_impl_spatial {
             /// The refraction vector for this incident vector, a surface normal and a ratio of
             /// indices of refraction (`eta`).
             pub fn refracted(self, surface_normal: Self, eta: T) -> Self
-                where T: Float + Sum + Mul<Output=T>
+                where T: Real + Sum + Mul<Output=T>
             {
                 let n = surface_normal;
                 let i = self;
@@ -1561,14 +1561,14 @@ macro_rules! vec_impl_spatial_2d {
             /// assert_relative_eq!(Vec2::unit_x().rotated_z(PI*2.), Vec2::unit_x(), epsilon = 0.000001);
             /// # }
             /// ```
-            pub fn rotated_z(self, angle_radians: T) -> Self where T: Float {
+            pub fn rotated_z(self, angle_radians: T) -> Self where T: Real {
                 let c = angle_radians.cos();
                 let s = angle_radians.sin();
                 let Self { x, y } = self;
                 Self::new(c*x - s*y, s*x + c*y)
             }
             /// Rotates this vector in 2D. See `rotated_z()`.
-            pub fn rotate_z(&mut self, angle_radians: T) where T: Float {
+            pub fn rotate_z(&mut self, angle_radians: T) where T: Real {
                 *self = self.rotated_z(angle_radians);
             }
             /// Get the unit vector which has `x` set to 1.
@@ -1673,7 +1673,7 @@ macro_rules! vec_impl_spatial_3d {
                 /// # }
                 /// ```
                 pub fn slerp_unclamped(from: Self, to: Self, factor: T) -> Self
-                    where T: Sum + Float + Clamp + Lerp<T,Output=T>
+                    where T: Sum + Real + Clamp + Lerp<T,Output=T>
                 {
                     // From GLM, gtx/rotate_vector.inl
                     let (mag_from, mag_to) = (from.magnitude(), to.magnitude());
@@ -1691,7 +1691,7 @@ macro_rules! vec_impl_spatial_3d {
                 /// The vectors are not required to be normalized; their length
                 /// is also interpolated in the process.
                 pub fn slerp(from: Self, to: Self, factor: T) -> Self
-                    where T: Sum + Float + Clamp + Lerp<T,Output=T>
+                    where T: Sum + Real + Clamp + Lerp<T,Output=T>
                 {
                     Slerp::slerp(from, to, factor)
                 }
@@ -1720,7 +1720,7 @@ macro_rules! vec_impl_spatial_3d {
                 pub fn back_rh   () -> Self where T: Zero + One {  Self::unit_z() }
             }
             impl<T> Slerp<T> for $Vec<T> 
-                where T: Sum + Float + Clamp + Lerp<T,Output=T>
+                where T: Sum + Real + Clamp + Lerp<T,Output=T>
             {
                 type Output = Self;
                 fn slerp_unclamped(from: Self, to: Self, factor: T) -> Self {

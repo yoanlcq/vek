@@ -26,7 +26,7 @@
 #![cfg_attr(not(test), no_std)]
 #![doc(
 	test(attr(deny(warnings))),
-	html_root_url = "https://docs.rs/vek/0.9.3",
+	html_root_url = "https://docs.rs/vek/0.9.4",
 	//html_logo_url = "https://yoanlcq.github.io/vek/logo.png",
 	//html_favicon_url = "https://yoanlcq.github.io/vek/favicon.ico",
 )]
@@ -36,7 +36,7 @@
 //#![deny(incoherent_fundamental_impls)]
 #![cfg_attr(all(nightly, feature="clippy"), feature(plugin))]
 #![cfg_attr(all(nightly, feature="clippy"), plugin(clippy))]
-#![cfg_attr(all(nightly, feature="repr_simd" ), feature(cfg_target_feature))]
+//#![cfg_attr(all(nightly, feature="repr_simd" ), feature(cfg_target_feature))]
 #![cfg_attr(all(nightly, feature="repr_simd" ), feature(repr_simd, simd_ffi))]
 //#![cfg_attr(feature="repr_simd", allow(improper_ctypes)]
 //#![cfg_attr(feature="repr_simd", feature(link_llvm_intrinsics)]
