@@ -482,6 +482,45 @@ macro_rules! vec_impl_vec {
             pub fn map<D,F>(self, mut f: F) -> $Vec<D> where F: FnMut(T) -> D {
                 $Vec::new($(f(self.$get)),+)
             }
+            /// Applies the function f to each element of two vectors, pairwise, and returns the result.
+            ///
+            /// ```
+            /// # use vek::vec::Vec4;
+            /// let a = Vec4::<u8>::new(255, 254, 253, 252);
+            /// let b = Vec4::<u8>::new(1, 2, 3, 4);
+            /// let v = a.map2(b, |a, b| a.wrapping_add(b));
+            /// assert_eq!(v, Vec4::zero());
+            /// let v = a.map2(b, u8::wrapping_add);
+            /// assert_eq!(v, Vec4::zero());
+            /// ```
+            pub fn map2<D,F,S>(self, other: $Vec<S>, mut f: F) -> $Vec<D> where F: FnMut(T, S) -> D {
+                $Vec::new($(f(self.$get, other.$get)),+)
+            }
+            /// Applies the function f to each element of this vector, in-place.
+            ///
+            /// ```
+            /// # use vek::Vec4;
+            /// let mut v = Vec4::new(0_u32, 1, 2, 3);
+            /// v.apply(|x| x.count_ones());
+            /// assert_eq!(v, Vec4::new(0, 1, 1, 2));
+            /// ```
+            pub fn apply<F>(&mut self, mut f: F) where T: Copy, F: FnMut(T) -> T {
+                $(self.$get = f(self.$get);)+
+            }
+            /// Applies the function f to each element of two vectors, pairwise, in-place.
+            ///
+            /// ```
+            /// # use vek::vec::Vec4;
+            /// let mut a = Vec4::<u8>::new(255, 254, 253, 252);
+            /// let b = Vec4::<u8>::new(1, 2, 3, 4);
+            /// a.apply2(b, |a, b| a.wrapping_add(b));
+            /// assert_eq!(a, Vec4::zero());
+            /// a.apply2(b, u8::wrapping_add);
+            /// assert_eq!(a, b);
+            /// ```
+            pub fn apply2<F, S>(&mut self, other: $Vec<S>, mut f: F) where T: Copy, F: FnMut(T, S) -> T {
+                $(self.$get = f(self.$get, other.$get);)+
+            }
             /// Returns a memberwise-converted copy of this vector, using `NumCast`.
             ///
             /// ```
@@ -1461,11 +1500,12 @@ macro_rules! vec_impl_spatial {
             pub fn angle_between(self, v: Self) -> T where T: Sum + Float {
                 self.normalized().dot(v.normalized()).acos()
             }
+            #[deprecated(note="Use `to_degrees()` on the value returned by `angle_between()` instead")]
             /// Get the smallest angle, in degrees, between two direction vectors.
             pub fn angle_between_degrees(self, v: Self) -> T
-                where T: From<u16> + Sum + Float
+                where T: Sum + Float
             {
-                <T as From<u16>>::from(360_u16) * self.angle_between(v)
+                self.angle_between(v).to_degrees()
             }
             /// The reflection direction for this vector on a surface which normal is given.
             pub fn reflected(self, surface_normal: Self) -> Self 
