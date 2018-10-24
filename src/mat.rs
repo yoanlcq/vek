@@ -844,6 +844,18 @@ macro_rules! mat_impl_mat {
                     }
                 }
             }
+            /// Applies the function f to each element of this matrix, in-place.
+            ///
+            /// For an example, see the `map()` method.
+            pub fn apply<F>(&mut self, f: F) where T: Copy, F: FnMut(T) -> T {
+                *self = self.map(f);
+            }
+            /// Applies the function f to each element of this matrix, in-place.
+            ///
+            /// For an example, see the `map2()` method.
+            pub fn apply2<F, S>(&mut self, other: $Mat<S>, f: F) where T: Copy, F: FnMut(T, S) -> T {
+                *self = self.map2(other, f);
+            }
             /// Returns a memberwise-converted copy of this matrix, using `NumCast`.
             ///
             /// ```
@@ -1218,6 +1230,44 @@ macro_rules! mat_impl_mat4 {
                         Vec4::new(f(m.y.x), f(m.y.y), f(m.y.z), f(m.y.w)),
                         Vec4::new(f(m.z.x), f(m.z.y), f(m.z.z), f(m.z.w)),
                         Vec4::new(f(m.w.x), f(m.w.y), f(m.w.z), f(m.w.w))
+                    )
+                }
+            }
+
+            /// Applies the function f to each element of two matrices, pairwise, and returns the result.
+            ///
+            /// ```
+            /// use vek::mat::repr_c::row_major::Mat4;
+            ///
+            /// let a = Mat4::<f32>::new(
+            ///     0.25, 1.25, 2.52, 2.99,
+            ///     0.25, 1.25, 2.52, 2.99,
+            ///     0.25, 1.25, 2.52, 2.99,
+            ///     0.25, 1.25, 2.52, 2.99
+            /// );
+            /// let b = Mat4::<i32>::new(
+            ///     0, 1, 0, 0,
+            ///     1, 0, 0, 0,
+            ///     0, 0, 1, 0,
+            ///     0, 0, 0, 1
+            /// );
+            /// let m = a.map2(b, |a, b| a.round() as i32 + b);
+            /// assert_eq!(m, Mat4::new(
+            ///     0, 2, 3, 3,
+            ///     1, 1, 3, 3,
+            ///     0, 1, 4, 3,
+            ///     0, 1, 3, 4
+            /// ));
+            /// ```
+            pub fn map2<D,F,S>(self, other: Mat4<S>, mut f: F) -> Mat4<D> where F: FnMut(T, S) -> D {
+                let m = self.$lines;
+                let o = other.$lines;
+                Mat4 {
+                    $lines: CVec4::new(
+                        Vec4::new(f(m.x.x, o.x.x), f(m.x.y, o.x.y), f(m.x.z, o.x.z), f(m.x.w, o.x.w)),
+                        Vec4::new(f(m.y.x, o.y.x), f(m.y.y, o.y.y), f(m.y.z, o.y.z), f(m.y.w, o.y.w)),
+                        Vec4::new(f(m.z.x, o.z.x), f(m.z.y, o.z.y), f(m.z.z, o.z.z), f(m.z.w, o.z.w)),
+                        Vec4::new(f(m.w.x, o.w.x), f(m.w.y, o.w.y), f(m.w.z, o.w.z), f(m.w.w, o.w.w))
                     )
                 }
             }
@@ -2875,6 +2925,43 @@ macro_rules! mat_impl_mat3 {
                 }
             }
 
+            /// Applies the function f to each element of two matrices, pairwise, and returns the result.
+            ///
+            /// ```
+            /// use vek::mat::repr_c::row_major::Mat4;
+            ///
+            /// let a = Mat4::<f32>::new(
+            ///     0.25, 1.25, 2.52, 2.99,
+            ///     0.25, 1.25, 2.52, 2.99,
+            ///     0.25, 1.25, 2.52, 2.99,
+            ///     0.25, 1.25, 2.52, 2.99
+            /// );
+            /// let b = Mat4::<i32>::new(
+            ///     0, 1, 0, 0,
+            ///     1, 0, 0, 0,
+            ///     0, 0, 1, 0,
+            ///     0, 0, 0, 1
+            /// );
+            /// let m = a.map2(b, |a, b| a.round() as i32 + b);
+            /// assert_eq!(m, Mat4::new(
+            ///     0, 2, 3, 3,
+            ///     1, 1, 3, 3,
+            ///     0, 1, 4, 3,
+            ///     0, 1, 3, 4
+            /// ));
+            /// ```
+            pub fn map2<D,F,S>(self, other: Mat3<S>, mut f: F) -> Mat3<D> where F: FnMut(T, S) -> D {
+                let m = self.$lines;
+                let o = other.$lines;
+                Mat3 {
+                    $lines: CVec3::new(
+                        Vec3::new(f(m.x.x, o.x.x), f(m.x.y, o.x.y), f(m.x.z, o.x.z)),
+                        Vec3::new(f(m.y.x, o.y.x), f(m.y.y, o.y.y), f(m.y.z, o.y.z)),
+                        Vec3::new(f(m.z.x, o.z.x), f(m.z.y, o.z.y), f(m.z.z, o.z.z))
+                    )
+                }
+            }
+
             /// The matrix's transpose.
             ///
             /// For orthogonal matrices, the transpose is the same as the inverse.
@@ -3315,6 +3402,42 @@ macro_rules! mat_impl_mat2 {
                     $lines: CVec2::new(
                         Vec2::new(f(m.x.x), f(m.x.y)),
                         Vec2::new(f(m.y.x), f(m.y.y)),
+                    )
+                }
+            }
+
+            /// Applies the function f to each element of two matrices, pairwise, and returns the result.
+            ///
+            /// ```
+            /// use vek::mat::repr_c::row_major::Mat4;
+            ///
+            /// let a = Mat4::<f32>::new(
+            ///     0.25, 1.25, 2.52, 2.99,
+            ///     0.25, 1.25, 2.52, 2.99,
+            ///     0.25, 1.25, 2.52, 2.99,
+            ///     0.25, 1.25, 2.52, 2.99
+            /// );
+            /// let b = Mat4::<i32>::new(
+            ///     0, 1, 0, 0,
+            ///     1, 0, 0, 0,
+            ///     0, 0, 1, 0,
+            ///     0, 0, 0, 1
+            /// );
+            /// let m = a.map2(b, |a, b| a.round() as i32 + b);
+            /// assert_eq!(m, Mat4::new(
+            ///     0, 2, 3, 3,
+            ///     1, 1, 3, 3,
+            ///     0, 1, 4, 3,
+            ///     0, 1, 3, 4
+            /// ));
+            /// ```
+            pub fn map2<D,F,S>(self, other: Mat2<S>, mut f: F) -> Mat2<D> where F: FnMut(T, S) -> D {
+                let m = self.$lines;
+                let o = other.$lines;
+                Mat2 {
+                    $lines: CVec2::new(
+                        Vec2::new(f(m.x.x, o.x.x), f(m.x.y, o.x.y)),
+                        Vec2::new(f(m.y.x, o.y.x), f(m.y.y, o.y.y))
                     )
                 }
             }
