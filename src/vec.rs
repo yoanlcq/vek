@@ -1503,7 +1503,7 @@ macro_rules! vec_impl_spatial {
             #[deprecated(note="Use `to_degrees()` on the value returned by `angle_between()` instead")]
             /// Get the smallest angle, in degrees, between two direction vectors.
             pub fn angle_between_degrees(self, v: Self) -> T
-                where T: Sum + Float
+                where T: Sum + Real
             {
                 self.angle_between(v).to_degrees()
             }
