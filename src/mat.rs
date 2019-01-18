@@ -79,6 +79,35 @@ macro_rules! mat_impl_mat {
                     array
                 }
             }
+            /// Converts this matrix into a fixed-size array of fixed-size arrays of elements.
+            ///
+            /// ```
+            /// use vek::mat::repr_c::row_major::Mat4;
+            ///
+            /// let m = Mat4::<u32>::new(
+            ///      0,  1,  2,  3,
+            ///      4,  5,  6,  7,
+            ///      8,  9, 10, 11,
+            ///     12, 13, 14, 15
+            /// );
+            /// let array = [
+            ///     [  0,  1,  2,  3, ],
+            ///     [  4,  5,  6,  7, ],
+            ///     [  8,  9, 10, 11, ],
+            ///     [ 12, 13, 14, 15, ],
+            /// ];
+            /// assert_eq!(m.into_row_arrays(), array);
+            /// ```
+            pub fn into_row_arrays(self) -> [[T; $ncols]; $nrows] {
+                let m = mem::ManuallyDrop::new(self);
+                unsafe {
+                    let mut array: [[T; $ncols]; $nrows] = mem::uninitialized();
+                    for i in 0..$nrows {
+                        mem::forget(mem::replace(array.get_unchecked_mut(i), ptr::read(m.rows.get_unchecked(i)).into_array()));
+                    }
+                    array
+                }
+            }
             /// Converts a fixed-size array of elements into a matrix.
             ///
             /// ```
@@ -109,6 +138,35 @@ macro_rules! mat_impl_mat {
                             mem::forget(mem::replace(&mut row.$get, ptr::read(array.get_unchecked(cur))));
                             cur += 1;
                         )+
+                    }
+                    m
+                }
+            }
+            /// Converts a fixed-size array of fixed-size array of elements into a matrix.
+            ///
+            /// ```
+            /// use vek::mat::repr_c::row_major::Mat4;
+            ///
+            /// let m = Mat4::<u32>::new(
+            ///      0,  1,  2,  3,
+            ///      4,  5,  6,  7,
+            ///      8,  9, 10, 11,
+            ///     12, 13, 14, 15
+            /// );
+            /// let array = [
+            ///     [  0,  1,  2,  3, ],
+            ///     [  4,  5,  6,  7, ],
+            ///     [  8,  9, 10, 11, ],
+            ///     [ 12, 13, 14, 15, ],
+            /// ];
+            /// assert_eq!(m, Mat4::from_row_arrays(array));
+            /// ```
+            pub fn from_row_arrays(array: [[T; $ncols]; $nrows]) -> Self {
+                let array = mem::ManuallyDrop::new(array);
+                unsafe {
+                    let mut m: Self = mem::uninitialized();
+                    for i in 0..$nrows {
+                        mem::forget(mem::replace(m.rows.get_unchecked_mut(i), ptr::read(array.get_unchecked(i)).into()));
                     }
                     m
                 }
