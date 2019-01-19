@@ -230,7 +230,7 @@ macro_rules! vec_impl_vec {
         impl<T> $Vec<T> {
             /// Creates a vector from elements.
             #[cfg_attr(feature = "clippy", allow(too_many_arguments))]
-            pub fn new($($namedget:T),+) -> Self {
+            pub const fn new($($namedget:T),+) -> Self {
                 $Vec($($namedget),+)
             }
         }
@@ -244,7 +244,7 @@ macro_rules! vec_impl_vec {
         impl<T> $Vec<T> {
             /// Creates a vector from elements.
             #[cfg_attr(feature = "clippy", allow(too_many_arguments))]
-            pub fn new($($namedget:T),+) -> Self {
+            pub const fn new($($namedget:T),+) -> Self {
                 Self { $($namedget),+ }
             }
         }
@@ -388,7 +388,7 @@ macro_rules! vec_impl_vec {
             /// let v = Vec4::new(0,1,2,3);
             /// assert_eq!(v.elem_count(), 4);
             /// ```
-            pub fn elem_count(&self) -> usize {
+            pub const fn elem_count(&self) -> usize {
                 $dim
             }
             /// Convenience constant representing the number of elements for this vector type.
@@ -416,7 +416,7 @@ macro_rules! vec_impl_vec {
                 let mut i = -1isize;
                 $(
                     i += 1;
-                    if unsafe { ptr.offset(i) } != &self.$get as *const _ {
+                    if ptr.wrapping_offset(i) != &self.$get as *const _ {
                         return false;
                     }
                 )+
@@ -2133,6 +2133,9 @@ macro_rules! vec_impl_color_rgba {
                 let Self { r, g, b, .. } = self;
                 (r+g+b) / T::from(3)
             }
+        }
+
+        impl<T> $Vec<T> {
             /// Returns this vector with elements shuffled to map RGBA to ARGB.
             pub fn shuffled_argb(self) -> Self {
                 let Self { r, g, b, a } = self;
@@ -2211,6 +2214,9 @@ macro_rules! vec_impl_color_rgb {
                 let Self { r, g, b, .. } = self;
                 (r+g+b) / T::from(3)
             }
+        }
+
+        impl<T> $Vec<T> {
             /// Returns this vector with R and B elements swapped.
             pub fn shuffled_bgr(self) -> Self {
                 let Self { r, g, b } = self;
