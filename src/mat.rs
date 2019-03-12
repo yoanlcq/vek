@@ -2224,19 +2224,7 @@ macro_rules! mat_impl_mat4 {
             /// from an eye position, a target position, and up vector.
             /// Commonly used for cameras - in short, it maps points from
             /// world-space to eye-space.
-            ///
-            /// ```
-            /// # extern crate vek;
-            /// # #[macro_use] extern crate approx;
-            /// # use vek::{Mat4, Vec4};
-            /// # fn main() {
-            /// let eye = Vec4::new(1_f32, 0., 1., 1.);
-            /// let target = Vec4::new(2_f32, 0., 2., 1.);
-            /// let view = Mat4::<f32>::look_at(eye, target, Vec4::up());
-            /// assert_relative_eq!(view * eye, Vec4::unit_w());
-            /// assert_relative_eq!(view * target, Vec4::new(0_f32, 0., 2_f32.sqrt(), 1.));
-            /// # }
-            /// ```
+            #[deprecated(since = "0.9.7", note = "Use look_at_lh() or look_at_rh() instead depending on your space's handedness")]
             pub fn look_at<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
                 where T: Real + Sum
             {
@@ -2245,9 +2233,22 @@ macro_rules! mat_impl_mat4 {
 
             /// Builds a "look at" view transform for left-handed spaces
             /// from an eye position, a target position, and up vector.
-            /// Commonly used for cameras.
-            // NOTE: Not public. Handedness makes no sense for view/model matrices until someone proves me wrong.
-            pub(crate) fn look_at_lh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
+            /// Commonly used for cameras - in short, it maps points from
+            /// world-space to eye-space.
+            /// 
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::{Mat4, Vec4};
+            /// # fn main() {
+            /// let eye = Vec4::new(1_f32, 0., 1., 1.);
+            /// let target = Vec4::new(2_f32, 0., 2., 1.);
+            /// let view = Mat4::<f32>::look_at_lh(eye, target, Vec4::up());
+            /// assert_relative_eq!(view * eye, Vec4::unit_w());
+            /// assert_relative_eq!(view * target, Vec4::new(0_f32, 0., 2_f32.sqrt(), 1.));
+            /// # }
+            /// ```
+            pub fn look_at_lh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
                 where T: Real + Sum
             {
                 // From GLM
@@ -2265,10 +2266,22 @@ macro_rules! mat_impl_mat4 {
 
             /// Builds a "look at" view transform for right-handed spaces
             /// from an eye position, a target position, and up vector.
-            /// Commonly used for cameras.
-            // NOTE: Not public. Handedness makes no sense for view/model matrices until someone proves me wrong.
-            #[allow(dead_code)]
-            pub(crate) fn look_at_rh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
+            /// Commonly used for cameras - in short, it maps points from
+            /// world-space to eye-space.
+            /// 
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::{Mat4, Vec4};
+            /// # fn main() {
+            /// let eye = Vec4::new(1_f32, 0., 1., 1.);
+            /// let target = Vec4::new(2_f32, 0., 2., 1.);
+            /// let view = Mat4::<f32>::look_at_rh(eye, target, Vec4::up());
+            /// assert_relative_eq!(view * eye, Vec4::unit_w());
+            /// assert_relative_eq!(view * target, Vec4::new(0_f32, 0., -2_f32.sqrt(), 1.));
+            /// # }
+            /// ```
+            pub fn look_at_rh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
                 where T: Real + Sum
             {
                 // From GLM
@@ -2287,25 +2300,7 @@ macro_rules! mat_impl_mat4 {
             /// Builds a "look at" model transform
             /// from an eye position, a target position, and up vector.
             /// Preferred for transforming objects.
-            ///
-            /// ```
-            /// # extern crate vek;
-            /// # #[macro_use] extern crate approx;
-            /// # use vek::{Mat4, Vec4};
-            /// # fn main() {
-            /// let eye = Vec4::new(1_f32, 0., 1., 1.);
-            /// let target = Vec4::new(2_f32, 0., 2., 1.);
-            /// let model = Mat4::<f32>::model_look_at(eye, target, Vec4::up());
-            /// assert_relative_eq!(model * Vec4::unit_w(), eye);
-            /// let d = 2_f32.sqrt();
-            /// assert_relative_eq!(model * Vec4::new(0_f32, 0., d, 1.), target);
-            ///
-            /// // A "model" look-at essentially undoes a "view" look-at
-            /// let view = Mat4::look_at(eye, target, Vec4::up());
-            /// assert_relative_eq!(view * model, Mat4::identity());
-            /// assert_relative_eq!(model * view, Mat4::identity());
-            /// # }
-            /// ```
+            #[deprecated(since = "0.9.7", note = "Use model_look_at_lh() or model_look_at_rh() instead depending on your space's handedness")]
             pub fn model_look_at<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
                 where T: Real + Sum
             {
@@ -2315,8 +2310,26 @@ macro_rules! mat_impl_mat4 {
             /// Builds a "look at" model transform for left-handed spaces
             /// from an eye position, a target position, and up vector.
             /// Preferred for transforming objects.
-            // NOTE: Not public. Handedness makes no sense for view/model matrices until someone proves me wrong.
-            pub(crate) fn model_look_at_lh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
+            /// 
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::{Mat4, Vec4};
+            /// # fn main() {
+            /// let eye = Vec4::new(1_f32, 0., 1., 1.);
+            /// let target = Vec4::new(2_f32, 0., 2., 1.);
+            /// let model = Mat4::<f32>::model_look_at_lh(eye, target, Vec4::up());
+            /// assert_relative_eq!(model * Vec4::unit_w(), eye);
+            /// let d = 2_f32.sqrt();
+            /// assert_relative_eq!(model * Vec4::new(0_f32, 0., d, 1.), target);
+            ///
+            /// // A "model" look-at essentially undoes a "view" look-at
+            /// let view = Mat4::look_at_lh(eye, target, Vec4::up());
+            /// assert_relative_eq!(view * model, Mat4::identity());
+            /// assert_relative_eq!(model * view, Mat4::identity());
+            /// # }
+            /// ```
+            pub fn model_look_at_lh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
                 where T: Real + Sum
             {
                 // Advanced 3D Game Programming with DirectX 10.0, p. 173
@@ -2335,9 +2348,25 @@ macro_rules! mat_impl_mat4 {
             /// Builds a "look at" model transform for right-handed spaces
             /// from an eye position, a target position, and up vector.
             /// Preferred for transforming objects.
-            // NOTE: Not public. Handedness makes no sense for view/model matrices until someone proves me wrong.
-            #[allow(dead_code)]
-            pub(crate) fn model_look_at_rh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
+            /// 
+            /// ```
+            /// # extern crate vek;
+            /// # #[macro_use] extern crate approx;
+            /// # use vek::{Mat4, Vec4};
+            /// # fn main() {
+            /// let eye = Vec4::new(1_f32, 0., -1., 1.);
+            /// let forward = Vec4::new(0_f32, 0., -1., 0.);
+            /// let model = Mat4::<f32>::model_look_at_rh(eye, eye + forward, Vec4::up());
+            /// assert_relative_eq!(model * Vec4::unit_w(), eye);
+            /// assert_relative_eq!(model * forward, forward);
+            ///
+            /// // A "model" look-at essentially undoes a "view" look-at
+            /// let view = Mat4::look_at_rh(eye, eye + forward, Vec4::up());
+            /// assert_relative_eq!(view * model, Mat4::identity());
+            /// assert_relative_eq!(model * view, Mat4::identity());
+            /// # }
+            /// ```
+            pub fn model_look_at_rh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
                 where T: Real + Sum + MulAdd<T,T,Output=T>
             {
                 let (eye, target, up) = (eye.into(), target.into(), up.into());
