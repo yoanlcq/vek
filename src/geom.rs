@@ -460,7 +460,7 @@ macro_rules! geom_complete_mod {
         /// The `is_valid()`, `make_valid()` and `made_valid()` methods are designed to help you
         /// with this.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Aabr<T> {
             /// Minimum coordinates of bounds.
             pub min: Vec2<T>,
@@ -484,7 +484,7 @@ macro_rules! geom_complete_mod {
         /// You should probably use `Aabb` because it is less confusing.  
         /// See also `Rect` for a short discussion on the topic.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Rect3<P,E> {
             /// X position of the **bottom-left-near** corner.
             pub x: P,
@@ -519,7 +519,7 @@ macro_rules! geom_complete_mod {
         /// The `is_valid()`, `make_valid()` and `made_valid()` methods are designed to help you
         /// with this.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Aabb<T> {
             /// Minimum coordinates of bounds.
             pub min: Vec3<T>,
@@ -550,7 +550,7 @@ macro_rules! geom_complete_mod {
 
         /// Disk (2D), represented by center and radius.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         #[allow(missing_docs)]
         pub struct Disk<P,E> {
             pub center: Vec2<P>,
@@ -582,7 +582,7 @@ macro_rules! geom_complete_mod {
 
         /// Sphere (3D), represented by center and radius.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         #[allow(missing_docs)]
         pub struct Sphere<P,E> {
             pub center: Vec3<P>,
@@ -614,7 +614,7 @@ macro_rules! geom_complete_mod {
 
         /// Ellipsis (2D), represented by center and radius in both axii.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         #[allow(missing_docs)]
         pub struct Ellipsis<P,E> {
             pub center: Vec2<P>,
@@ -622,7 +622,7 @@ macro_rules! geom_complete_mod {
         }
         /// Nobody can possibly use this ???
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         #[allow(missing_docs)]
         pub struct Potato<P,E> {
             pub center: Vec3<P>,
@@ -631,7 +631,7 @@ macro_rules! geom_complete_mod {
 
         /// 2D Line segment, represented by two points, `start` and `end`.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         #[allow(missing_docs)]
         pub struct LineSegment2<T> {
             pub start: Vec2<T>,
@@ -639,7 +639,7 @@ macro_rules! geom_complete_mod {
         }
         /// 3D Line segment, represented by two points, `start` and `end`.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         #[allow(missing_docs)]
         pub struct LineSegment3<T> {
             pub start: Vec3<T>,
@@ -651,7 +651,7 @@ macro_rules! geom_complete_mod {
 
         /// 3D ray, represented by a starting point and a normalized direction vector.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct Ray<T> {
             /// The ray's starting point.
             pub origin: Vec3<T>,

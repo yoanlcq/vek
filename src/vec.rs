@@ -1007,7 +1007,7 @@ macro_rules! vec_impl_vec {
                 , $Vec, cmplt, <, Ord
             }
 
-	        /// Returns the linear interpolation of `from` to `to` with `factor` unconstrained.  
+            /// Returns the linear interpolation of `from` to `to` with `factor` unconstrained.  
             /// See the `Lerp` trait.
             pub fn lerp_unclamped_precise<S: Into<Self>>(from: Self, to: Self, factor: S) -> Self
                 where T: Copy + One + Mul<Output=T> + Sub<Output=T> + MulAdd<T,T,Output=T>
@@ -1015,7 +1015,7 @@ macro_rules! vec_impl_vec {
                 let factor = factor.into();
                 from.mul_add(Self::one()-factor, to*factor)
             }
-	        /// Same as `lerp_unclamped_precise`, implemented as a possibly faster but less precise operation.
+            /// Same as `lerp_unclamped_precise`, implemented as a possibly faster but less precise operation.
             /// See the `Lerp` trait.
             pub fn lerp_unclamped<S: Into<Self>>(from: Self, to: Self, factor: S) -> Self
                 where T: Copy + Sub<Output=T> + MulAdd<T,T,Output=T>
@@ -1023,7 +1023,7 @@ macro_rules! vec_impl_vec {
                 let factor = factor.into();
                 factor.mul_add(to - from, from)
             }
-	        /// Returns the linear interpolation of `from` to `to` with `factor` constrained to be
+            /// Returns the linear interpolation of `from` to `to` with `factor` constrained to be
             /// between 0 and 1.  
             /// See the `Lerp` trait.
             pub fn lerp<S: Into<Self> + Clamp + Zero + One>(from: Self, to: Self, factor: S) -> Self

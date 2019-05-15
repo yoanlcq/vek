@@ -2704,7 +2704,7 @@ macro_rules! mat_impl_mat4 {
 
             /// Creates an infinite perspective projection matrix for right-handed spaces.
             ///
-	        /// [Link to PDF](http://www.terathon.com/gdc07_lengyel.pdf)
+            /// [Link to PDF](http://www.terathon.com/gdc07_lengyel.pdf)
             // From GLM
             pub fn tweaked_infinite_perspective_rh (fov_y_radians: T, aspect_ratio: T, near: T, epsilon: T) -> Self 
                 where T: Real + FloatConst + Debug

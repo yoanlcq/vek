@@ -104,15 +104,15 @@ macro_rules! bezier_impl_any {
             pub fn length_by_discretization(self, step_count: u16) -> T
                 where T: Sum + From<u16>
             {
-	            let mut length = T::zero();
-	            let mut prev_point = self.evaluate(T::zero());
+                let mut length = T::zero();
+                let mut prev_point = self.evaluate(T::zero());
                 for i in 1..(step_count+2) {
-    		        let t = <T as From<u16>>::from(i)/(<T as From<u16>>::from(step_count)+T::one());
-    		        let next_point = self.evaluate(t);
+                    let t = <T as From<u16>>::from(i)/(<T as From<u16>>::from(step_count)+T::one());
+                    let next_point = self.evaluate(t);
                     length = length + (next_point - prev_point).magnitude();
-    		        prev_point = next_point;
+                    prev_point = next_point;
                 }
-	            length
+                length
             }
 
             /// Gets the Axis-Aligned Bounding Rectangle for this curve.
@@ -418,7 +418,7 @@ macro_rules! bezier_impl_quadratic {
         
         $(#[$attrs])*
         #[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, /*PartialOrd, Ord*/)]
-		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         ///
         /// Also note that quadratic Bézier curves are quite bad at approximating circles.
         /// See [the relevant section of "A Primer on Bézier Curves"](https://pomax.github.io/bezierinfo/#circles)
@@ -460,7 +460,7 @@ macro_rules! bezier_impl_quadratic {
             /// `dot(T * M, P)` evalutes the Bezier curve at 't'.
             ///
             /// This function name is arguably dubious.
-	        pub fn matrix() -> Mat3<T> {
+            pub fn matrix() -> Mat3<T> {
                 let zero = T::zero();
                 let one = T::one();
                 let two = one+one;
@@ -606,7 +606,7 @@ macro_rules! bezier_impl_cubic {
         
         $(#[$attrs])*
         #[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, /*PartialOrd, Ord*/)]
-		#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct $CubicBezier<T> {
             /// Starting point of the curve.
             pub start: $Point<T>, 
@@ -630,7 +630,7 @@ macro_rules! bezier_impl_cubic {
             pub fn evaluate(self, t: T) -> $Point<T> {
                 let l = T::one();
                 let three = l+l+l;
-		        self.start*(l-t)*(l-t)*(l-t) + self.ctrl0*three*(l-t)*(l-t)*t + self.ctrl1*three*(l-t)*t*t + self.end*t*t*t
+                self.start*(l-t)*(l-t)*(l-t) + self.ctrl0*three*(l-t)*(l-t)*t + self.ctrl1*three*(l-t)*t*t + self.end*t*t*t
             }
             /// Evaluates the derivative tangent at interpolation factor `t`, which happens to give
             /// a non-normalized tangent vector.
@@ -638,16 +638,16 @@ macro_rules! bezier_impl_cubic {
             /// See also `normalized_tangent()`.
             pub fn evaluate_derivative(self, t: T) -> $Point<T> {
                 let l = T::one();
-        	    let n = l+l+l;
+                let n = l+l+l;
                 let two = l+l;
-        		(self.ctrl0-self.start)*(l-t)*(l-t)*n + (self.ctrl1-self.ctrl0)*two*(l-t)*t*n + (self.end-self.ctrl1)*t*t*n
-        	}
+                (self.ctrl0-self.start)*(l-t)*(l-t)*n + (self.ctrl1-self.ctrl0)*two*(l-t)*t*n + (self.end-self.ctrl1)*t*t*n
+            }
             /// Returns the constant matrix M such that,
             /// given `T = [1, t*t, t*t*t, t*t*t*t]` and `P` the vector of control points,
             /// `dot(T * M, P)` evalutes the Bezier curve at 't'.
             ///
             /// This function name is arguably dubious.
-	        pub fn matrix() -> Mat4<T> {
+            pub fn matrix() -> Mat4<T> {
                 let zero = T::zero();
                 let one = T::one();
                 let three = one+one+one;

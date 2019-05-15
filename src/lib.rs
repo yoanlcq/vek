@@ -25,10 +25,10 @@
 
 #![cfg_attr(not(test), no_std)]
 #![doc(
-	test(attr(deny(warnings))),
-	html_root_url = "https://docs.rs/vek/0.9.7",
-	//html_logo_url = "https://yoanlcq.github.io/vek/logo.png",
-	//html_favicon_url = "https://yoanlcq.github.io/vek/favicon.ico",
+    test(attr(deny(warnings))),
+    html_root_url = "https://docs.rs/vek/0.9.7",
+    //html_logo_url = "https://yoanlcq.github.io/vek/logo.png",
+    //html_favicon_url = "https://yoanlcq.github.io/vek/favicon.ico",
 )]
 #![warn(missing_docs)]
 #![allow(stable_features)]
