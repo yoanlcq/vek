@@ -1894,10 +1894,12 @@ macro_rules! mat_impl_mat4 {
                 let Vec3 { x, y, z } = v.into();
                 let t = Vec4 { x, y, z, w: T::zero() };
                 let mut rows = Rows4::from(*self).rows;
-                rows[3][0] += rows[0].dot(t);
-                rows[3][1] += rows[1].dot(t);
-                rows[3][2] += rows[2].dot(t);
-                rows[3][3] += rows[3].dot(t);
+                rows[3] = [
+                    rows[0].dot(t),
+                    rows[1].dot(t),
+                    rows[2].dot(t),
+                    rows[3].dot(t),
+                ].into();
                 *self = Rows4 { rows }.into();
             }
 
