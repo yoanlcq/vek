@@ -118,7 +118,7 @@ macro_rules! geom_impl_rect_or_rect3 {
                 *self = self.intersection(other);
             }
             /// Gets a vector that tells how much `self` penetrates `other`.
-            pub fn $collision_vector_with_rect(self, other: Self) -> $Vec<T> 
+            pub fn $collision_vector_with_rect(self, other: Self) -> $Vec<T>
                 where T: One + Div<T,Output=T>
             {
                 self.$into_aab().$collision_vector_with_aab(other.into())
@@ -126,7 +126,7 @@ macro_rules! geom_impl_rect_or_rect3 {
             $(
             /// Splits this shape in two, by a straight plane along the
             #[doc=$p_s]
-            /// axis.  
+            /// axis.
             /// The returned tuple is `(low, high)`.
             ///
             /// # Panics
@@ -145,7 +145,7 @@ macro_rules! geom_impl_rect_or_rect3 {
                 Self { $($p,)+ $($e,)+ }
             }
         }
-        impl<T> From<$Aab<T>> for $Rect<T,T> 
+        impl<T> From<$Aab<T>> for $Rect<T,T>
             where T: Copy + Sub<T, Output=T>
         {
             fn from(aab: $Aab<T>) -> Self {
@@ -156,7 +156,7 @@ macro_rules! geom_impl_rect_or_rect3 {
                 }
             }
         }
-        impl<T> From<$Rect<T,T>> for $Aab<T> 
+        impl<T> From<$Rect<T,T>> for $Aab<T>
             where T: Copy + Add<T, Output=T>
         {
             fn from(rect: $Rect<T,T>) -> Self {
@@ -197,7 +197,7 @@ macro_rules! geom_impl_aabr_or_aabb {
                 Self { min, max }
             }
             /// Converts this bounding shape to the matching rectangle representation.
-            pub fn $into_rect(self) -> $Rect<T,T> 
+            pub fn $into_rect(self) -> $Rect<T,T>
                 where T: Copy + Sub<T, Output=T>
             {
                 self.into()
@@ -251,25 +251,25 @@ macro_rules! geom_impl_aabr_or_aabb {
                 *self = self.expanded_to_contain_point(p);
             }
             /// Does this bounding shape contain the given point ?
-            pub fn contains_point(self, p: $Vec<T>) -> bool 
+            pub fn contains_point(self, p: $Vec<T>) -> bool
                 where T: PartialOrd
             {
                 true $(&& self.min.$p <= p.$p && p.$p <= self.max.$p)+
             }
             /// Does this bounding shape fully contain another ?
-            pub fn $contains_aab(self, other: Self) -> bool 
+            pub fn $contains_aab(self, other: Self) -> bool
                 where T: PartialOrd
             {
                 true $(&& self.min.$p <= other.min.$p && other.max.$p <= self.max.$p)+
             }
             /// Does this bounding shape collide with another ?
-            pub fn $collides_with_aab(self, other: Self) -> bool 
+            pub fn $collides_with_aab(self, other: Self) -> bool
                 where T: PartialOrd
             {
                 true $(&& self.max.$p > other.min.$p && self.min.$p < other.max.$p)+
             }
             /// Gets a vector that tells how much `self` penetrates `other`.
-            pub fn $collision_vector_with_aab(self, other: Self) -> $Vec<T> 
+            pub fn $collision_vector_with_aab(self, other: Self) -> $Vec<T>
                 where T: Copy + PartialOrd + Sub<T, Output=T> + One + Add<T,Output=T> + Div<T,Output=T>
             {
                 let (b1, b2) = (self, other);
@@ -283,7 +283,7 @@ macro_rules! geom_impl_aabr_or_aabb {
             $(
             /// Splits this shape in two, by a straight plane along the
             #[doc=$p_s]
-            /// axis.  
+            /// axis.
             /// The returned tuple is `(low, high)`.
             ///
             /// # Panics
@@ -351,7 +351,7 @@ macro_rules! geom_impl_disk_or_sphere {
                 self.radius + self.radius
             }
             /// Gets the bounding rectangle for this shape.
-            pub fn $rect(self) -> $Rect<P,E> 
+            pub fn $rect(self) -> $Rect<P,E>
                 where P: Sub<P,Output=P> + From<E> + Copy, E: Copy + Add<E,Output=E>
             {
                 $Rect::from((
@@ -419,7 +419,7 @@ macro_rules! geom_complete_mod {
         /// `Aabr` form. In fact, most existing code in the wild implicitly does this
         /// and so does this crate.
         ///
-        /// `Aabr` structs are often more convenient, faster and probably less confusing.  
+        /// `Aabr` structs are often more convenient, faster and probably less confusing.
         /// The `Rect` type is provided because it exists for a lot of APIs (including
         /// some system APIs, OpenGL, and others).
         ///
@@ -456,7 +456,7 @@ macro_rules! geom_complete_mod {
         /// Axis-aligned Bounding Rectangle (2D), represented by `min` and `max` points.
         ///
         /// **N.B:** You are responsible for ensuring that all respective elements of
-        /// `min` are indeed less than or equal to those of `max`.  
+        /// `min` are indeed less than or equal to those of `max`.
         /// The `is_valid()`, `make_valid()` and `made_valid()` methods are designed to help you
         /// with this.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
@@ -466,6 +466,15 @@ macro_rules! geom_complete_mod {
             pub min: Vec2<T>,
             /// Maximum coordinates of bounds.
             pub max: Vec2<T>,
+        }
+
+        impl<T> From<Aabb<T>> for Aabr<T> {
+            fn from(aabb: Aabb<T>) -> Self {
+                Self {
+                    min: aabb.min.into(),
+                    max: aabb.max.into(),
+                }
+            }
         }
 
         geom_impl_aabr_or_aabb!{
@@ -481,7 +490,7 @@ macro_rules! geom_complete_mod {
         ///
         /// This would have been named `Box`, but it was "taken" by the standard library already.
         ///
-        /// You should probably use `Aabb` because it is less confusing.  
+        /// You should probably use `Aabb` because it is less confusing.
         /// See also `Rect` for a short discussion on the topic.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
@@ -515,7 +524,7 @@ macro_rules! geom_complete_mod {
         /// Axis-aligned Bounding Box (3D), represented by `min` and `max` points.
         ///
         /// **N.B:** You are responsible for ensuring that all respective elements of
-        /// `min` are indeed less than or equal to those of `max`.  
+        /// `min` are indeed less than or equal to those of `max`.
         /// The `is_valid()`, `make_valid()` and `made_valid()` methods are designed to help you
         /// with this.
         #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
@@ -537,14 +546,14 @@ macro_rules! geom_complete_mod {
 
 
         // NOTE: Only implement axis-aligned primitives (a.k.a don't go on a rampage).
-        // 
+        //
         // Don't write, e.g a "Disk in 3D-space" structure, because users would rather
         // represent it with a (Disk, z, orientation) tuple or anything else that suits their particular needs.
         //
         // On the other hand, everybody agrees that a minimal "Disk" struct is a position+radius pair.
         // (even if it's just expressed as a radius with no
         // position, then fine, just use the radius as-is, without making it it a new struct).
-        // 
+        //
         // Any other info, such as fill color, border thickness, etc. are just extras that users can
         // put on top (see composition over inheritance, etc).
 
@@ -559,15 +568,15 @@ macro_rules! geom_complete_mod {
 
         impl<P,E> Disk<P,E> {
             /// Gets this disk's circumference.
-            pub fn circumference(self) -> E 
+            pub fn circumference(self) -> E
                 where E: Copy + FloatConst + Mul<Output=E> + Add<Output=E>
             {
                 let pi = E::PI();
                 (pi + pi) * self.radius
             }
             /// Gets this disk's area.
-            pub fn area(self) -> E where E: Copy + FloatConst + Mul<Output=E> { 
-                let r = self.radius; 
+            pub fn area(self) -> E where E: Copy + FloatConst + Mul<Output=E> {
+                let r = self.radius;
                 E::PI()*r*r
             }
         }
@@ -661,7 +670,7 @@ macro_rules! geom_complete_mod {
 
         impl<T: Real + Sum> Ray<T> {
             /// Creates a `Ray` from a starting point and direction.
-            /// 
+            ///
             /// This doesn't check if `direction` is normalized, because either you know it is, or
             /// it isn't and maybe it doesn't matter for your use case.
             pub fn new(origin: Vec3<T>, direction: Vec3<T>) -> Self {
@@ -669,10 +678,10 @@ macro_rules! geom_complete_mod {
             }
             /// Tests if this ray intersects the given triangle, returning the distance from
             /// the ray's origin along its direction where the intersection lies.
-            /// 
+            ///
             /// If the returned value is `Some(x)` where `x < EPSILON`, then you should
             /// assume there was a line intersection, **NOT** a ray intersection.
-            /// 
+            ///
             /// This uses the [Möller–Trumbore intersection algorithm](https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm).
             pub fn triangle_intersection(&self, tri: [Vec3<T>; 3]) -> Option<T> {
                 let (v0, v1, v2) = (tri[0], tri[1], tri[2]);
