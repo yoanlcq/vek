@@ -1,6 +1,6 @@
 [package]
 version = "0.9.7" # remember to update html_root_url in src/lib.rs
-authors = ["Yoan Lecoq <yoanlecoq.io@gmail.com>"]
+authors = ["Yoan Lecoq <yoanlecoq.io@gmail.com>", "Joshua Barretto <joshua.s.barretto@gmail.com>"]
 description = "Generic 2D-3D math swiss army knife for game engines, with SIMD support and focus on convenience."
 documentation = "https://docs.rs/vek"
 keywords = ["vector", "matrix", "simd", "quaternion", "bezier"]
