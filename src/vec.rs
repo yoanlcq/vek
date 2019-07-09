@@ -1865,7 +1865,7 @@ macro_rules! vec_impl_spatial_4d {
                 ///
                 /// Uses `ApproxEq`.
                 pub fn is_homogeneous(self) -> bool where T: ApproxEq + Zero + One + Copy {
-                    self.is_homogeneous_point() || self.is_homogeneous_vector()
+                    self.is_point() || self.is_direction()
                 }
                 /// Returns true if this vector is a homogeneous point (`w = 1`).
                 ///
