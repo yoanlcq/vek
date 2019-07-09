@@ -1,8 +1,8 @@
 //! Vector types.
 //!
-//! They do NOT derive `PartialOrd` and `Ord`, because it makes no sense for them, 
+//! They do NOT derive `PartialOrd` and `Ord`, because it makes no sense for them,
 //! and functions such as `partial_min` and `partial_max` may give surprising results
-//! because of this.  
+//! because of this.
 //! They do have element-wise comparison functions though.
 
 use std::borrow::{Borrow, BorrowMut};
@@ -132,7 +132,43 @@ macro_rules! vec_impl_trinop {
     }
 }
 
+macro_rules! vec_impl_binop_commutative {
+    (impl $Op:ident<$Vec:ident> for T { $op:tt } where T = $($lhs:ident),+) => {
+        $(
+            // Allows $lhs * $Vec<$lhs>
+            impl $Op<$Vec<$lhs>> for $lhs {
+                type Output = $Vec<$lhs>;
+
+                fn $op(self, rhs: $Vec<$lhs>) -> Self::Output {
+                    rhs.$op(self)
+                }
+            }
+        )+
+    }
+}
+
 macro_rules! vec_impl_binop {
+    // If $Op is commutative, both "a $op b" and "b $op a" produce the same results
+    (commutative impl $Op:ident for $Vec:ident { $op:tt } ($($get:tt)+)) => {
+        // Generate the remaining non-commutative impls
+        vec_impl_binop!(impl $Op for $Vec { $op } ($($get)+));
+
+        /* This is the generic impl we'd like to write: (forbidden by the coherence rules due to
+         * the uncovered type parameter before the local type)
+        impl<T: Copy> $Op<$Vec<T>> for T where T: $Op<T, Output=$Vec<T>> {
+            type Output = $Vec<T>;
+
+            fn $op(self, rhs: $Vec<T>) -> Self::Output {
+                rhs.$op(self)
+            }
+        }
+        */
+
+        // Since the generic impl isn't possible, we'll compromise here and add impls for specific
+        // types. This isn't ideally what we would want in a generic library like this, but it is a
+        // reasonable compromise to enable a nice syntax for certain operators with certain common types.
+        vec_impl_binop_commutative!(impl $Op<$Vec> for T { $op } where T = i8, u8, i16, u16, i32, u32, i64, u64, f32, f64);
+    };
     (impl $Op:ident for $Vec:ident { $op:tt } ($($get:tt)+)) => {
         // NOTE: Reminder that scalars T: Copy also implement Into<$Vec<T>>.
         impl<V, T> $Op<V> for $Vec<T> where V: Into<$Vec<T>>, T: $Op<T, Output=T> {
@@ -183,8 +219,7 @@ macro_rules! vec_impl_binop {
                 $Vec::new($(self.$get.$op(rhs)),+)
             }
         }
-
-    }
+    };
 }
 macro_rules! vec_impl_binop_assign {
     (impl $Op:ident for $Vec:ident { $op:tt } ($($get:tt)+)) => {
@@ -540,7 +575,7 @@ macro_rules! vec_impl_vec {
             /// Fused multiply-add. Returns `self * mul + add`, and may be implemented
             /// efficiently by the hardware.
             ///
-            /// The compiler is often able to detect this kind of operation, 
+            /// The compiler is often able to detect this kind of operation,
             /// so generally you don't need to use it. However, it can make
             /// your intent clear.
             ///
@@ -554,7 +589,7 @@ macro_rules! vec_impl_vec {
             /// let c = Vec4::new(8,9,0,1);
             /// assert_eq!(a*b+c, a.mul_add(b, c));
             /// ```
-            pub fn mul_add<V: Into<Self>>(self, mul: V, add: V) -> Self 
+            pub fn mul_add<V: Into<Self>>(self, mul: V, add: V) -> Self
                 where T: MulAdd<T,T,Output=T>
             {
                 let (mul, add) = (mul.into(), add.into());
@@ -788,7 +823,7 @@ macro_rules! vec_impl_vec {
                 Self::new($(self.$get.sqrt()),+)
             }
 
-            /// Returns a new vector which elements are the respective reciprocal 
+            /// Returns a new vector which elements are the respective reciprocal
             /// square roots of this vector's elements.
             ///
             /// ```
@@ -800,7 +835,7 @@ macro_rules! vec_impl_vec {
             pub fn rsqrt(self) -> Self where T: Real {
                 self.sqrt().recip()
             }
-            /// Returns a new vector which elements are the respective reciprocal 
+            /// Returns a new vector which elements are the respective reciprocal
             /// of this vector's elements.
             ///
             /// ```
@@ -856,7 +891,7 @@ macro_rules! vec_impl_vec {
             pub fn hadd(self, rhs: Self) -> Self where T: Add<T, Output=T> {
                 let mut iter = self.into_iter().chain(rhs.into_iter());
                 $(
-                    let $namedget = { 
+                    let $namedget = {
                         let a = iter.next().unwrap();
                         let b = iter.next().unwrap();
                         a + b
@@ -1007,7 +1042,7 @@ macro_rules! vec_impl_vec {
                 , $Vec, cmplt, <, Ord
             }
 
-            /// Returns the linear interpolation of `from` to `to` with `factor` unconstrained.  
+            /// Returns the linear interpolation of `from` to `to` with `factor` unconstrained.
             /// See the `Lerp` trait.
             pub fn lerp_unclamped_precise<S: Into<Self>>(from: Self, to: Self, factor: S) -> Self
                 where T: Copy + One + Mul<Output=T> + Sub<Output=T> + MulAdd<T,T,Output=T>
@@ -1024,7 +1059,7 @@ macro_rules! vec_impl_vec {
                 factor.mul_add(to - from, from)
             }
             /// Returns the linear interpolation of `from` to `to` with `factor` constrained to be
-            /// between 0 and 1.  
+            /// between 0 and 1.
             /// See the `Lerp` trait.
             pub fn lerp<S: Into<Self> + Clamp + Zero + One>(from: Self, to: Self, factor: S) -> Self
                 where T: Copy + Sub<Output=T> + MulAdd<T,T,Output=T>
@@ -1032,7 +1067,7 @@ macro_rules! vec_impl_vec {
                 Self::lerp_unclamped(from, to, factor.clamped01().into())
             }
             /// Returns the linear interpolation of `from` to `to` with `factor` constrained to be
-            /// between 0 and 1.  
+            /// between 0 and 1.
             /// See the `Lerp` trait.
             pub fn lerp_precise<S: Into<Self> + Clamp + Zero + One>(from: Self, to: Self, factor: S) -> Self
                 where T: Copy + One + Mul<Output=T> + Sub<Output=T> + MulAdd<T,T,Output=T>
@@ -1216,9 +1251,9 @@ macro_rules! vec_impl_vec {
         }
         vec_impl_trinop!{impl MulAdd for $Vec { mul_add } ($($namedget)+)}
         vec_impl_unop!{ impl Neg for $Vec { neg } ($($get)+)}
-        vec_impl_binop!{impl Add for $Vec { add } ($($get)+)}
+        vec_impl_binop!{commutative impl Add for $Vec { add } ($($get)+)}
         vec_impl_binop!{impl Sub for $Vec { sub } ($($get)+)}
-        vec_impl_binop!{impl Mul for $Vec { mul } ($($get)+)}
+        vec_impl_binop!{commutative impl Mul for $Vec { mul } ($($get)+)}
         vec_impl_binop!{impl Div for $Vec { div } ($($get)+)}
         vec_impl_binop!{impl Rem for $Vec { rem } ($($get)+)}
         vec_impl_binop_assign!{ impl AddAssign for $Vec { add_assign } ($($get)+)}
@@ -1336,7 +1371,7 @@ macro_rules! vec_impl_vec {
                 }
             }
         }
-        
+
         impl<T> Iterator for IntoIter<T> {
             type Item = T;
             fn next(&mut self) -> Option<Self::Item> {
@@ -1403,7 +1438,7 @@ macro_rules! vec_impl_vec {
                 let array = mem::ManuallyDrop::new(array);
                 let mut i = -1_isize;
                 $(
-                    i += 1; 
+                    i += 1;
                     let $namedget = unsafe {
                         ptr::read(array.get_unchecked(i as usize))
                     };
@@ -1431,7 +1466,7 @@ macro_rules! vec_impl_vec {
         /// let _ = Mat4::scaling_3d(5_f32);
         /// ```
         ///
-        /// On the other hand, it also allows writing nonsense.  
+        /// On the other hand, it also allows writing nonsense.
         /// To minimize surprises, the names of operations try to be as explicit as possible.
         ///
         /// ```
@@ -1508,7 +1543,7 @@ macro_rules! vec_impl_spatial {
                 self.angle_between(v).to_degrees()
             }
             /// The reflection direction for this vector on a surface which normal is given.
-            pub fn reflected(self, surface_normal: Self) -> Self 
+            pub fn reflected(self, surface_normal: Self) -> Self
                 where T: Copy + Sum + Mul<Output=T> + Sub<Output=T> + Add<Output=T>
             {
                 let dot = self.dot(surface_normal);
@@ -1560,7 +1595,7 @@ macro_rules! vec_impl_spatial_2d {
             /// - ` < 0`: This point lies in the half-space right of segment `ab`.
             /// - `== 0`: This point lies in the infinite line along segment `ab`.
             /// - ` > 0`: This point lies in the half-space left of segment `ab`.
-            pub fn determine_side(self, a: Self, b: Self) -> T 
+            pub fn determine_side(self, a: Self, b: Self) -> T
                 where T: Copy + Sub<Output=T> + Mul<Output=T>
             {
                 let (cx, cy) = self.into_tuple();
@@ -1619,10 +1654,10 @@ macro_rules! vec_impl_spatial_2d {
             pub fn left      () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_x() }
             /// Get the unit vector which has `x` set to 1.
             pub fn right     () -> Self where T: Zero + One {  Self::unit_x() }
-            /// Get the unit vector which has `y` set to 1.  
+            /// Get the unit vector which has `y` set to 1.
             /// This is not intended for screen-space coordinates (in which case the Y axis is reversed). When in doubt, just use `unit_y()` instead.
             pub fn up        () -> Self where T: Zero + One {  Self::unit_y() }
-            /// Get the unit vector which has `y` set to -1.  
+            /// Get the unit vector which has `y` set to -1.
             /// This is not intended for screen-space coordinates (in which case the Y axis is reversed). When in doubt, just use `unit_y()` instead.
             pub fn down      () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_y() }
         }
@@ -1657,7 +1692,7 @@ macro_rules! vec_impl_spatial_3d {
                 /// The cross-product of this vector with another.
                 ///
                 /// On two noncolinear vectors, the result is perpendicular to the plane they
-                /// define. 
+                /// define.
                 ///
                 /// The result's facing direction depends on the handedness of your
                 /// coordinate system:
@@ -1684,7 +1719,7 @@ macro_rules! vec_impl_spatial_3d {
                 /// assert_relative_eq!(i.cross(j), k);
                 /// # }
                 /// ```
-                pub fn cross(self, b: Self) 
+                pub fn cross(self, b: Self)
                     -> Self where T: Copy + Mul<Output=T> + Sub<Output=T>
                 {
                     let a = self;
@@ -1759,7 +1794,7 @@ macro_rules! vec_impl_spatial_3d {
                 /// Get the unit vector which has `z` set to 1 ("back" in a right-handed coordinate system).
                 pub fn back_rh   () -> Self where T: Zero + One {  Self::unit_z() }
             }
-            impl<T> Slerp<T> for $Vec<T> 
+            impl<T> Slerp<T> for $Vec<T>
                 where T: Sum + Real + Clamp + Lerp<T,Output=T>
             {
                 type Output = Self;
@@ -1852,7 +1887,7 @@ macro_rules! vec_impl_pixel_rgb {
 
         use self::image::{Primitive, Pixel, ColorType, Luma, LumaA};
 
-        impl<T> Pixel for $Vec<T> 
+        impl<T> Pixel for $Vec<T>
             where T: ColorComponent + Copy + Clone + Primitive
         {
             type Subpixel = T;
@@ -1958,7 +1993,7 @@ macro_rules! vec_impl_pixel_rgba {
 
         use self::image::{Primitive, Pixel, ColorType, Luma, LumaA};
 
-        impl<T> Pixel for $Vec<T> 
+        impl<T> Pixel for $Vec<T>
             where T: ColorComponent + Copy + Clone + Primitive
         {
             type Subpixel = T;
@@ -2126,7 +2161,7 @@ macro_rules! vec_impl_color_rgba {
             /// Returns the average of this vector's RGB elements.
             ///
             /// This is not the same as `average` because `average` takes all elements into
-            /// account, which includes alpha.  
+            /// account, which includes alpha.
             /// Be careful when calling this on integer vectors. See the `average()` method
             /// of vectors for a discussion and example.
             pub fn average_rgb(self) -> T where T: Sum + Div<T, Output=T> + From<u8> {
@@ -2292,7 +2327,7 @@ macro_rules! vec_impl_shuffle_4d {
             }
             /// Moves the lower two elements of this vector to the upper two elements of the result.
             /// The lower two elements of this vector are passed through to the result.
-            /// 
+            ///
             /// The relevant x86 intrinsic is `_mm_movelh_ps(v, v)`.
             ///
             /// ```
@@ -2337,7 +2372,7 @@ macro_rules! vec_impl_shuffle_4d {
                 Self::new(lo[lo0], lo[lo1], hi[hi2], hi[hi3])
             }
             /// Interleaves the lower two elements from `a` and `b`.
-            /// 
+            ///
             /// The relevant x86 intrinsic is `_mm_unpacklo_ps(a, b)`.
             ///
             /// ```
@@ -2351,7 +2386,7 @@ macro_rules! vec_impl_shuffle_4d {
                 Self::new(a.$x, b.$x, a.$y, b.$y)
             }
             /// Interleaves the upper two elements from `a` and `b`.
-            /// 
+            ///
             /// The relevant x86 intrinsic is `_mm_unpackhi_ps(a, b)`.
             ///
             /// ```
@@ -2366,7 +2401,7 @@ macro_rules! vec_impl_shuffle_4d {
             }
             /// Moves the lower two elements of `b` to the upper two elements of the result.
             /// The lower two elements of `a` are passed through to the result.
-            /// 
+            ///
             /// The relevant x86 intrinsic is `_mm_movelh_ps(a, b)`.
             ///
             /// ```
@@ -2397,7 +2432,7 @@ macro_rules! vec_impl_shuffle_4d {
             /// Returns a copy of this vector with `v[1]` set to `v[0]` and `v[3]` set to `v[2]`.
             ///
             /// The relevant x86 intrinsic is `_mm_moveldup_ps(v)`.
-            /// 
+            ///
             /// ```
             /// # use vek::Vec4;
             /// let a = Vec4::<u32>::new(0,1,2,3);
@@ -2573,8 +2608,8 @@ macro_rules! vec_impl_all_vecs {
             $(#[$repr_attrs])+
             pub struct Vec4<T> {
                 pub x:T, pub y:T, pub z:T,
-                /// In homogeneous 3D-space coordinates, `w` is often set to 
-                /// `1` for points, and `0` for directions.  
+                /// In homogeneous 3D-space coordinates, `w` is often set to
+                /// `1` for points, and `0` for directions.
                 ///
                 /// One reason behind this: with floating-point numbers,
                 /// division by zero gives infinity (a direction is then
@@ -2613,9 +2648,9 @@ macro_rules! vec_impl_all_vecs {
             use super::*;
             /// An eight-components generic vector type.
             ///
-            /// This type exists mostly for crunching arrays of values.  
-            /// For instance, on AVX2-enabled x86 CPUs, a `Vec8<i32>` makes sense.  
-            /// Otherwise, LLVM lowers it to a fixed-sized array of whichever "best" SIMD vector type is available.  
+            /// This type exists mostly for crunching arrays of values.
+            /// For instance, on AVX2-enabled x86 CPUs, a `Vec8<i32>` makes sense.
+            /// Otherwise, LLVM lowers it to a fixed-sized array of whichever "best" SIMD vector type is available.
             ///
             /// There's a lot of related intrinsics that are not provided as associated functions.
             /// If you find yourself needing them, use other crates such as `llvmint` or `x86intrin`.
@@ -2635,9 +2670,9 @@ macro_rules! vec_impl_all_vecs {
             use super::*;
             /// A sixteen-components generic vector type.
             ///
-            /// This type exists mostly for crunching arrays of values.  
-            /// For instance, on AVX2-enabled x86 CPUs, a `Vec16<i16>` makes sense.  
-            /// Otherwise, LLVM lowers it to a fixed-sized array of whichever "best" SIMD vector type is available.  
+            /// This type exists mostly for crunching arrays of values.
+            /// For instance, on AVX2-enabled x86 CPUs, a `Vec16<i16>` makes sense.
+            /// Otherwise, LLVM lowers it to a fixed-sized array of whichever "best" SIMD vector type is available.
             ///
             /// There's a lot of related intrinsics that are not provided as associated functions.
             /// If you find yourself needing them, use other crates such as `llvmint` or `x86intrin`.
@@ -2657,9 +2692,9 @@ macro_rules! vec_impl_all_vecs {
             use super::*;
             /// A thirty-two-components generic vector type.
             ///
-            /// This type exists mostly for crunching arrays of values.  
-            /// For instance, on AVX512-enabled x86 CPUs, a `Vec32<i16>` makes sense.  
-            /// Otherwise, LLVM lowers it to a fixed-sized array of whichever "best" SIMD vector type is available.  
+            /// This type exists mostly for crunching arrays of values.
+            /// For instance, on AVX512-enabled x86 CPUs, a `Vec32<i16>` makes sense.
+            /// Otherwise, LLVM lowers it to a fixed-sized array of whichever "best" SIMD vector type is available.
             ///
             /// There's a lot of related intrinsics that are not provided as associated functions.
             /// If you find yourself needing them, use other crates such as `llvmint` or `x86intrin`.
@@ -2680,9 +2715,9 @@ macro_rules! vec_impl_all_vecs {
             use super::*;
             /// A sixty-four-components generic vector type.
             ///
-            /// This type exists mostly for crunching arrays of values.  
-            /// For instance, on AVX512-enabled x86 CPUs, a `Vec64<i8>` makes sense.  
-            /// Otherwise, LLVM is able to process it as a fixed-sized array of whichever "best" SIMD vector type available.  
+            /// This type exists mostly for crunching arrays of values.
+            /// For instance, on AVX512-enabled x86 CPUs, a `Vec64<i8>` makes sense.
+            /// Otherwise, LLVM is able to process it as a fixed-sized array of whichever "best" SIMD vector type available.
             ///
             /// There's a lot of related intrinsics that are not provided as associated functions.
             /// If you find yourself needing them, use other crates such as `llvmint` or `x86intrin`.
@@ -2701,7 +2736,7 @@ macro_rules! vec_impl_all_vecs {
             use super::*;
             /// Vector type suited for 3D extents (width, height and depth).
             ///
-            /// There is no `Unsigned` trait bound because it is not practical, 
+            /// There is no `Unsigned` trait bound because it is not practical,
             /// since we sometimes want to be
             /// able to express extents as floating-point numbers, for instance.
             ///
@@ -2728,7 +2763,7 @@ macro_rules! vec_impl_all_vecs {
             use super::*;
             /// Vector type suited for 2D extents (width and height).
             ///
-            /// There is no `Unsigned` trait bound because it is not practical, 
+            /// There is no `Unsigned` trait bound because it is not practical,
             /// since we sometimes want to be
             /// able to express extents as floating-point numbers, for instance.
             ///
@@ -2864,7 +2899,7 @@ pub mod repr_c {
     //! See also the `repr_simd` neighbour module, which is available on Nightly
     //! with the `repr_simd` feature enabled.
 
-   
+
     use super::*;
     vec_impl_all_vecs!{
         c
@@ -2875,7 +2910,7 @@ pub mod repr_c {
 #[cfg(all(nightly, feature="repr_simd"))]
 pub mod repr_simd {
     //! Vector types which are marked `#[repr(simd)]`.
-    
+
     use super::*;
     vec_impl_all_vecs!{
         simd
@@ -2977,6 +3012,12 @@ mod tests {
                 let v = $Vec::<$T>::iota().map(|x| vec![x]);
                 let a = v.clone().into_array();
                 assert_eq!(v.as_slice(), &a);
+            }
+
+            #[test] fn commutative() {
+                let v = $Vec::from(5 as $T);
+                assert_eq!((2 as $T) * v, v * (2 as $T));
+                assert_eq!((2 as $T) + v, v + (2 as $T));
             }
         };
     }
