@@ -1870,13 +1870,13 @@ macro_rules! vec_impl_spatial_4d {
                 /// Returns true if this vector is a homogeneous point (`w = 1`).
                 ///
                 /// Uses `ApproxEq`.
-                pub fn is_homogeneous_point(self) -> bool where T: ApproxEq + One {
+                pub fn is_point(self) -> bool where T: ApproxEq + One {
                     self.w.relative_eq(&T::one(), T::default_epsilon(), T::default_max_relative())
                 }
-                /// Returns true if this vector is a homogeneous vector (`w = 0`).
+                /// Returns true if this vector is a homogeneous direction (`w = 0`).
                 ///
                 /// Uses `ApproxEq`.
-                pub fn is_homogeneous_vector(self) -> bool where T: ApproxEq + Zero {
+                pub fn is_direction(self) -> bool where T: ApproxEq + Zero {
                     self.w.relative_eq(&T::zero(), T::default_epsilon(), T::default_max_relative())
                 }
             }
