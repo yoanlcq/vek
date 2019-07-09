@@ -24,3 +24,4 @@ If you plan to work a pull request, please file an issue first so that we can ag
 (See also `authors` in `Cargo.toml`!)
 
 - Joshua Barretto (GitHub: [@zesterer](https://github.com/zesterer))
+- Sunjay Varma (GitHub : [@sunjay](https://github.com/sunjay))
