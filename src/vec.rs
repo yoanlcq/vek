@@ -1840,6 +1840,45 @@ macro_rules! vec_impl_spatial_4d {
                 pub fn back_point_lh   () -> Self where T: Zero + One + Neg<Output=T> { Self::new(T::zero(), T::zero(), -T::one(), T::one()) }
                 /// Get the homogeneous point vector which has `z` set to 1 ("back" in a right-handed coordinate system).
                 pub fn back_point_rh   () -> Self where T: Zero + One {  Self::unit_z_point() }
+
+                /// Get a copy of this vector where each component has been divided in order to
+                /// make `w = 1`.
+                ///
+                /// More info: A homogeneous point has `w = 1`. Some operations (e.g. projection)
+                /// can cause this to no longer be the case. Homogenization is when you divide
+                /// every component of the vector by `w`. This makes `w = 1` and the remaining
+                /// components are also appropriately scaled. This process is also called
+                /// "normalization" in some textbooks, but that name is already taken by
+                /// other methods of this struct.
+                ///
+                /// If `w = 0`, this method will result in a division by zero. Be careful!
+                pub fn homogenized(self) -> Self where T: Div<Output=T>, T: Copy {
+                    self / self.w
+                }
+                /// Divide the vector's components such that `w = 1`.
+                ///
+                /// See the `homogenized` method for more information.
+                pub fn homogenize(&mut self) where T: Div<Output=T>, T: Copy {
+                    *self = self.homogenized();
+                }
+                /// Returns true if this vector is homogeneous (`w = 0` or `w = 1`).
+                ///
+                /// Uses `ApproxEq`.
+                pub fn is_homogeneous(self) -> bool where T: ApproxEq + Zero + One + Copy {
+                    self.is_homogeneous_point() || self.is_homogeneous_vector()
+                }
+                /// Returns true if this vector is a homogeneous point (`w = 1`).
+                ///
+                /// Uses `ApproxEq`.
+                pub fn is_homogeneous_point(self) -> bool where T: ApproxEq + One {
+                    self.w.relative_eq(&T::one(), T::default_epsilon(), T::default_max_relative())
+                }
+                /// Returns true if this vector is a homogeneous vector (`w = 0`).
+                ///
+                /// Uses `ApproxEq`.
+                pub fn is_homogeneous_vector(self) -> bool where T: ApproxEq + Zero {
+                    self.w.relative_eq(&T::zero(), T::default_epsilon(), T::default_max_relative())
+                }
             }
         )+
     }
