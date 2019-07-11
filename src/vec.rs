@@ -1423,6 +1423,17 @@ macro_rules! vec_impl_vec {
             }
         }
 
+        impl<T> Sum for $Vec<T> where T: Add<T, Output=T> + Zero {
+            fn sum<I: Iterator<Item=$Vec<T>>>(iter: I) -> $Vec<T> {
+                iter.fold(Self::zero(), Add::add)
+            }
+        }
+
+        impl<T> Product for $Vec<T> where T: Mul<T, Output=T> + One {
+            fn product<I: Iterator<Item=$Vec<T>>>(iter: I) -> $Vec<T> {
+                iter.fold(Self::one(), Mul::mul)
+            }
+        }
 
         // CONVERSIONS
 
