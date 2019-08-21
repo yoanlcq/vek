@@ -556,6 +556,17 @@ macro_rules! vec_impl_vec {
             pub fn apply2<F, S>(&mut self, other: $Vec<S>, mut f: F) where T: Copy, F: FnMut(T, S) -> T {
                 $(self.$get = f(self.$get, other.$get);)+
             }
+            /// "Zips" two vectors together into a vector of tuples.
+            ///
+            /// ```
+            /// # use vek::vec::Vec4;
+            /// let a = Vec4::<u8>::new(255, 254, 253, 252);
+            /// let b = Vec4::<u8>::new(1, 2, 3, 4);
+            /// assert_eq!(a.zip(b), Vec4::new((255, 1), (254, 2), (253, 3), (252, 4)));
+            /// ```
+            pub fn zip<S>(self, other: $Vec<S>) -> $Vec<(T, S)> {
+                self.map2(other, |a, b| (a, b))
+            }
             /// Returns a memberwise-converted copy of this vector, using `NumCast`.
             ///
             /// ```
