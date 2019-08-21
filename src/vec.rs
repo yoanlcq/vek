@@ -564,7 +564,7 @@ macro_rules! vec_impl_vec {
             /// let b = Vec4::<u8>::new(1, 2, 3, 4);
             /// assert_eq!(a.zip(b), Vec4::new((255, 1), (254, 2), (253, 3), (252, 4)));
             /// ```
-            pub fn zip<D,S>(self, other: $Vec<S>) -> $Vec<D> {
+            pub fn zip<S>(self, other: $Vec<S>) -> $Vec<(T, S)> {
                 self.map2(other, |a, b| (a, b))
             }
             /// Returns a memberwise-converted copy of this vector, using `NumCast`.
