@@ -1545,6 +1545,15 @@ macro_rules! vec_impl_spatial {
             pub fn normalized(self) -> Self where T: Sum + Real {
                 self / self.magnitude()
             }
+            /// Get a copy of this direction vector such that its length equals 1.
+            /// If all components are zero, None is returned.
+            pub fn try_normalized(self) -> Option<Self> where T: Sum + Real {
+                if self.map(|n| n.abs() < Real::epsilon()).reduce_and() {
+                    None
+                } else {
+                    Some(self / self.magnitude())
+                }
+            }
             /// Divide this vector's components such that its length equals 1.
             pub fn normalize(&mut self) where T: Sum + Real {
                 *self = self.normalized();
