@@ -1545,6 +1545,15 @@ macro_rules! vec_impl_spatial {
             pub fn normalized(self) -> Self where T: Sum + Real {
                 self / self.magnitude()
             }
+            /// Get a copy of this direction vector such that its length equals 1.
+            /// If all components approximately zero, None is returned (uses ApproxEq).
+            pub fn try_normalized(self) -> Option<Self> where T: ApproxEq + Sum + Real {
+                if self.is_approx_zero() {
+                    None
+                } else {
+                    Some(self.normalized())
+                }
+            }
             /// Divide this vector's components such that its length equals 1.
             pub fn normalize(&mut self) where T: Sum + Real {
                 *self = self.normalized();
@@ -1552,6 +1561,10 @@ macro_rules! vec_impl_spatial {
             /// Is this vector normalized ? (Uses `ApproxEq`)
             pub fn is_normalized(self) -> bool where T: ApproxEq + Sum + Real {
                 self.magnitude_squared().relative_eq(&T::one(), T::default_epsilon(), T::default_max_relative())
+            }
+            /// Is this vector approximately zero ? (Uses `ApproxEq`)
+            pub fn is_approx_zero(self) -> bool where T: ApproxEq + Sum + Real {
+                self.map(|n| n.relative_eq(&T::zero(), T::default_epsilon(), T::default_max_relative())).reduce_and()
             }
             /// Get the smallest angle, in radians, between two direction vectors.
             pub fn angle_between(self, v: Self) -> T where T: Sum + Real {

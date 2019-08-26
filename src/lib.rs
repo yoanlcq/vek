@@ -26,7 +26,7 @@
 #![cfg_attr(not(test), no_std)]
 #![doc(
     test(attr(deny(warnings))),
-    html_root_url = "https://docs.rs/vek/0.9.8",
+    html_root_url = "https://docs.rs/vek/0.9.9",
     //html_logo_url = "https://yoanlcq.github.io/vek/logo.png",
     //html_favicon_url = "https://yoanlcq.github.io/vek/favicon.ico",
 )]
@@ -35,29 +35,29 @@
 //#![deny(warnings)]
 //#![allow(unknown_lints)]
 //#![deny(incoherent_fundamental_impls)]
-#![cfg_attr(all(nightly, feature="clippy"), feature(plugin))]
-#![cfg_attr(all(nightly, feature="clippy"), plugin(clippy))]
+#![cfg_attr(all(nightly, feature = "clippy"), feature(plugin))]
+#![cfg_attr(all(nightly, feature = "clippy"), plugin(clippy))]
 //#![cfg_attr(all(nightly, feature="repr_simd" ), feature(cfg_target_feature))]
-#![cfg_attr(all(nightly, feature="repr_simd" ), feature(repr_simd, simd_ffi))]
+#![cfg_attr(all(nightly, feature = "repr_simd"), feature(repr_simd, simd_ffi))]
 //#![cfg_attr(feature="repr_simd", allow(improper_ctypes)]
 //#![cfg_attr(feature="repr_simd", feature(link_llvm_intrinsics)]
-#![cfg_attr(all(nightly,test), feature(test))]
+#![cfg_attr(all(nightly, test), feature(test))]
 
 #[cfg(not(test))]
 extern crate core as std;
 
-#[cfg(all(nightly,test))]
+#[cfg(all(nightly, test))]
 extern crate test;
 
-#[cfg(feature="serde")]
+#[cfg(feature = "serde")]
 #[macro_use]
 extern crate serde;
 
-#[cfg(feature="x86intrin")]
+#[cfg(feature = "x86intrin")]
 extern crate x86intrin;
 
-extern crate num_traits;
 extern crate num_integer;
+extern crate num_traits;
 // NOTE: Allow unused imports here, because usage depends on which features are enabled.
 #[allow(unused_imports)]
 #[macro_use]
@@ -82,4 +82,3 @@ pub mod bezier;
 pub use bezier::*;
 pub mod geom;
 pub use geom::*;
-
