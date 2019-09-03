@@ -2611,6 +2611,14 @@ macro_rules! vec_impl_all_vecs {
             vec_impl_spatial!(Vec2);
             vec_impl_spatial_2d!(Vec2);
 
+            impl<T> Vec2<T> {
+                /// Returns a copy of this vector, with X and Y swapped.
+                pub fn yx(self) -> Self {
+                    let Self { x, y } = self;
+                    Self { x: y, y: x }
+                }
+            }
+
             impl<T> From<Vec3<T>> for Vec2<T> {
                 fn from(v: Vec3<T>) -> Self {
                     Self::new(v.x, v.y)
@@ -2641,6 +2649,18 @@ macro_rules! vec_impl_all_vecs {
             vec_impl_vec!($c_or_simd struct Vec3     vec3     (3) ("({}, {}, {})") (x y z) (x y z) (0 1 2) (T,T,T));
             vec_impl_spatial!(Vec3);
             vec_impl_spatial_3d!(Vec3);
+
+            impl<T> Vec3<T> {
+                /// Returns a copy of this vector, with X and Z swapped.
+                pub fn zyx(self) -> Self {
+                    let Self { x, y, z } = self;
+                    Self { x: z, y, z: x }
+                }
+                /// Same as Vec2::from(self), but shorter.
+                pub fn xy(self) -> Vec2<T> {
+                    self.into()
+                }
+            }
 
             impl<T: Zero> From<Vec2<T>> for Vec3<T> {
                 fn from(v: Vec2<T>) -> Self {
@@ -2695,6 +2715,27 @@ macro_rules! vec_impl_all_vecs {
             vec_impl_spatial_4d!(Vec4);
             vec_impl_shuffle_4d!(Vec4 (x y z w));
             vec_impl_mat2_via_vec4!(Vec4);
+
+            impl<T> Vec4<T> {
+                /// Returns a copy of this vector, with elements reversed.
+                pub fn wzyx(self) -> Self {
+                    let Self { x, y, z, w } = self;
+                    Self { x: w, y: z, z: y, w: x }
+                }
+                /// Returns a copy of this vector, with X and Z swapped.
+                pub fn zyxw(self) -> Self {
+                    let Self { x, y, z, w } = self;
+                    Self { x: z, y, z: x, w }
+                }
+                /// Same as Vec3::from(self), but shorter.
+                pub fn xyz(self) -> Vec3<T> {
+                    self.into()
+                }
+                /// Same as Vec2::from(self), but shorter.
+                pub fn xy(self) -> Vec2<T> {
+                    self.into()
+                }
+            }
 
             impl<T: Zero> From<Vec3<T>> for Vec4<T> {
                 fn from(v: Vec3<T>) -> Self {
@@ -2876,6 +2917,13 @@ macro_rules! vec_impl_all_vecs {
             vec_impl_color_rgba!{Rgba}
             vec_impl_shuffle_4d!(Rgba (r g b a));
 
+            #[cfg(feature="rgb")]
+            impl<T> Rgba<T> {
+                /// Same as Rgb::from(self), but more concise.
+                fn rgb(self) -> Rgb<T> {
+                    self.into()
+                }
+            }
             impl<T> From<Vec4<T>> for Rgba<T> {
                 fn from(v: Vec4<T>) -> Self {
                     Self::new(v.x, v.y, v.z, v.w)
