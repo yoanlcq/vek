@@ -55,6 +55,7 @@ num-integer = "~0.1.35"
 static_assertions = "~0.2.5"
 image = { version = "~0.17", optional = true, default-features = false }
 serde = { version = "~1.0.24", optional = true, features = ["derive"] }
+mint = { version = "~0.5.1", optional = true }
 # clippy = { version = "0.0.166", optional = true }
 
 [target.'cfg(any(target_arch="x86", target_arch="x86_64"))'.dependencies]

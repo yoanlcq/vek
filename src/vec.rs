@@ -2593,6 +2593,21 @@ macro_rules! vec_impl_mat2_via_vec4 {
 }
 
 
+#[cfg(feature = "mint")]
+macro_rules! vec_impl_mint {
+    ($Vec:ident, $mintVec: ident) => {
+        use mint::$mintVec;
+        impl<T> From<$mintVec<T>> for $Vec<T>
+        where
+            T: Copy + Default,
+        {
+            fn from(v: $mintVec<T>) -> $Vec<T> {
+                $Vec::from_slice(&v.as_ref()[..])
+
+            }
+        }
+     };
+ }
 
 /// Calls `vec_impl_vec!{}` on each appropriate vector type.
 macro_rules! vec_impl_all_vecs {
@@ -2610,6 +2625,9 @@ macro_rules! vec_impl_all_vecs {
             vec_impl_vec!($c_or_simd struct Vec2   vec2      (2) ("({}, {})") (x y) (x y) (0 1) (T,T));
             vec_impl_spatial!(Vec2);
             vec_impl_spatial_2d!(Vec2);
+            #[cfg(feature = "mint")]
+            vec_impl_mint!(Vec2, Vector2);
+
 
             impl<T> Vec2<T> {
                 /// Returns a copy of this vector, with X and Y swapped.

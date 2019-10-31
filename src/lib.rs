@@ -3,14 +3,14 @@
 //! See [the wiki](https://github.com/yoanlcq/vek/wiki) for an overview, FAQ, guides, and other info.
 //!
 //! This crate is still in its beta days!
-//! The public API is quite close to being stable, but it hasn't been battle-tested enough.  
+//! The public API is quite close to being stable, but it hasn't been battle-tested enough.
 //! Issues and bug reports are very welcome!
 //!
 //! # Cargo features
 //!
 //! - `vec8`, `vec16`, `vec32`, `vec64`, `rgba`, `rgb`, `uvw`, `uv`
 //!   Enable these types.
-//!   Other types are always enabled for the sake of doc-tests.  
+//!   Other types are always enabled for the sake of doc-tests.
 //! - `repr_simd` enables Nightly Rust's `repr_simd` and `simd_ffi` features, and unlock
 //!   SIMD versions of all appropriate types (though `repr_simd` modules).
 //!   On Stable, this feature has no effect.
@@ -55,6 +55,9 @@ extern crate serde;
 
 #[cfg(feature = "x86intrin")]
 extern crate x86intrin;
+
+#[cfg(feature = "mint")]
+extern crate mint;
 
 extern crate num_integer;
 extern crate num_traits;
