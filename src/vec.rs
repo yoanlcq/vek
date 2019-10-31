@@ -2596,13 +2596,21 @@ macro_rules! vec_impl_mat2_via_vec4 {
 #[cfg(feature = "mint")]
 macro_rules! vec_impl_mint {
     ($Vec:ident, $mintVec: ident) => {
-        use mint::$mintVec;
-        impl<T> From<$mintVec<T>> for $Vec<T>
+        impl<T> From<mint::$mintVec<T>> for $Vec<T>
         where
             T: Copy + Default,
         {
-            fn from(v: $mintVec<T>) -> $Vec<T> {
+            fn from(v: mint::$mintVec<T>) -> $Vec<T> {
                 $Vec::from_slice(&v.as_ref()[..])
+
+            }
+        }
+        impl<T> Into<mint::$mintVec<T>> for $Vec<T>
+        where
+            T: Copy + Default,
+        {
+            fn into(self) -> mint::$mintVec<T> {
+                mint::$mintVec::<T>::from_slice(self.as_slice())
 
             }
         }
@@ -2667,6 +2675,8 @@ macro_rules! vec_impl_all_vecs {
             vec_impl_vec!($c_or_simd struct Vec3     vec3     (3) ("({}, {}, {})") (x y z) (x y z) (0 1 2) (T,T,T));
             vec_impl_spatial!(Vec3);
             vec_impl_spatial_3d!(Vec3);
+            #[cfg(feature = "mint")]
+            vec_impl_mint!(Vec3, Vector3);
 
             impl<T> Vec3<T> {
                 /// Returns a copy of this vector, with X and Z swapped.
@@ -2733,6 +2743,8 @@ macro_rules! vec_impl_all_vecs {
             vec_impl_spatial_4d!(Vec4);
             vec_impl_shuffle_4d!(Vec4 (x y z w));
             vec_impl_mat2_via_vec4!(Vec4);
+            #[cfg(feature = "mint")]
+            vec_impl_mint!(Vec4, Vector4);
 
             impl<T> Vec4<T> {
                 /// Returns a copy of this vector, with elements reversed.
