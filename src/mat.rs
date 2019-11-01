@@ -26,10 +26,45 @@ unsafe fn transmute_unchecked<S, D>(s: S) -> D {
 }
 
 macro_rules! mat_impl_mat {
-    (rows $Mat:ident $CVec:ident $Vec:ident ($nrows:tt x $ncols:tt) ($($get:tt)+)) => {
+    (rows $Mat:ident $MintRowMat:ident $MintColMat:ident $CVec:ident $Vec:ident ($nrows:tt x $ncols:tt) ($($get:tt)+)) => {
 
         mat_impl_mat!{common rows $Mat $CVec $Vec ($nrows x $ncols) ($($get)+)}
 
+        use super::column_major::$Mat as Transpose;
+
+        #[cfg(feature = "mint")]
+        impl<T> From<mint::$MintRowMat<T>> for $Mat<T> {
+            fn from(m: mint::$MintRowMat<T>) -> Self {
+                Self {
+                    rows: $CVec {
+                        $($get : m.$get.into()),+
+                    }
+                }
+            }
+        }
+
+        #[cfg(feature = "mint")]
+        impl<T> Into<mint::$MintRowMat<T>> for $Mat<T> {
+            fn into(self) -> mint::$MintRowMat<T> {
+                mint::$MintRowMat {
+                    $($get: self.rows.$get.into()),+
+                }
+            }
+        }
+
+        #[cfg(feature = "mint")]
+        impl<T> From<mint::$MintColMat<T>> for $Mat<T> {
+            fn from(m: mint::$MintColMat<T>) -> Self {
+                Transpose::from(m).into()
+            }
+        }
+
+        #[cfg(feature = "mint")]
+        impl<T> Into<mint::$MintColMat<T>> for $Mat<T> {
+            fn into(self) -> mint::$MintColMat<T> {
+                Transpose::from(self).into()
+            }
+        }
 
         impl<T> $Mat<T> {
             /// Returns a row-wise-converted copy of this matrix, using the given conversion
@@ -387,8 +422,6 @@ macro_rules! mat_impl_mat {
             pub const GL_SHOULD_TRANSPOSE: bool = true;
         }
 
-        use super::column_major::$Mat as Transpose;
-
         /// Multiplies a row vector with a row-major matrix, giving a row vector.
         ///
         /// With SIMD vectors, this is the most efficient way.
@@ -510,9 +543,46 @@ macro_rules! mat_impl_mat {
             }
         }
     };
-    (cols $Mat:ident $CVec:ident $Vec:ident ($nrows:tt x $ncols:tt) ($($get:tt)+)) => {
+    (cols $Mat:ident $MintRowMat:ident $MintColMat:ident $CVec:ident $Vec:ident ($nrows:tt x $ncols:tt) ($($get:tt)+)) => {
 
         mat_impl_mat!{common cols $Mat $CVec $Vec ($nrows x $ncols) ($($get)+)}
+
+        use super::row_major::$Mat as Transpose;
+
+        #[cfg(feature = "mint")]
+        impl<T> From<mint::$MintColMat<T>> for $Mat<T> {
+            fn from(m: mint::$MintColMat<T>) -> Self {
+                Self {
+                    cols: $CVec {
+                        $($get : m.$get.into()),+
+                    }
+                }
+            }
+        }
+
+        #[cfg(feature = "mint")]
+        impl<T> Into<mint::$MintColMat<T>> for $Mat<T> {
+            fn into(self) -> mint::$MintColMat<T> {
+                mint::$MintColMat {
+                    $($get: self.cols.$get.into()),+
+                }
+            }
+        }
+
+        #[cfg(feature = "mint")]
+        impl<T> From<mint::$MintRowMat<T>> for $Mat<T> {
+            fn from(m: mint::$MintRowMat<T>) -> Self {
+                Transpose::from(m).into()
+            }
+        }
+
+        #[cfg(feature = "mint")]
+        impl<T> Into<mint::$MintRowMat<T>> for $Mat<T> {
+            fn into(self) -> mint::$MintRowMat<T> {
+                Transpose::from(self).into()
+            }
+        }
+
 
         impl<T> $Mat<T> {
             /// Returns a column-wise-converted copy of this matrix, using the given conversion
@@ -876,8 +946,6 @@ macro_rules! mat_impl_mat {
             pub const GL_SHOULD_TRANSPOSE: bool = false;
         }
 
-        use super::row_major::$Mat as Transpose;
-
         /// Multiplies a row vector with a column-major matrix, giving a row vector.
         ///
         /// ```
@@ -999,6 +1067,7 @@ macro_rules! mat_impl_mat {
         }
     };
     (common $lines:ident $Mat:ident $CVec:ident $Vec:ident ($nrows:tt x $ncols:tt) ($($get:tt)+)) => {
+
         /// The default value for a square matrix is the identity.
         ///
         /// ```
@@ -3860,7 +3929,7 @@ macro_rules! mat_impl_all_mats {
                 #[allow(missing_docs)]
                 pub $lines: CVec4<Vec4<T>>,
             }
-            mat_impl_mat!{$lines Mat4 CVec4 Vec4 (4 x 4) (x y z w)}
+            mat_impl_mat!{$lines Mat4 RowMatrix4 ColumnMatrix4 CVec4 Vec4 (4 x 4) (x y z w)}
             mat_impl_mat4!{$lines}
         }
         pub use self::mat4::Mat4;
@@ -3876,7 +3945,7 @@ macro_rules! mat_impl_all_mats {
                 #[allow(missing_docs)]
                 pub $lines: CVec3<Vec3<T>>,
             }
-            mat_impl_mat!{$lines Mat3 CVec3 Vec3 (3 x 3) (x y z)}
+            mat_impl_mat!{$lines Mat3 RowMatrix3 ColumnMatrix3 CVec3 Vec3 (3 x 3) (x y z)}
             mat_impl_mat3!{$lines}
         }
         pub use self::mat3::Mat3;
@@ -3892,7 +3961,7 @@ macro_rules! mat_impl_all_mats {
                 #[allow(missing_docs)]
                 pub $lines: CVec2<Vec2<T>>,
             }
-            mat_impl_mat!{$lines Mat2 CVec2 Vec2 (2 x 2) (x y)}
+            mat_impl_mat!{$lines Mat2 RowMatrix2 ColumnMatrix2 CVec2 Vec2 (2 x 2) (x y)}
             mat_impl_mat2!{$lines}
         }
         pub use self::mat2::Mat2;

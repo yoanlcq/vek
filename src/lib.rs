@@ -17,6 +17,8 @@
 //! - `x86intrin` enables x86 intrinsics through the `x86intrin` crate. `vek` doesn't directly
 //!   depend on it because it won't compile on Stable and there's no way (as of this writing)
 //!   to selectively depend on a crate based on the `rustc` version, not even via build scripts.
+//! - `mint` enables conversion to the `mint` crate's types.
+//!   `mint` is an interoperability layer for math libraries.
 //!
 //! # `#![no_std]`
 //! This crate is `#![no_std]`.
@@ -53,6 +55,9 @@ extern crate serde;
 
 #[cfg(feature = "x86intrin")]
 extern crate x86intrin;
+
+#[cfg(feature = "mint")]
+extern crate mint;
 
 extern crate num_integer;
 extern crate num_traits;
