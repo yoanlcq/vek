@@ -2920,7 +2920,7 @@ macro_rules! vec_impl_all_vecs {
             #[cfg(feature="rgb")]
             impl<T> Rgba<T> {
                 /// Same as Rgb::from(self), but more concise.
-                fn rgb(self) -> Rgb<T> {
+                pub fn rgb(self) -> Rgb<T> {
                     self.into()
                 }
             }
