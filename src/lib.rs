@@ -56,6 +56,9 @@ extern crate serde;
 #[cfg(feature = "x86intrin")]
 extern crate x86intrin;
 
+#[cfg(feature = "mint")]
+extern crate mint;
+
 extern crate num_integer;
 extern crate num_traits;
 // NOTE: Allow unused imports here, because usage depends on which features are enabled.
