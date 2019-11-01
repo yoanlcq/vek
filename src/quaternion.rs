@@ -418,6 +418,22 @@ macro_rules! quaternion_complete_mod {
                 self.into()
             }
         }
+
+        #[cfg(feature = "mint")]
+        impl<T> From<mint::Quaternion<T>> for Quaternion<T> {
+            fn from(q: mint::Quaternion<T>) -> Self {
+                let mint::Quaternion { s, v } = q;
+                Self::from_scalar_and_vec3((s, v))
+            }
+        }
+
+        #[cfg(feature = "mint")]
+        impl<T> Into<mint::Quaternion<T>> for Quaternion<T> {
+            fn into(self) -> mint::Quaternion<T> {
+                let (s, v) = self.into_scalar_and_vec3();
+                mint::Quaternion { s, v: v.into() }
+            }
+        }
         
         /// The `Lerp` implementation for quaternion is the "Normalized LERP".
         impl<T, Factor> Lerp<Factor> for Quaternion<T>
