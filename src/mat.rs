@@ -32,7 +32,6 @@ macro_rules! mat_impl_mat {
 
         use super::column_major::$Mat as Transpose;
 
-        // FIXME: Move elsewhere
         #[cfg(feature = "mint")]
         impl<T> From<mint::$MintRowMat<T>> for $Mat<T> {
             fn from(m: mint::$MintRowMat<T>) -> Self {
@@ -550,7 +549,6 @@ macro_rules! mat_impl_mat {
 
         use super::row_major::$Mat as Transpose;
 
-        // FIXME: Move elsewhere
         #[cfg(feature = "mint")]
         impl<T> From<mint::$MintColMat<T>> for $Mat<T> {
             fn from(m: mint::$MintColMat<T>) -> Self {
