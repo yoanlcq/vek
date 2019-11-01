@@ -2626,6 +2626,7 @@ macro_rules! vec_impl_all_vecs {
             pub struct Vec2<T> { pub x:T, pub y:T }
             vec_impl_vec!($c_or_simd struct Vec2   vec2      (2) ("({}, {})") (x y) (x y) (0 1) (T,T));
             vec_impl_mint!(Vec2, Vector2, (x y));
+            vec_impl_mint!(Vec2, Point2, (x y));
             vec_impl_spatial!(Vec2);
             vec_impl_spatial_2d!(Vec2);
 
@@ -2666,6 +2667,7 @@ macro_rules! vec_impl_all_vecs {
             pub struct Vec3<T> { pub x:T, pub y:T, pub z:T }
             vec_impl_vec!($c_or_simd struct Vec3     vec3     (3) ("({}, {}, {})") (x y z) (x y z) (0 1 2) (T,T,T));
             vec_impl_mint!(Vec3, Vector3, (x y z));
+            vec_impl_mint!(Vec3, Point3, (x y z));
             vec_impl_spatial!(Vec3);
             vec_impl_spatial_3d!(Vec3);
 
