@@ -2593,6 +2593,23 @@ macro_rules! vec_impl_mat2_via_vec4 {
 }
 
 
+macro_rules! vec_impl_mint {
+    ($Vec:ident, $mintVec: ident, ($($namedget:ident)+)) => {
+        #[cfg(feature = "mint")]
+        impl<T> From<mint::$mintVec<T>> for $Vec<T> {
+            fn from(v: mint::$mintVec<T>) -> Self {
+                Self { $($namedget : v.$namedget),+ }
+            }
+        }
+
+        #[cfg(feature = "mint")]
+        impl<T> Into<mint::$mintVec<T>> for $Vec<T> {
+            fn into(self) -> mint::$mintVec<T> {
+                mint::$mintVec { $($namedget : self.$namedget),+ }
+            }
+        }
+    };
+}
 
 /// Calls `vec_impl_vec!{}` on each appropriate vector type.
 macro_rules! vec_impl_all_vecs {
@@ -2608,6 +2625,7 @@ macro_rules! vec_impl_all_vecs {
             $(#[$repr_attrs])+
             pub struct Vec2<T> { pub x:T, pub y:T }
             vec_impl_vec!($c_or_simd struct Vec2   vec2      (2) ("({}, {})") (x y) (x y) (0 1) (T,T));
+            vec_impl_mint!(Vec2, Vector2, (x y));
             vec_impl_spatial!(Vec2);
             vec_impl_spatial_2d!(Vec2);
 
@@ -2647,6 +2665,7 @@ macro_rules! vec_impl_all_vecs {
             $(#[$repr_attrs])+
             pub struct Vec3<T> { pub x:T, pub y:T, pub z:T }
             vec_impl_vec!($c_or_simd struct Vec3     vec3     (3) ("({}, {}, {})") (x y z) (x y z) (0 1 2) (T,T,T));
+            vec_impl_mint!(Vec3, Vector3, (x y z));
             vec_impl_spatial!(Vec3);
             vec_impl_spatial_3d!(Vec3);
 
@@ -2711,6 +2730,7 @@ macro_rules! vec_impl_all_vecs {
                 pub w: T
             }
             vec_impl_vec!($c_or_simd struct Vec4   vec4    (4) ("({}, {}, {}, {})") (x y z w) (x y z w) (0 1 2 3) (T,T,T,T));
+            vec_impl_mint!(Vec4, Vector4, (x y z w));
             vec_impl_spatial!(Vec4);
             vec_impl_spatial_4d!(Vec4);
             vec_impl_shuffle_4d!(Vec4 (x y z w));
