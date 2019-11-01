@@ -14,9 +14,6 @@ See [the wiki](https://github.com/yoanlcq/vek/wiki) for an overview, FAQ, guides
 
 # Contributing
 
-I intend this crate to be of very high quality, but it is still in its early days.
-Feel free to report issues for any reason: Questions, feature requests, bugs, etc!
-
 If you plan to work a pull request, please file an issue first so that we can agree on the best way to go and minize the amount of wasted time. :)
 
 # CONTRIBUTORS

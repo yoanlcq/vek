@@ -2,8 +2,6 @@
 //!
 //! See [the wiki](https://github.com/yoanlcq/vek/wiki) for an overview, FAQ, guides, and other info.
 //!
-//! This crate is still in its beta days!
-//! The public API is quite close to being stable, but it hasn't been battle-tested enough.  
 //! Issues and bug reports are very welcome!
 //!
 //! # Cargo features
