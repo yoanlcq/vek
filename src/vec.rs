@@ -2041,14 +2041,14 @@ macro_rules! vec_impl_pixel_rgb {
             fn apply2<F>(&mut self, other: &Self, f: F)
                 where F: FnMut(Self::Subpixel, Self::Subpixel) -> Self::Subpixel
             {
-                *self = self.map2(other, f);
+                *self = self.map2(*other, f);
             }
 
             fn invert(&mut self) {
                 *self = self.inverted_rgb();
             }
             fn blend(&mut self, other: &Self) {
-                self.apply2(other, |a, b| {
+                self.apply2(*other, |a, b| {
                     let a = <f64 as NumCast>::from(a).unwrap();
                     let b = <f64 as NumCast>::from(b).unwrap();
                     let m = (a+b)/2f64;
@@ -2148,14 +2148,14 @@ macro_rules! vec_impl_pixel_rgba {
             fn apply2<F>(&mut self, other: &Self, f: F)
                 where F: FnMut(Self::Subpixel, Self::Subpixel) -> Self::Subpixel
             {
-                *self = self.map2(other, f);
+                *self = self.map2(*other, f);
             }
 
             fn invert(&mut self) {
                 *self = self.inverted_rgb();
             }
             fn blend(&mut self, other: &Self) {
-                self.apply2(other, |a, b| {
+                self.apply2(*other, |a, b| {
                     let a = <f64 as NumCast>::from(a).unwrap();
                     let b = <f64 as NumCast>::from(b).unwrap();
                     let m = (a+b)/2f64;
