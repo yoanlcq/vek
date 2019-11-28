@@ -209,7 +209,7 @@ impl_muladd!{integer
 
 /// A value that can be linearly interpolated.
 ///
-/// Note that, like standard operators, this can be implement for `T` and `&T`.  
+/// Note that, like standard operators, this can be implement for `T` and `&T`.
 /// You would make the difference like so:
 ///
 /// ```
@@ -224,15 +224,15 @@ impl_muladd!{integer
 /// assert_eq!(a, d);
 /// ```
 ///
-/// This is made possible thanks to the explicit `Output` type.  
+/// This is made possible thanks to the explicit `Output` type.
 /// Therefore, it's also convenient for `GameState` structures, which you might
-/// prefer to interpolate by reference instead of consuming them.  
+/// prefer to interpolate by reference instead of consuming them.
 /// The interpolation of two `&GameState`s would produce a new `GameState` value.
 ///
 /// ```
 /// use vek::{Lerp, Vec3};
-/// 
-/// /// A data-heavy structure that represents a current game state.  
+///
+/// /// A data-heavy structure that represents a current game state.
 /// /// It's neither Copy and nor even Clone!
 /// struct GameState {
 ///     pub camera_position: Vec3<f32>,
@@ -263,7 +263,7 @@ pub trait Lerp<Factor=f32>: Sized
     ///
     /// This would make use of inclusive ranges, but they aren't stable yet.
     ///
-    /// A possible implementation is `from + factor * (to - from)`, a.k.a 
+    /// A possible implementation is `from + factor * (to - from)`, a.k.a
     /// `factor.mul_add(to - from, from)`.
     ///
     /// ```
@@ -367,19 +367,19 @@ macro_rules! lerp_impl_integer {
             impl Lerp<f32> for $T {
                 type Output = $T;
                 fn lerp_unclamped_precise(from: Self, to: Self, factor: f32) -> Self {
-                    ((from as f32)*((1f32)-factor) + (to as f32)*factor).round() as Self
+                    num_traits::Float::round((from as f32)*((1f32)-factor) + (to as f32)*factor) as Self
                 }
                 fn lerp_unclamped(from: Self, to: Self, factor: f32) -> Self {
-                    factor.mul_add((to - from) as f32, from as f32).round() as Self
+                    num_traits::Float::round(factor.mul_add((to - from) as f32, from as f32)) as Self
                 }
             }
             impl Lerp<f64> for $T {
                 type Output = $T;
                 fn lerp_unclamped_precise(from: Self, to: Self, factor: f64) -> Self {
-                    ((from as f64)*((1f64)-factor) + (to as f64)*factor).round() as Self
+                    num_traits::Float::round((from as f64)*((1f64)-factor) + (to as f64)*factor) as Self
                 }
                 fn lerp_unclamped(from: Self, to: Self, factor: f64) -> Self {
-                    factor.mul_add((to - from) as f64, from as f64).round() as Self
+                    num_traits::Float::round(factor.mul_add((to - from) as f64, from as f64)) as Self
                 }
             }
             impl<'a> Lerp<f32> for &'a $T {
@@ -451,7 +451,7 @@ pub trait Wrap<Bound=Self>: Sized {
     /// # Panics
     /// Panics if `upper <= 0`. Reasons include :
     ///
-    /// - Some types may implement it as `self.wrapped_between(zero, upper)`. 
+    /// - Some types may implement it as `self.wrapped_between(zero, upper)`.
     ///   A negative `upper` would violate the `lower <= upper` requirement in this case;
     /// - On unsigned integers, this just resolves to `self % upper`,
     ///   and integer division by zero is forbidden. Testing for `i==0` incurs unnecessary overhead.
@@ -500,8 +500,8 @@ pub trait Wrap<Bound=Self>: Sized {
     ///
     /// # Panics
     /// Panics if `lower >= upper`. Swap the values yourself if necessary.
-    /// 
-    /// Also panics if `lower < 0` or `upper <= 0`. See `wrapped()` for a rationale.  
+    ///
+    /// Also panics if `lower < 0` or `upper <= 0`. See `wrapped()` for a rationale.
     /// Forcing `lower` and `upper` to be positive allows implementations to be simpler and faster.
     ///
     /// ```
@@ -524,7 +524,7 @@ pub trait Wrap<Bound=Self>: Sized {
     ///
     /// # Panics
     /// Panics if `lower` is greater than `upper`. Swap the values yourself if necessary.
-    fn wrap_between(val: Self, lower: Bound, upper: Bound) -> Self 
+    fn wrap_between(val: Self, lower: Bound, upper: Bound) -> Self
         where Self: Sub<Output=Self> + Add<Output=Self> + From<Bound>,
               Bound: Copy + Sub<Output=Bound> + PartialOrd
     {
@@ -587,7 +587,7 @@ macro_rules! wrap_impl_float {
                 fn wrapped(self, upper: Self) -> Self {
                     assert!(upper > Self::zero());
                     // assert_relative_ne!(upper, Self::zero());
-                    self - (self/upper).floor() * upper
+                    self - num_traits::Float::floor(self/upper) * upper
                 }
                 fn wrapped_between(self, lower: Self, upper: Self) -> Self {
                     assert!(lower < upper);
@@ -602,7 +602,7 @@ macro_rules! wrap_impl_float {
                     // assert_relative_ne!(upper, Self::zero());
                     let t = self.wrapped(upper + upper);
                     let upper = || Self::from(upper);
-                    upper() - (t - upper()).abs()
+                    upper() - num_traits::Float::abs(t - upper())
                 }
             }
         )+

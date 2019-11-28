@@ -14,7 +14,7 @@ use std::cmp;
 use std::ops::*;
 use std::slice::{self, /*SliceIndex*/}; // NOTE: Will want to use SliceIndex once it's stabilized
 use num_traits::{Zero, One, NumCast, Signed, real::Real};
-use approx::ApproxEq;
+use approx::{AbsDiffEq, RelativeEq, UlpsEq};
 use ops::*;
 
 macro_rules! vec_impl_cmp {
@@ -1177,34 +1177,46 @@ macro_rules! vec_impl_vec {
         // - fn classify(self) -> FpCategory;
         // - fn integer_decode(self) -> (u64, i16, i8);
 
-
-        impl<T: ApproxEq> ApproxEq for $Vec<T> where T::Epsilon: Copy {
+        impl<T: AbsDiffEq> AbsDiffEq for $Vec<T> where T::Epsilon: Copy {
             type Epsilon = T::Epsilon;
 
             fn default_epsilon() -> T::Epsilon {
                 T::default_epsilon()
             }
 
-            fn default_max_relative() -> T::Epsilon {
-                T::default_max_relative()
-            }
-
-            fn default_max_ulps() -> u32 {
-                T::default_max_ulps()
-            }
-
-            fn relative_eq(&self, other: &Self, epsilon: T::Epsilon, max_relative: T::Epsilon) -> bool {
+            fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
                 for (l, r) in self.iter().zip(other.iter()) {
-                    if !T::relative_eq(l, r, epsilon, max_relative) {
+                    if !T::abs_diff_eq(l, r, epsilon) {
                         return false;
                     }
                 }
                 true
             }
+        }
+
+        impl<T: UlpsEq> UlpsEq for $Vec<T> where T::Epsilon: Copy {
+            fn default_max_ulps() -> u32 {
+                T::default_max_ulps()
+            }
 
             fn ulps_eq(&self, other: &Self, epsilon: T::Epsilon, max_ulps: u32) -> bool {
                 for (l, r) in self.iter().zip(other.iter()) {
                     if !T::ulps_eq(l, r, epsilon, max_ulps) {
+                        return false;
+                    }
+                }
+                true
+            }
+        }
+
+        impl<T: RelativeEq> RelativeEq for $Vec<T> where T::Epsilon: Copy {
+            fn default_max_relative() -> T::Epsilon {
+                T::default_max_relative()
+            }
+
+            fn relative_eq(&self, other: &Self, epsilon: T::Epsilon, max_relative: T::Epsilon) -> bool {
+                for (l, r) in self.iter().zip(other.iter()) {
+                    if !T::relative_eq(l, r, epsilon, max_relative) {
                         return false;
                     }
                 }
@@ -1546,8 +1558,8 @@ macro_rules! vec_impl_spatial {
                 self / self.magnitude()
             }
             /// Get a copy of this direction vector such that its length equals 1.
-            /// If all components approximately zero, None is returned (uses ApproxEq).
-            pub fn try_normalized(self) -> Option<Self> where T: ApproxEq + Sum + Real {
+            /// If all components approximately zero, None is returned (uses RelativeEq).
+            pub fn try_normalized(self) -> Option<Self> where T: RelativeEq + Sum + Real {
                 if self.is_approx_zero() {
                     None
                 } else {
@@ -1558,12 +1570,12 @@ macro_rules! vec_impl_spatial {
             pub fn normalize(&mut self) where T: Sum + Real {
                 *self = self.normalized();
             }
-            /// Is this vector normalized ? (Uses `ApproxEq`)
-            pub fn is_normalized(self) -> bool where T: ApproxEq + Sum + Real {
+            /// Is this vector normalized ? (Uses `RelativeEq`)
+            pub fn is_normalized(self) -> bool where T: RelativeEq + Sum + Real {
                 self.magnitude_squared().relative_eq(&T::one(), T::default_epsilon(), T::default_max_relative())
             }
-            /// Is this vector approximately zero ? (Uses `ApproxEq`)
-            pub fn is_approx_zero(self) -> bool where T: ApproxEq + Sum + Real {
+            /// Is this vector approximately zero ? (Uses `RelativeEq`)
+            pub fn is_approx_zero(self) -> bool where T: RelativeEq + Sum + Real {
                 self.map(|n| n.relative_eq(&T::zero(), T::default_epsilon(), T::default_max_relative())).reduce_and()
             }
             /// Get the smallest angle, in radians, between two direction vectors.
@@ -1933,20 +1945,20 @@ macro_rules! vec_impl_spatial_4d {
                 }
                 /// Returns true if this vector is homogeneous (`w = 0` or `w = 1`).
                 ///
-                /// Uses `ApproxEq`.
-                pub fn is_homogeneous(self) -> bool where T: ApproxEq + Zero + One + Copy {
+                /// Uses `RelativeEq`.
+                pub fn is_homogeneous(self) -> bool where T: RelativeEq + Zero + One + Copy {
                     self.is_point() || self.is_direction()
                 }
                 /// Returns true if this vector is a homogeneous point (`w = 1`).
                 ///
-                /// Uses `ApproxEq`.
-                pub fn is_point(self) -> bool where T: ApproxEq + One {
+                /// Uses `RelativeEq`.
+                pub fn is_point(self) -> bool where T: RelativeEq + One {
                     self.w.relative_eq(&T::one(), T::default_epsilon(), T::default_max_relative())
                 }
                 /// Returns true if this vector is a homogeneous direction (`w = 0`).
                 ///
-                /// Uses `ApproxEq`.
-                pub fn is_direction(self) -> bool where T: ApproxEq + Zero {
+                /// Uses `RelativeEq`.
+                pub fn is_direction(self) -> bool where T: RelativeEq + Zero {
                     self.w.relative_eq(&T::zero(), T::default_epsilon(), T::default_max_relative())
                 }
             }

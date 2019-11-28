@@ -7,7 +7,7 @@ use std::iter::Sum;
 use std::fmt::{self, Display, Formatter, Debug};
 use std::ops::*;
 use num_traits::{Zero, One, real::Real, FloatConst, NumCast};
-use approx::ApproxEq;
+use approx::{AbsDiffEq, RelativeEq, UlpsEq};
 use ops::MulAdd;
 use vec;
 use geom::{Rect, FrustumPlanes}; // NOTE: Rect is therefore always repr_c here
@@ -321,7 +321,7 @@ macro_rules! mat_impl_mat {
             ///
             /// # Panics
             /// Panics if the matrix's elements are not tightly packed in memory,
-            /// which may be the case for matrices in the `repr_simd` module.  
+            /// which may be the case for matrices in the `repr_simd` module.
             /// You may check this with the `is_packed()` method.
             pub fn as_row_ptr(&self) -> *const T {
                 assert!(self.is_packed());
@@ -331,7 +331,7 @@ macro_rules! mat_impl_mat {
             ///
             /// # Panics
             /// Panics if the matrix's elements are not tightly packed in memory,
-            /// which may be the case for matrices in the `repr_simd` module.  
+            /// which may be the case for matrices in the `repr_simd` module.
             /// You may check this with the `is_packed()` method.
             pub fn as_mut_row_ptr(&mut self) -> *mut T {
                 assert!(self.is_packed());
@@ -341,7 +341,7 @@ macro_rules! mat_impl_mat {
             ///
             /// # Panics
             /// Panics if the matrix's elements are not tightly packed in memory,
-            /// which may be the case for matrices in the `repr_simd` module.  
+            /// which may be the case for matrices in the `repr_simd` module.
             /// You may check this with the `is_packed()` method.
             pub fn as_row_slice(&self) -> &[T] {
                 unsafe {
@@ -352,7 +352,7 @@ macro_rules! mat_impl_mat {
             ///
             /// # Panics
             /// Panics if the matrix's elements are not tightly packed in memory,
-            /// which may be the case for matrices in the `repr_simd` module.  
+            /// which may be the case for matrices in the `repr_simd` module.
             /// You may check this with the `is_packed()` method.
             pub fn as_mut_row_slice(&mut self) -> &mut [T] {
                 unsafe {
@@ -362,7 +362,7 @@ macro_rules! mat_impl_mat {
         }
 
 
-        /// Displays this matrix using the following format:  
+        /// Displays this matrix using the following format:
         ///
         /// (`i` being the number of rows and `j` the number of columns)
         ///
@@ -372,7 +372,7 @@ macro_rules! mat_impl_mat {
         ///   mi0 ... mij )
         /// ```
         ///
-        /// Note that elements are not comma-separated.  
+        /// Note that elements are not comma-separated.
         /// This format doesn't depend on the matrix's storage layout.
         impl<T: Display> Display for $Mat<T> {
             fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -504,7 +504,7 @@ macro_rules! mat_impl_mat {
                 }
             }
         }
-        /// Multiplies a row-major matrix with a column-major matrix, 
+        /// Multiplies a row-major matrix with a column-major matrix,
         /// producing a column-major matrix.
         ///
         /// ```
@@ -841,7 +841,7 @@ macro_rules! mat_impl_mat {
             ///
             /// # Panics
             /// Panics if the matrix's elements are not tightly packed in memory,
-            /// which may be the case for matrices in the `repr_simd` module.  
+            /// which may be the case for matrices in the `repr_simd` module.
             /// You may check this with the `is_packed()` method.
             pub fn as_col_ptr(&self) -> *const T {
                 assert!(self.is_packed());
@@ -851,7 +851,7 @@ macro_rules! mat_impl_mat {
             ///
             /// # Panics
             /// Panics if the matrix's elements are not tightly packed in memory,
-            /// which may be the case for matrices in the `repr_simd` module.  
+            /// which may be the case for matrices in the `repr_simd` module.
             /// You may check this with the `is_packed()` method.
             pub fn as_mut_col_ptr(&mut self) -> *mut T {
                 assert!(self.is_packed());
@@ -861,7 +861,7 @@ macro_rules! mat_impl_mat {
             ///
             /// # Panics
             /// Panics if the matrix's elements are not tightly packed in memory,
-            /// which may be the case for matrices in the `repr_simd` module.  
+            /// which may be the case for matrices in the `repr_simd` module.
             /// You may check this with the `is_packed()` method.
             pub fn as_col_slice(&self) -> &[T] {
                 unsafe {
@@ -872,7 +872,7 @@ macro_rules! mat_impl_mat {
             ///
             /// # Panics
             /// Panics if the matrix's elements are not tightly packed in memory,
-            /// which may be the case for matrices in the `repr_simd` module.  
+            /// which may be the case for matrices in the `repr_simd` module.
             /// You may check this with the `is_packed()` method.
             pub fn as_mut_col_slice(&mut self) -> &mut [T] {
                 unsafe {
@@ -882,7 +882,7 @@ macro_rules! mat_impl_mat {
         }
 
 
-        /// Displays this matrix using the following format:  
+        /// Displays this matrix using the following format:
         ///
         /// (`i` being the number of rows and `j` the number of columns)
         ///
@@ -892,7 +892,7 @@ macro_rules! mat_impl_mat {
         ///   mi0 ... mij )
         /// ```
         ///
-        /// Note that elements are not comma-separated.  
+        /// Note that elements are not comma-separated.
         /// This format doesn't depend on the matrix's storage layout.
         impl<T: Display> Display for $Mat<T> {
             fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -1233,7 +1233,7 @@ macro_rules! mat_impl_mat {
             pub const COL_COUNT: usize = $ncols;
 
             /// Are all elements of this matrix tightly packed together in memory ?
-            /// 
+            ///
             /// This might not be the case for matrices in the `repr_simd` module
             /// (it depends on the target architecture).
             pub fn is_packed(&self) -> bool {
@@ -1242,7 +1242,7 @@ macro_rules! mat_impl_mat {
             }
         }
 
-        impl<T> Mul<T> for $Mat<T> 
+        impl<T> Mul<T> for $Mat<T>
             where T: Copy + Zero + Add<Output=T> + Mul<Output=T>
         {
             type Output = Self;
@@ -1257,13 +1257,13 @@ macro_rules! mat_impl_mat {
 
         impl<T> MulAssign for $Mat<T>
             where T: Copy + Zero + Add<Output=T> + Mul<Output=T> + MulAdd<T,T,Output=T>
-        { 
+        {
             fn mul_assign(&mut self, rhs: Self) { *self = *self * rhs; }
         }
 
         impl<T> MulAssign<T> for $Mat<T>
             where T: Copy + Zero + Add<Output=T> + Mul<Output=T>
-        { 
+        {
             fn mul_assign(&mut self, rhs: T) { *self = *self * rhs; }
         }
 
@@ -1369,33 +1369,46 @@ macro_rules! mat_impl_mat {
         impl<T: Rem<Output=T> + Copy> RemAssign    for $Mat<T> { fn rem_assign(&mut self, rhs: Self) { *self = *self % rhs; } }
         impl<T: Rem<Output=T> + Copy> RemAssign<T> for $Mat<T> { fn rem_assign(&mut self, rhs: T   ) { *self = *self % rhs; } }
 
-        impl<T: ApproxEq> ApproxEq for $Mat<T> where T::Epsilon: Copy {
+        impl<T: AbsDiffEq> AbsDiffEq for $Mat<T> where T::Epsilon: Copy {
             type Epsilon = T::Epsilon;
 
             fn default_epsilon() -> T::Epsilon {
                 T::default_epsilon()
             }
 
-            fn default_max_relative() -> T::Epsilon {
-                T::default_max_relative()
-            }
-
-            fn default_max_ulps() -> u32 {
-                T::default_max_ulps()
-            }
-
-            fn relative_eq(&self, other: &Self, epsilon: T::Epsilon, max_relative: T::Epsilon) -> bool {
+            fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
                 for (l, r) in self.$lines.iter().zip(other.$lines.iter()) {
-                    if !ApproxEq::relative_eq(l, r, epsilon, max_relative) {
+                    if !AbsDiffEq::abs_diff_eq(l, r, epsilon) {
                         return false;
                     }
                 }
                 true
             }
+        }
+
+        impl<T: UlpsEq> UlpsEq for $Mat<T> where T::Epsilon: Copy {
+            fn default_max_ulps() -> u32 {
+                T::default_max_ulps()
+            }
 
             fn ulps_eq(&self, other: &Self, epsilon: T::Epsilon, max_ulps: u32) -> bool {
                 for (l, r) in self.$lines.iter().zip(other.$lines.iter()) {
-                    if !ApproxEq::ulps_eq(l, r, epsilon, max_ulps) {
+                    if !UlpsEq::ulps_eq(l, r, epsilon, max_ulps) {
+                        return false;
+                    }
+                }
+                true
+            }
+        }
+
+        impl<T: RelativeEq> RelativeEq for $Mat<T> where T::Epsilon: Copy {
+            fn default_max_relative() -> T::Epsilon {
+                T::default_max_relative()
+            }
+
+            fn relative_eq(&self, other: &Self, epsilon: T::Epsilon, max_relative: T::Epsilon) -> bool {
+                for (l, r) in self.$lines.iter().zip(other.$lines.iter()) {
+                    if !RelativeEq::relative_eq(l, r, epsilon, max_relative) {
                         return false;
                     }
                 }
@@ -1748,7 +1761,7 @@ macro_rules! mat_impl_mat4 {
             /// matrix which scale is 1.
             ///
             /// A transform matrix is invertible this way as long as it consists
-            /// of translations, rotations, and shears.  
+            /// of translations, rotations, and shears.
             /// **It's not guaranteed to work if the scale is not 1.**
             ///
             /// ```
@@ -2001,7 +2014,7 @@ macro_rules! mat_impl_mat4 {
                 *self = self.rotated_x(angle_radians);
             }
             /// Returns this matrix rotated around the X axis.
-            pub fn rotated_x(self, angle_radians: T) -> Self 
+            pub fn rotated_x(self, angle_radians: T) -> Self
                 where T: Real + MulAdd<T,T,Output=T>
             {
                 Self::rotation_x(angle_radians) * self
@@ -2063,21 +2076,21 @@ macro_rules! mat_impl_mat4 {
                     T::zero(), T::zero(), T::zero(), T::one()
                 )
             }
-            /// Rotates this matrix around a 3D axis.  
+            /// Rotates this matrix around a 3D axis.
             /// The axis is not required to be normalized.
             pub fn rotate_3d<V: Into<Vec3<T>>>(&mut self, angle_radians: T, axis: V)
                 where T: Real + MulAdd<T,T,Output=T> + Sum
             {
                 *self = self.rotated_3d(angle_radians, axis);
             }
-            /// Returns this matrix rotated around a 3D axis.  
+            /// Returns this matrix rotated around a 3D axis.
             /// The axis is not required to be normalized.
             pub fn rotated_3d<V: Into<Vec3<T>>>(self, angle_radians: T, axis: V) -> Self
                 where T: Real + MulAdd<T,T,Output=T> + Sum
             {
                 Self::rotation_3d(angle_radians, axis) * self
             }
-            /// Creates a matrix that rotates around a 3D axis.  
+            /// Creates a matrix that rotates around a 3D axis.
             /// The axis is not required to be normalized.
             ///
             /// ```
@@ -2154,7 +2167,7 @@ macro_rules! mat_impl_mat4 {
             /// assert_relative_eq!(m * from, to);
             /// # }
             /// ```
-            pub fn rotation_from_to_3d<V: Into<Vec3<T>>>(from: V, to: V) -> Self 
+            pub fn rotation_from_to_3d<V: Into<Vec3<T>>>(from: V, to: V) -> Self
                 where T: Real + Sum
             {
                 Self::from(Quaternion::rotation_from_to_3d(from, to))
@@ -2167,10 +2180,10 @@ macro_rules! mat_impl_mat4 {
             /// Builds a change of basis matrix that transforms points and directions from
             /// any space to the canonical one.
             ///
-            /// `origin` is the origin of the child space.  
+            /// `origin` is the origin of the child space.
             /// `i`, `j` and `k` are all required to be normalized;
             /// They are the unit basis vector along the target space x-axis, y-axis and z-axis
-            /// respectively, expressed in canonical-space coordinates.  
+            /// respectively, expressed in canonical-space coordinates.
             ///
             /// ```
             /// # extern crate vek;
@@ -2228,10 +2241,10 @@ macro_rules! mat_impl_mat4 {
             /// Builds a change of basis matrix that transforms points and directions from
             /// canonical space to another space.
             ///
-            /// `origin` is the origin of the child space.  
+            /// `origin` is the origin of the child space.
             /// `i`, `j` and `k` are all required to be normalized;
             /// They are the unit basis vector along the target space x-axis, y-axis and z-axis
-            /// respectively, expressed in canonical-space coordinates.  
+            /// respectively, expressed in canonical-space coordinates.
             ///
             /// ```
             /// # extern crate vek;
@@ -2306,7 +2319,7 @@ macro_rules! mat_impl_mat4 {
             /// from an eye position, a target position, and up vector.
             /// Commonly used for cameras - in short, it maps points from
             /// world-space to eye-space.
-            /// 
+            ///
             /// ```
             /// # extern crate vek;
             /// # #[macro_use] extern crate approx;
@@ -2339,7 +2352,7 @@ macro_rules! mat_impl_mat4 {
             /// from an eye position, a target position, and up vector.
             /// Commonly used for cameras - in short, it maps points from
             /// world-space to eye-space.
-            /// 
+            ///
             /// ```
             /// # extern crate vek;
             /// # #[macro_use] extern crate approx;
@@ -2381,7 +2394,7 @@ macro_rules! mat_impl_mat4 {
             /// Builds a "look at" model transform for left-handed spaces
             /// from an eye position, a target position, and up vector.
             /// Preferred for transforming objects.
-            /// 
+            ///
             /// ```
             /// # extern crate vek;
             /// # #[macro_use] extern crate approx;
@@ -2419,7 +2432,7 @@ macro_rules! mat_impl_mat4 {
             /// Builds a "look at" model transform for right-handed spaces
             /// from an eye position, a target position, and up vector.
             /// Preferred for transforming objects.
-            /// 
+            ///
             /// ```
             /// # extern crate vek;
             /// # #[macro_use] extern crate approx;
@@ -2610,7 +2623,7 @@ macro_rules! mat_impl_mat4 {
             }
 
             /// Creates a perspective projection matrix for right-handed spaces, with zero-to-one depth clip planes.
-            pub fn perspective_rh_zo (fov_y_radians: T, aspect_ratio: T, near: T, far: T) -> Self 
+            pub fn perspective_rh_zo (fov_y_radians: T, aspect_ratio: T, near: T, far: T) -> Self
                 where T: Real + FloatConst + Debug
             {
                 // Assertions from cgmath
@@ -2635,7 +2648,7 @@ macro_rules! mat_impl_mat4 {
                 )
             }
             /// Creates a perspective projection matrix for left-handed spaces, with zero-to-one depth clip planes.
-            pub fn perspective_lh_zo (fov_y_radians: T, aspect_ratio: T, near: T, far: T) -> Self 
+            pub fn perspective_lh_zo (fov_y_radians: T, aspect_ratio: T, near: T, far: T) -> Self
                 where T: Real + FloatConst + Debug
             {
                 let mut m = Self::perspective_rh_zo(fov_y_radians, aspect_ratio, near, far);
@@ -2645,7 +2658,7 @@ macro_rules! mat_impl_mat4 {
             }
 
             /// Creates a perspective projection matrix for right-handed spaces, with negative-one-to-one depth clip planes.
-            pub fn perspective_rh_no (fov_y_radians: T, aspect_ratio: T, near: T, far: T) -> Self 
+            pub fn perspective_rh_no (fov_y_radians: T, aspect_ratio: T, near: T, far: T) -> Self
                 where T: Real + FloatConst + Debug
             {
                 // Assertions from cgmath
@@ -2670,7 +2683,7 @@ macro_rules! mat_impl_mat4 {
                 )
             }
             /// Creates a perspective projection matrix for left-handed spaces, with negative-one-to-one depth clip planes.
-            pub fn perspective_lh_no (fov_y_radians: T, aspect_ratio: T, near: T, far: T) -> Self 
+            pub fn perspective_lh_no (fov_y_radians: T, aspect_ratio: T, near: T, far: T) -> Self
                 where T: Real + FloatConst + Debug
             {
                 let mut m = Self::perspective_rh_no(fov_y_radians, aspect_ratio, near, far);
@@ -2683,7 +2696,7 @@ macro_rules! mat_impl_mat4 {
             ///
             /// # Panics
             /// `width`, `height` and `fov_y_radians` must all be strictly greater than zero.
-            pub fn perspective_fov_rh_zo (fov_y_radians: T, width: T, height: T, near: T, far: T) -> Self 
+            pub fn perspective_fov_rh_zo (fov_y_radians: T, width: T, height: T, near: T, far: T) -> Self
                 where T: Real + FloatConst + Debug
             {
                 debug_assert!(width > T::zero(), "viewport width cannot be below zero, found: {:?}", width);
@@ -2717,7 +2730,7 @@ macro_rules! mat_impl_mat4 {
             ///
             /// # Panics
             /// `width`, `height` and `fov_y_radians` must all be strictly greater than zero.
-            pub fn perspective_fov_lh_zo (fov_y_radians: T, width: T, height: T, near: T, far: T) -> Self 
+            pub fn perspective_fov_lh_zo (fov_y_radians: T, width: T, height: T, near: T, far: T) -> Self
                 where T: Real + FloatConst + Debug
             {
                 let mut m = Self::perspective_fov_rh_zo(fov_y_radians, width, height, near, far);
@@ -2730,7 +2743,7 @@ macro_rules! mat_impl_mat4 {
             ///
             /// # Panics
             /// `width`, `height` and `fov_y_radians` must all be strictly greater than zero.
-            pub fn perspective_fov_rh_no (fov_y_radians: T, width: T, height: T, near: T, far: T) -> Self 
+            pub fn perspective_fov_rh_no (fov_y_radians: T, width: T, height: T, near: T, far: T) -> Self
                 where T: Real + FloatConst + Debug
             {
                 debug_assert!(width > T::zero(), "viewport width cannot be below zero, found: {:?}", width);
@@ -2763,7 +2776,7 @@ macro_rules! mat_impl_mat4 {
             ///
             /// # Panics
             /// `width`, `height` and `fov_y_radians` must all be strictly greater than zero.
-            pub fn perspective_fov_lh_no (fov_y_radians: T, width: T, height: T, near: T, far: T) -> Self 
+            pub fn perspective_fov_lh_no (fov_y_radians: T, width: T, height: T, near: T, far: T) -> Self
                 where T: Real + FloatConst + Debug
             {
                 let mut m = Self::perspective_fov_rh_no(fov_y_radians, width, height, near, far);
@@ -2777,7 +2790,7 @@ macro_rules! mat_impl_mat4 {
             ///
             /// [Link to PDF](http://www.terathon.com/gdc07_lengyel.pdf)
             // From GLM
-            pub fn tweaked_infinite_perspective_rh (fov_y_radians: T, aspect_ratio: T, near: T, epsilon: T) -> Self 
+            pub fn tweaked_infinite_perspective_rh (fov_y_radians: T, aspect_ratio: T, near: T, epsilon: T) -> Self
                 where T: Real + FloatConst + Debug
             {
                 // Assertions from cgmath
@@ -2807,7 +2820,7 @@ macro_rules! mat_impl_mat4 {
             }
 
             /// Creates an infinite perspective projection matrix for left-handed spaces.
-            pub fn tweaked_infinite_perspective_lh (fov_y_radians: T, aspect_ratio: T, near: T, epsilon: T) -> Self 
+            pub fn tweaked_infinite_perspective_lh (fov_y_radians: T, aspect_ratio: T, near: T, epsilon: T) -> Self
                 where T: Real + FloatConst + Debug
             {
                 let mut m = Self::tweaked_infinite_perspective_rh(fov_y_radians, aspect_ratio, near, epsilon);
@@ -2817,14 +2830,14 @@ macro_rules! mat_impl_mat4 {
             }
 
             /// Creates an infinite perspective projection matrix for right-handed spaces.
-            pub fn infinite_perspective_rh (fov_y_radians: T, aspect_ratio: T, near: T) -> Self 
+            pub fn infinite_perspective_rh (fov_y_radians: T, aspect_ratio: T, near: T) -> Self
                 where T: Real + FloatConst + Debug
             {
                 Self::tweaked_infinite_perspective_rh(fov_y_radians, aspect_ratio, near, T::zero())
             }
 
             /// Creates an infinite perspective projection matrix for left-handed spaces.
-            pub fn infinite_perspective_lh (fov_y_radians: T, aspect_ratio: T, near: T) -> Self 
+            pub fn infinite_perspective_lh (fov_y_radians: T, aspect_ratio: T, near: T) -> Self
                 where T: Real + FloatConst + Debug
             {
                 Self::tweaked_infinite_perspective_lh(fov_y_radians, aspect_ratio, near, T::zero())
@@ -3096,7 +3109,7 @@ macro_rules! mat_impl_mat4 {
                 let one = T::one();
                 let two = one + one;
                 let four = two + two;
-                if tr > T::zero() { 
+                if tr > T::zero() {
                     let s = (tr+one).sqrt() * two; // S=4*qw
                     Self {
                         w: s / four,
@@ -3104,15 +3117,15 @@ macro_rules! mat_impl_mat4 {
                         y: (m02 - m20) / s,
                         z: (m10 - m01) / s,
                     }
-                } else if (m00 > m11) && (m00 > m22) { 
-                    let s = (one + m00 - m11 - m22).sqrt() * two; // S=4*qx 
+                } else if (m00 > m11) && (m00 > m22) {
+                    let s = (one + m00 - m11 - m22).sqrt() * two; // S=4*qx
                     Self {
                         w: (m21 - m12) / s,
                         x: s / four,
                         y: (m01 + m10) / s,
                         z: (m02 + m20) / s,
                     }
-                } else if m11 > m22 { 
+                } else if m11 > m22 {
                     let s = (one + m11 - m00 - m22).sqrt() * two; // S=4*qy
                     Self {
                         w: (m02 - m20) / s,
@@ -3120,7 +3133,7 @@ macro_rules! mat_impl_mat4 {
                         y: s / four,
                         z: (m12 + m21) / s,
                     }
-                } else { 
+                } else {
                     let s = (one + m22 - m00 - m11).sqrt() * two; // S=4*qz
                     Self {
                         w: (m10 - m01) / s,
@@ -3277,7 +3290,7 @@ macro_rules! mat_impl_mat3 {
             /// let t = Mat3::new(
             ///     0, 4, 8,
             ///     1, 5, 9,
-            ///     2, 6, 0 
+            ///     2, 6, 0
             /// );
             /// assert_eq!(m.transposed(), t);
             /// assert_eq!(m, m.transposed().transposed());
@@ -3465,21 +3478,21 @@ macro_rules! mat_impl_mat3 {
                 )
             }
 
-            /// Rotates this matrix around a 3D axis.  
+            /// Rotates this matrix around a 3D axis.
             /// The axis is not required to be normalized.
             pub fn rotate_3d<V: Into<Vec3<T>>>(&mut self, angle_radians: T, axis: V)
                 where T: Real + MulAdd<T,T,Output=T> + Sum
             {
                 *self = self.rotated_3d(angle_radians, axis);
             }
-            /// Returns this matrix rotated around a 3D axis.  
+            /// Returns this matrix rotated around a 3D axis.
             /// The axis is not required to be normalized.
             pub fn rotated_3d<V: Into<Vec3<T>>>(self, angle_radians: T, axis: V) -> Self
                 where T: Real + MulAdd<T,T,Output=T> + Sum
             {
                 Self::rotation_3d(angle_radians, axis) * self
             }
-            /// Creates a matrix that rotates around a 3D axis.  
+            /// Creates a matrix that rotates around a 3D axis.
             /// The axis is not required to be normalized.
             ///
             /// ```
@@ -3534,7 +3547,7 @@ macro_rules! mat_impl_mat3 {
                 Self::new(
                     oc*x*x + c  , oc*x*y - z*s, oc*z*x + y*s,
                     oc*x*y + z*s, oc*y*y + c  , oc*y*z - x*s,
-                    oc*z*x - y*s, oc*y*z + x*s, oc*z*z + c  
+                    oc*z*x - y*s, oc*y*z + x*s, oc*z*z + c
                 )
             }
             /// Creates a matrix that would rotate a `from` direction to `to`.
@@ -3554,7 +3567,7 @@ macro_rules! mat_impl_mat3 {
             /// assert_relative_eq!(m * from, to);
             /// # }
             /// ```
-            pub fn rotation_from_to_3d<V: Into<Vec3<T>>>(from: V, to: V) -> Self 
+            pub fn rotation_from_to_3d<V: Into<Vec3<T>>>(from: V, to: V) -> Self
                 where T: Real + Sum
             {
                 Self::from(Quaternion::rotation_from_to_3d(from, to))
@@ -3587,7 +3600,7 @@ macro_rules! mat_impl_mat3 {
                 }
             }
         }
-        impl<T> From<Quaternion<T>> for Mat3<T> 
+        impl<T> From<Quaternion<T>> for Mat3<T>
             where T: Copy + Zero + One + Mul<Output=T> + Add<Output=T> + Sub<Output=T>
         {
             fn from(q: Quaternion<T>) -> Self {
@@ -3608,7 +3621,7 @@ macro_rules! mat_impl_mat3 {
         /// assert_relative_eq!(a, b);
         /// # }
         /// ```
-        impl<T> From<Mat3<T>> for Quaternion<T> 
+        impl<T> From<Mat3<T>> for Quaternion<T>
             where T: Zero + One + Mul<Output=T> + Add<Output=T> + Sub<Output=T> + Real
         {
             fn from(m: Mat3<T>) -> Self {
@@ -3975,8 +3988,8 @@ macro_rules! mat_declare_modules {
             //! Matrices stored in column-major layout.
             //!
             //! Multiplying a column-major matrix by one or more column vectors is fast
-            //! due to the way it is implemented in SIMD 
-            //! (a `matrix * vector` mutliply is four broadcasts, one SIMD product and three fused-multiply-adds).  
+            //! due to the way it is implemented in SIMD
+            //! (a `matrix * vector` mutliply is four broadcasts, one SIMD product and three fused-multiply-adds).
             //!
             //! Because `matrix * matrix` and `matrix * vector` products are fastest with this layout,
             //! it's the preferred one for most computer graphics libraries and application.
@@ -4006,7 +4019,7 @@ macro_rules! mat_declare_modules {
 
 pub mod repr_c {
     //! Matrix types which use `#[repr(C)]` vectors exclusively.
-    //! 
+    //!
     //! See also the `repr_simd` neighbour module, which is available on Nightly
     //! with the `repr_simd` feature enabled.
 
@@ -4026,7 +4039,7 @@ pub mod repr_c {
 #[cfg(all(nightly, feature="repr_simd"))]
 pub mod repr_simd {
     //! Matrix types which use a `#[repr(C)]` vector of `#[repr(simd)]` vectors.
-   
+
     use super::*;
     #[allow(unused_imports)]
     use super::vec::repr_simd::{Vec2};
@@ -4171,7 +4184,7 @@ mod tests {
         let model = Mat4::<f32>::model_look_at_rh(eye, target, Vec4::up());
         assert_relative_eq!(model * Vec4::unit_w(), Vec4::new(1_f32, 0., 1., 1.));
         assert_relative_eq!(model * Vec4::new(0_f32, 0., -2_f32.sqrt(), 1.), Vec4::new(2_f32, 0., 2., 1.));
-        
+
         // A "model" look-at essentially undoes a "view" look-at
         let view = Mat4::<f32>::look_at_rh(eye, target, Vec4::up());
         assert_relative_eq!(view * model, Mat4::identity());
@@ -4186,7 +4199,7 @@ mod tests {
         assert_relative_eq!(model * Vec4::unit_w(), eye);
         let d = 2_f32.sqrt();
         assert_relative_eq!(model * Vec4::new(0_f32, 0., d, 1.), target);
-        
+
         // A "model" look-at essentially undoes a "view" look-at
         let view = Mat4::look_at_lh(eye, target, Vec4::up());
         assert_relative_eq!(view * model, Mat4::identity());
