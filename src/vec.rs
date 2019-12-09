@@ -667,7 +667,7 @@ macro_rules! vec_impl_vec {
                 let (a, b) = (a.into(), b.into());
                 Self::new($(partial_min(a.$get, b.$get)),+)
             }
-            /// Compares elements of `a` and `b`, and returns the minimum values into a new
+            /// Compares elements of `a` and `b`, and returns the maximum values into a new
             /// vector, using partial ordering.
             ///
             /// ```
