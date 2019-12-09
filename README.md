@@ -14,7 +14,7 @@ See [the wiki](https://github.com/yoanlcq/vek/wiki) for an overview, FAQ, guides
 
 # Contributing
 
-If you plan to work a pull request, please file an issue first so that we can agree on the best way to go and minize the amount of wasted time. :)
+If you plan to work a pull request, please file an issue first so that we can agree on the best way to go and minimize the amount of wasted time. :)
 
 # CONTRIBUTORS
 
