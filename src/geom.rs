@@ -24,6 +24,20 @@ macro_rules! geom_impl_line_segment {
                 let Self { start, end } = self;
                 Range { start, end }
             }
+
+            /// Get the smallest distance between the line segment and a point.
+            pub fn distance_to_point(self, p: $Vec<T>) -> T where T: Real + Sum {
+                let len_sq = self.start.distance_squared(self.end);
+
+                if len_sq == Zero::zero() {
+                    self.start.distance(p)
+                } else {
+                    let t = ((p - self.start).dot(self.end - self.start) / len_sq)
+                        .max(Zero::zero())
+                        .min(One::one());
+                    p.distance(self.start + (self.end - self.start) * t)
+                }
+            }
         }
     };
 }
