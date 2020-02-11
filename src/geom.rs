@@ -3,6 +3,7 @@
 // NOTE: in this module, the type parameters <P,E> usually stand for Position and Extent.
 
 use num_traits::{real::Real, FloatConst, Zero, One};
+use approx::ApproxEq;
 use std::ops::*;
 use std::iter::Sum;
 
