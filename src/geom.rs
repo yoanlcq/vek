@@ -3,6 +3,7 @@
 // NOTE: in this module, the type parameters <P,E> usually stand for Position and Extent.
 
 use num_traits::{real::Real, FloatConst, Zero, One};
+use approx::ApproxEq;
 use std::ops::*;
 use std::iter::Sum;
 
@@ -23,6 +24,26 @@ macro_rules! geom_impl_line_segment {
             pub fn into_range(self) -> Range<$Vec<T>> {
                 let Self { start, end } = self;
                 Range { start, end }
+            }
+
+            /// Project the given point onto the line segment (equivalent to 'snapping' the point
+            /// to the closest point on the line segment).
+            pub fn projected_point(self, p: $Vec<T>) -> $Vec<T> where T: Real + Sum + ApproxEq {
+                let len_sq = self.start.distance_squared(self.end);
+
+                if len_sq.relative_eq(&Zero::zero(), T::default_epsilon(), T::default_max_relative()) {
+                    self.start
+                } else {
+                    let t = ((p - self.start).dot(self.end - self.start) / len_sq)
+                        .max(Zero::zero())
+                        .min(One::one());
+                    self.start + (self.end - self.start) * t
+                }
+            }
+
+            /// Get the smallest distance between the line segment and a point.
+            pub fn distance_to_point(self, p: $Vec<T>) -> T where T: Real + Sum + ApproxEq {
+                self.projected_point(p).distance(p)
             }
         }
     };
@@ -745,5 +766,18 @@ mod tests {
         let rect3 = aabb.into_rect3();
         assert_relative_eq!(rect3.center(), Vec3::zero());
     }
-
+    #[test] fn projected_point() {
+        let segment = LineSegment2 { start: Vec2::new(-5_f32, 5.), end: Vec2::new(5., -5.0) };
+        assert_relative_eq!(segment.start, segment.projected_point(Vec2::new(-4., 7.)));
+        assert_relative_eq!(segment.end, segment.projected_point(Vec2::new(7., -4.)));
+        assert_relative_eq!(Vec2::zero(), segment.projected_point(Vec2::new(1., 1.)));
+        let segment = LineSegment3 { start: Vec3::new(-5_f32, -0., 5.), end: Vec3::new(5., 0., -5.0) };
+        assert_relative_eq!(Vec3::zero(), segment.projected_point(Vec3::new(-0., -1., -0.)));
+    }
+    #[test] fn distance_to_point() {
+        let segment = LineSegment2 { start: Vec2::new(-5_f32, 5.), end: Vec2::new(5., -5.0) };
+        assert_relative_eq!(2.0f32.sqrt(), segment.distance_to_point(Vec2::new(-1., -1.)));
+        let segment = LineSegment3 { start: Vec3::new(-5_f32, 0., 5.), end: Vec3::new(5., 0., -5.) };
+        assert_relative_eq!(2.0f32.sqrt(), segment.distance_to_point(Vec3::new(-1., 0., -1.)));
+    }
 }
