@@ -26,7 +26,7 @@
 #![cfg_attr(not(test), no_std)]
 #![doc(
     test(attr(deny(warnings))),
-    html_root_url = "https://docs.rs/vek/0.9.11",
+    html_root_url = "https://docs.rs/vek/0.9.12",
     //html_logo_url = "https://yoanlcq.github.io/vek/logo.png",
     //html_favicon_url = "https://yoanlcq.github.io/vek/favicon.ico",
 )]
