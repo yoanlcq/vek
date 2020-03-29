@@ -46,16 +46,16 @@ uvw = []
 repr_simd = []
 
 [build-dependencies]
-rustc_version = "~0.2.1"
+rustc_version = "~0.2.3"
 
 [dependencies]
-approx = "~0.1.1"
-num-traits = "~0.1.40"
-num-integer = "~0.1.35"
-static_assertions = "~0.2.5"
+approx = { version = "~0.3.2", default-features = false }
+num-traits = { version = "~0.2.11", default-features = false, features = ["libm"] }
+num-integer = { version = "~0.1.42", default-features = false }
+static_assertions = "~1.1.0"
 image = { version = "~0.17", optional = true, default-features = false }
-serde = { version = "~1.0.24", optional = true, features = ["derive"] }
-mint = { version = "~0.5.1", optional = true }
+serde = { version = "~1.0.105", optional = true, features = ["derive"] }
+mint = { version = "~0.5.4", optional = true }
 # clippy = { version = "0.0.166", optional = true }
 
 [target.'cfg(any(target_arch="x86", target_arch="x86_64"))'.dependencies]

@@ -3,7 +3,7 @@
 use std::num::Wrapping;
 use std::ops::*;
 use std::cmp;
-use num_traits::{Zero, One, FloatConst};
+use num_traits::{Zero, One, FloatConst, real::Real};
 
 /// Compares and returns the minimum of two values, using partial ordering.
 pub fn partial_min<T: PartialOrd + Sized>(a: T, b: T) -> T {
@@ -346,7 +346,7 @@ macro_rules! lerp_impl_float {
                     from*(Self::one()-factor) + to*factor
                 }
                 fn lerp_unclamped(from: Self, to: Self, factor: Self) -> Self {
-                    factor.mul_add(to - from, from)
+                    self::MulAdd::mul_add(factor, to - from, from)
                 }
             }
             impl<'a> Lerp<$T> for &'a $T {
@@ -370,7 +370,7 @@ macro_rules! lerp_impl_integer {
                     ((from as f32)*((1f32)-factor) + (to as f32)*factor).round() as Self
                 }
                 fn lerp_unclamped(from: Self, to: Self, factor: f32) -> Self {
-                    factor.mul_add((to - from) as f32, from as f32).round() as Self
+                    self::MulAdd::mul_add(factor, (to - from) as f32, from as f32).round() as Self
                 }
             }
             impl Lerp<f64> for $T {
@@ -379,7 +379,7 @@ macro_rules! lerp_impl_integer {
                     ((from as f64)*((1f64)-factor) + (to as f64)*factor).round() as Self
                 }
                 fn lerp_unclamped(from: Self, to: Self, factor: f64) -> Self {
-                    factor.mul_add((to - from) as f64, from as f64).round() as Self
+                    self::MulAdd::mul_add(factor, (to - from) as f64, from as f64).round() as Self
                 }
             }
             impl<'a> Lerp<f32> for &'a $T {

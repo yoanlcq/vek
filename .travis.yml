@@ -59,7 +59,12 @@ matrix:
     #- env: TARGET=aarch64-linux-android
     #- env: TARGET=aarch64-linux-android
     #  rust: nightly
-    #
+    
+    # Some `no_std` target
+    - env: thumbv7em-none-eabihf
+    - env: thumbv7em-none-eabihf
+      rust: nightly
+
     - env: TARGET=arm-unknown-linux-gnueabi
     - env: TARGET=arm-unknown-linux-gnueabi
       rust: nightly

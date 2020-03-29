@@ -3,7 +3,7 @@
 // NOTE: in this module, the type parameters <P,E> usually stand for Position and Extent.
 
 use num_traits::{real::Real, FloatConst, Zero, One};
-use approx::ApproxEq;
+use approx::RelativeEq;
 use std::ops::*;
 use std::iter::Sum;
 
@@ -28,7 +28,7 @@ macro_rules! geom_impl_line_segment {
 
             /// Project the given point onto the line segment (equivalent to 'snapping' the point
             /// to the closest point on the line segment).
-            pub fn projected_point(self, p: $Vec<T>) -> $Vec<T> where T: Real + Sum + ApproxEq {
+            pub fn projected_point(self, p: $Vec<T>) -> $Vec<T> where T: Real + Sum + RelativeEq {
                 let len_sq = self.start.distance_squared(self.end);
 
                 if len_sq.relative_eq(&Zero::zero(), T::default_epsilon(), T::default_max_relative()) {
@@ -42,7 +42,7 @@ macro_rules! geom_impl_line_segment {
             }
 
             /// Get the smallest distance between the line segment and a point.
-            pub fn distance_to_point(self, p: $Vec<T>) -> T where T: Real + Sum + ApproxEq {
+            pub fn distance_to_point(self, p: $Vec<T>) -> T where T: Real + Sum + RelativeEq {
                 self.projected_point(p).distance(p)
             }
         }

@@ -7,7 +7,7 @@ use std::iter::Sum;
 use std::fmt::{self, Display, Formatter, Debug};
 use std::ops::*;
 use num_traits::{Zero, One, real::Real, FloatConst, NumCast};
-use approx::ApproxEq;
+use approx::{AbsDiffEq, RelativeEq, UlpsEq};
 use ops::MulAdd;
 use vec;
 use geom::{Rect, FrustumPlanes}; // NOTE: Rect is therefore always repr_c here
@@ -1079,7 +1079,7 @@ macro_rules! mat_impl_mat {
                 Self::identity()
             }
         }
-        // Welp, not using ApproxEq here - integers don't implement it :(
+        // Welp, not using RelativeEq here - integers don't implement it :(
         impl<T: Zero + PartialEq> Zero for $Mat<T> {
             fn zero() -> Self { Self::zero() }
             fn is_zero(&self) -> bool { self == &Self::zero() }
@@ -1369,33 +1369,46 @@ macro_rules! mat_impl_mat {
         impl<T: Rem<Output=T> + Copy> RemAssign    for $Mat<T> { fn rem_assign(&mut self, rhs: Self) { *self = *self % rhs; } }
         impl<T: Rem<Output=T> + Copy> RemAssign<T> for $Mat<T> { fn rem_assign(&mut self, rhs: T   ) { *self = *self % rhs; } }
 
-        impl<T: ApproxEq> ApproxEq for $Mat<T> where T::Epsilon: Copy {
+        impl<T: AbsDiffEq> AbsDiffEq for $Mat<T> where T::Epsilon: Copy {
             type Epsilon = T::Epsilon;
 
             fn default_epsilon() -> T::Epsilon {
                 T::default_epsilon()
             }
 
-            fn default_max_relative() -> T::Epsilon {
-                T::default_max_relative()
-            }
-
-            fn default_max_ulps() -> u32 {
-                T::default_max_ulps()
-            }
-
-            fn relative_eq(&self, other: &Self, epsilon: T::Epsilon, max_relative: T::Epsilon) -> bool {
+            fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
                 for (l, r) in self.$lines.iter().zip(other.$lines.iter()) {
-                    if !ApproxEq::relative_eq(l, r, epsilon, max_relative) {
+                    if !AbsDiffEq::abs_diff_eq(l, r, epsilon) {
                         return false;
                     }
                 }
                 true
             }
+        }
+
+        impl<T: RelativeEq> RelativeEq for $Mat<T> where T::Epsilon: Copy {
+            fn default_max_relative() -> T::Epsilon {
+                T::default_max_relative()
+            }
+
+            fn relative_eq(&self, other: &Self, epsilon: T::Epsilon, max_relative: T::Epsilon) -> bool {
+                for (l, r) in self.$lines.iter().zip(other.$lines.iter()) {
+                    if !RelativeEq::relative_eq(l, r, epsilon, max_relative) {
+                        return false;
+                    }
+                }
+                true
+            }
+        }
+
+        impl<T: UlpsEq> UlpsEq for $Mat<T> where T::Epsilon: Copy {
+            fn default_max_ulps() -> u32 {
+                T::default_max_ulps()
+            }
 
             fn ulps_eq(&self, other: &Self, epsilon: T::Epsilon, max_ulps: u32) -> bool {
                 for (l, r) in self.$lines.iter().zip(other.$lines.iter()) {
-                    if !ApproxEq::ulps_eq(l, r, epsilon, max_ulps) {
+                    if !UlpsEq::ulps_eq(l, r, epsilon, max_ulps) {
                         return false;
                     }
                 }
@@ -1847,7 +1860,7 @@ macro_rules! mat_impl_mat4 {
                 let r2 = Vec4::shuffle_lo_hi(t1, m.z, (0,2,2,3));
                 // PERF: Could use mul_add()
                 let size_sqr = r0 * r0 + r1 * r1 + r2 * r2;
-                let epsilon = T::epsilon(); // XXX: Might prefer the one from ApproxEq ???
+                let epsilon = T::epsilon(); // XXX: Might prefer the one from RelativeEq ???
                 // PERF: Could use _mm_blendv_ps(), like in this part of the article's source code.
                 let size_sqr = size_sqr.map(|x| if x.abs() > epsilon { x } else { T::one() });
                 let r0 = r0 / size_sqr;
