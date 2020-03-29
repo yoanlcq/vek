@@ -45,9 +45,6 @@
 
 extern crate core as std;
 
-#[cfg(all(nightly, test))] // On stable: error[E0658]: use of unstable library feature 'test'
-extern crate test;
-
 #[cfg(test)]
 mod vtest;
 
