@@ -23,7 +23,7 @@
 //! # `#![no_std]`
 //! This crate is `#![no_std]`.
 
-#![cfg_attr(not(test), no_std)]
+#![no_std]
 #![doc(
     test(attr(deny(warnings))),
     html_root_url = "https://docs.rs/vek/0.10.0",
@@ -43,11 +43,13 @@
 //#![cfg_attr(feature="repr_simd", feature(link_llvm_intrinsics)]
 #![cfg_attr(all(nightly, test), feature(test))]
 
-#[cfg(not(test))]
 extern crate core as std;
 
-#[cfg(all(nightly, test))]
+#[cfg(all(nightly, test))] // On stable: error[E0658]: use of unstable library feature 'test'
 extern crate test;
+
+#[cfg(test)]
+mod vtest;
 
 #[cfg(feature = "serde")]
 #[macro_use]

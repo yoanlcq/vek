@@ -3080,7 +3080,7 @@ mod tests {
 
             test_vec_t!{common $Vec<$T>}
 
-            use ::std::rc::Rc;
+            use $crate::vtest::Rc;
 
             #[test]
             fn from_rc_array() {
@@ -3099,9 +3099,8 @@ mod tests {
                 assert_eq!(Rc::strong_count(&rc), 1);
                 *Rc::make_mut(&mut rc) = 1; // Try to write. If there's a double free, this is supposed to crash.
             }
-            #[test] fn claims_to_be_packed_rc() { assert!($Vec::<$T>::default().map(::std::rc::Rc::new).is_packed()); }
+
             #[test] fn claims_to_be_packed_refcell() { assert!($Vec::<$T>::default().map(::std::cell::RefCell::new).is_packed()); }
-            #[test] fn claims_to_be_packed_stdvec() { assert!($Vec::<$T>::default().map(|x| vec![x]).is_packed()); }
         };
         (repr_simd $Vec:ident<$T:ident>) => {
             test_vec_t!{common $Vec<$T>}
@@ -3149,20 +3148,8 @@ mod tests {
                 assert_eq!(v.as_slice(), &a);
             }
 
-            #[test] fn is_actually_packed_rc() {
-                let v = $Vec::<$T>::iota().map(::std::rc::Rc::new);
-                let a = v.clone().into_array();
-                assert_eq!(v.as_slice(), &a);
-            }
-
             #[test] fn is_actually_packed_refcell() {
                 let v = $Vec::<$T>::iota().map(::std::cell::RefCell::new);
-                let a = v.clone().into_array();
-                assert_eq!(v.as_slice(), &a);
-            }
-
-            #[test] fn is_actually_packed_stdvec() {
-                let v = $Vec::<$T>::iota().map(|x| vec![x]);
                 let a = v.clone().into_array();
                 assert_eq!(v.as_slice(), &a);
             }
