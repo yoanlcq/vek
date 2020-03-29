@@ -1582,12 +1582,7 @@ macro_rules! vec_impl_spatial {
                 where T: Copy + Sum + Mul<Output=T> + Sub<Output=T> + Add<Output=T>
             {
                 let dot = self.dot(surface_normal);
-                let p = dot + dot;
-                let mut out: Self = unsafe { mem::uninitialized() };
-                for ((out_e, v), s) in out.iter_mut().zip(self.into_iter()).zip(surface_normal.into_iter()) {
-                    mem::forget(mem::replace(out_e, v - s * p));
-                }
-                out
+                self - surface_normal * (dot + dot)
             }
             /// The refraction vector for this incident vector, a surface normal and a ratio of
             /// indices of refraction (`eta`).

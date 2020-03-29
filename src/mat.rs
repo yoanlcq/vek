@@ -114,15 +114,15 @@ macro_rules! mat_impl_mat {
                 let m = mem::ManuallyDrop::new(self);
                 let mut cur = 0;
                 unsafe {
-                    let mut array: [T; $nrows*$ncols] = mem::uninitialized();
+                    let mut array: mem::MaybeUninit<[T; $nrows*$ncols]> = mem::MaybeUninit::uninit();
                     for i in 0..$nrows {
                         let row = m.rows.get_unchecked(i);
                         $(
-                            mem::forget(mem::replace(array.get_unchecked_mut(cur), ptr::read(&row.$get)));
+                            mem::forget(mem::replace((&mut *array.as_mut_ptr()).get_unchecked_mut(cur), ptr::read(&row.$get)));
                             cur += 1;
                         )+
                     }
-                    array
+                    array.assume_init()
                 }
             }
             /// Converts this matrix into a fixed-size array of fixed-size arrays of elements.
@@ -172,15 +172,15 @@ macro_rules! mat_impl_mat {
                 let array = mem::ManuallyDrop::new(array);
                 let mut cur = 0;
                 unsafe {
-                    let mut m: Self = mem::uninitialized();
+                    let mut m: mem::MaybeUninit<Self> = mem::MaybeUninit::uninit();
                     for i in 0..$nrows {
-                        let row = m.rows.get_unchecked_mut(i);
+                        let row = (&mut *m.as_mut_ptr()).rows.get_unchecked_mut(i);
                         $(
                             mem::forget(mem::replace(&mut row.$get, ptr::read(array.get_unchecked(cur))));
                             cur += 1;
                         )+
                     }
-                    m
+                    m.assume_init()
                 }
             }
             /// Converts a fixed-size array of fixed-size array of elements into a matrix.
@@ -228,14 +228,14 @@ macro_rules! mat_impl_mat {
                 let m = mem::ManuallyDrop::new(self);
                 let mut cur = 0;
                 unsafe {
-                    let mut array: [T; $nrows*$ncols] = mem::uninitialized();
+                    let mut array: mem::MaybeUninit<[T; $nrows*$ncols]> = mem::MaybeUninit::uninit();
                     $(
                         for i in 0..$nrows {
-                            mem::forget(mem::replace(array.get_unchecked_mut(cur), ptr::read(&m.rows.get_unchecked(i).$get)));
+                            mem::forget(mem::replace((&mut *array.as_mut_ptr()).get_unchecked_mut(cur), ptr::read(&m.rows.get_unchecked(i).$get)));
                             cur += 1;
                         }
                     )+
-                    array
+                    array.assume_init()
                 }
             }
             /// Converts this matrix into a fixed-size array of fixed-size arrays of elements.
@@ -285,14 +285,14 @@ macro_rules! mat_impl_mat {
                 let array = mem::ManuallyDrop::new(array);
                 let mut cur = 0;
                 unsafe {
-                    let mut m: Self = mem::uninitialized();
+                    let mut m: mem::MaybeUninit<Self> = mem::MaybeUninit::uninit();
                     $(
                         for i in 0..$nrows {
-                            mem::forget(mem::replace(&mut m.rows.get_unchecked_mut(i).$get, ptr::read(array.get_unchecked(cur))));
+                            mem::forget(mem::replace(&mut (&mut *m.as_mut_ptr()).rows.get_unchecked_mut(i).$get, ptr::read(array.get_unchecked(cur))));
                             cur += 1;
                         }
                     )+
-                    m
+                    m.assume_init()
                 }
             }
             /// Converts a fixed-size array of fixed-size arrays of elements into a matrix.
@@ -633,15 +633,15 @@ macro_rules! mat_impl_mat {
                 let m = mem::ManuallyDrop::new(self);
                 let mut cur = 0;
                 unsafe {
-                    let mut array: [T; $nrows*$ncols] = mem::uninitialized();
+                    let mut array: mem::MaybeUninit<[T; $nrows*$ncols]> = mem::MaybeUninit::uninit();
                     for i in 0..$ncols {
                         let col = m.cols.get_unchecked(i);
                         $(
-                            mem::forget(mem::replace(array.get_unchecked_mut(cur), ptr::read(&col.$get)));
+                            mem::forget(mem::replace((&mut *array.as_mut_ptr()).get_unchecked_mut(cur), ptr::read(&col.$get)));
                             cur += 1;
                         )+
                     }
-                    array
+                    array.assume_init()
                 }
             }
             /// Converts this matrix into a fixed-size array of fixed-size arrays of elements.
@@ -691,15 +691,15 @@ macro_rules! mat_impl_mat {
                 let array = mem::ManuallyDrop::new(array);
                 let mut cur = 0;
                 unsafe {
-                    let mut m: Self = mem::uninitialized();
+                    let mut m: mem::MaybeUninit<Self> = mem::MaybeUninit::uninit();
                     for i in 0..$ncols {
-                        let col = m.cols.get_unchecked_mut(i);
+                        let col = (&mut *m.as_mut_ptr()).cols.get_unchecked_mut(i);
                         $(
                             mem::forget(mem::replace(&mut col.$get, ptr::read(array.get_unchecked(cur))));
                             cur += 1;
                         )+
                     }
-                    m
+                    m.assume_init()
                 }
             }
             /// Converts a fixed-size array of fixed-size arrays of elements into a matrix.
@@ -747,14 +747,14 @@ macro_rules! mat_impl_mat {
                 let m = mem::ManuallyDrop::new(self);
                 let mut cur = 0;
                 unsafe {
-                    let mut array: [T; $nrows*$ncols] = mem::uninitialized();
+                    let mut array: mem::MaybeUninit<[T; $nrows*$ncols]> = mem::MaybeUninit::uninit();
                     $(
                         for i in 0..$ncols {
-                            mem::forget(mem::replace(array.get_unchecked_mut(cur), ptr::read(&m.cols.get_unchecked(i).$get)));
+                            mem::forget(mem::replace((&mut *array.as_mut_ptr()).get_unchecked_mut(cur), ptr::read(&m.cols.get_unchecked(i).$get)));
                             cur += 1;
                         }
                     )+
-                    array
+                    array.assume_init()
                 }
             }
             /// Converts this matrix into a fixed-size array of fixed-size arrays of elements.
@@ -804,14 +804,14 @@ macro_rules! mat_impl_mat {
                 let array = mem::ManuallyDrop::new(array);
                 let mut cur = 0;
                 unsafe {
-                    let mut m: Self = mem::uninitialized();
+                    let mut m: mem::MaybeUninit<Self> = mem::MaybeUninit::uninit();
                     $(
                         for i in 0..$ncols {
-                            mem::forget(mem::replace(&mut m.cols.get_unchecked_mut(i).$get, ptr::read(array.get_unchecked(cur))));
+                            mem::forget(mem::replace(&mut (&mut *m.as_mut_ptr()).cols.get_unchecked_mut(i).$get, ptr::read(array.get_unchecked(cur))));
                             cur += 1;
                         }
                     )+
-                    m
+                    m.assume_init()
                 }
             }
             /// Converts a fixed-size array of fixed-size array of elements into a matrix.
