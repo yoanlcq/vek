@@ -60,9 +60,8 @@ matrix:
     #- env: TARGET=aarch64-linux-android
     #  rust: nightly
     
-    # Some `no_std` target
-    - env: thumbv7em-none-eabihf
-    - env: thumbv7em-none-eabihf
+    # Some `no_std` target. `no_std` is nightly-only. Tests cannot work on no_std because the 'test' crate is not available.
+    - env: TARGET=thumbv7em-none-eabihf DISABLE_TESTS=1
       rust: nightly
 
     - env: TARGET=arm-unknown-linux-gnueabi
