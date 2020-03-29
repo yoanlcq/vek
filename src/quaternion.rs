@@ -763,7 +763,7 @@ mod tests {
         #[test] fn rotation_from_to_3d() {
             let a = Vec3::new(1_f32, 200., 3.);
             let b = Vec3::new(80_f32, 0., 352.);
-            let q = Quaternion::rotation_from_to_3d(a, b);
+            let q = Quaternion::<f32>::rotation_from_to_3d(a, b);
             assert_relative_eq!(q.magnitude(), 1.);
         }
         #[test] fn rotation_3d() {

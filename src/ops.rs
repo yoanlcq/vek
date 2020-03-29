@@ -3,7 +3,11 @@
 use std::num::Wrapping;
 use std::ops::*;
 use std::cmp;
-use num_traits::{Zero, One, FloatConst, real::Real};
+use num_traits::{Zero, One, FloatConst};
+
+// On no_std targets, we have to import the Real trait, but on std targets it will use the built-in primitive methods instead and warn that Real is unused.
+#[allow(unused_imports)]
+use num_traits::real::Real;
 
 /// Compares and returns the minimum of two values, using partial ordering.
 pub fn partial_min<T: PartialOrd + Sized>(a: T, b: T) -> T {
