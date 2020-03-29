@@ -8,11 +8,11 @@ macro_rules! transform_complete_mod {
         // look_at
         // rotate_around
 
-        use ::std::iter::Sum;
+        use std::iter::Sum;
         use $crate::num_traits::{Zero, One, real::Real};
         use $crate::ops::*;
-        use vec::$mod::*;
-        use quaternion::$mod::*;
+        use crate::vec::$mod::*;
+        use crate::quaternion::$mod::*;
 
         /// A convenient position + orientation + scale container, backed by two `Vec3` and a `Quaternion.`
         ///

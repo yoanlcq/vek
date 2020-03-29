@@ -705,15 +705,15 @@ pub trait ColorComponent : Zero {
 
 impl ColorComponent for f32 { fn full() -> Self { 1f32 } }
 impl ColorComponent for f64 { fn full() -> Self { 1f64 } }
-impl ColorComponent for u8  { fn full() -> Self { ::std::u8  ::MAX } }
-impl ColorComponent for u16 { fn full() -> Self { ::std::u16 ::MAX } }
-impl ColorComponent for u32 { fn full() -> Self { ::std::u32 ::MAX } }
-impl ColorComponent for u64 { fn full() -> Self { ::std::u64 ::MAX } }
+impl ColorComponent for u8  { fn full() -> Self { std::u8  ::MAX } }
+impl ColorComponent for u16 { fn full() -> Self { std::u16 ::MAX } }
+impl ColorComponent for u32 { fn full() -> Self { std::u32 ::MAX } }
+impl ColorComponent for u64 { fn full() -> Self { std::u64 ::MAX } }
 //impl ColorComponent for u128{ fn full() -> Self { ::std::u128::MAX } }
-impl ColorComponent for i8  { fn full() -> Self { ::std::i8  ::MAX } }
-impl ColorComponent for i16 { fn full() -> Self { ::std::i16 ::MAX } }
-impl ColorComponent for i32 { fn full() -> Self { ::std::i32 ::MAX } }
-impl ColorComponent for i64 { fn full() -> Self { ::std::i64 ::MAX } }
+impl ColorComponent for i8  { fn full() -> Self { std::i8  ::MAX } }
+impl ColorComponent for i16 { fn full() -> Self { std::i16 ::MAX } }
+impl ColorComponent for i32 { fn full() -> Self { std::i32 ::MAX } }
+impl ColorComponent for i64 { fn full() -> Self { std::i64 ::MAX } }
 //impl ColorComponent for i128{ fn full() -> Self { ::std::i128::MAX } }
 impl ColorComponent for Wrapping<u8 >  { fn full() -> Self { Wrapping(ColorComponent::full()) } }
 impl ColorComponent for Wrapping<u16>  { fn full() -> Self { Wrapping(ColorComponent::full()) } }

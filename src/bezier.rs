@@ -2,10 +2,10 @@
 // NOTE: Most info from https://pomax.github.io/bezierinfo
 
 use num_traits::{Zero, real::Real};
-use ops::*;
+use crate::ops::*;
 use std::ops::*;
 use std::iter::Sum;
-use vec::repr_c::{
+use crate::vec::repr_c::{
     Vec3 as CVec3,
     Vec4 as CVec4,
 };
@@ -503,7 +503,7 @@ macro_rules! bezier_impl_quadratic {
             }
             /// Reverses this curve, i.e swaps `start` with `end`.
             pub fn reverse(&mut self) {
-                ::std::mem::swap(&mut self.start, &mut self.end);
+                std::mem::swap(&mut self.start, &mut self.end);
             }
             // Convenience for this module
             pub(crate) fn into_vector(self) -> Vec3<$Point<T>> {
@@ -715,8 +715,8 @@ macro_rules! bezier_impl_cubic {
             }
             /// Reverses this curve, i.e swaps `start` with `end` and `ctrl0` with `ctrl1`.
             pub fn reverse(&mut self) {
-                ::std::mem::swap(&mut self.start, &mut self.end);
-                ::std::mem::swap(&mut self.ctrl0, &mut self.ctrl1);
+                std::mem::swap(&mut self.start, &mut self.end);
+                std::mem::swap(&mut self.ctrl0, &mut self.ctrl1);
             }
             // Convenience for this module
             pub(crate) fn into_vector(self) -> Vec4<$Point<T>> {
@@ -790,10 +790,10 @@ macro_rules! bezier_impl_cubic {
 
 macro_rules! impl_all_beziers {
     ($mod:ident) => {
-        use  vec::$mod::{Vec3, Vec4, Vec2};
-        use  mat::$mod::row_major::{Mat2 as Rows2, Mat3 as Rows3, Mat4 as Rows4};
-        use  mat::$mod::column_major::{Mat2 as Cols2, Mat3 as Cols3, Mat4 as Cols4};
-        use geom::$mod::{LineSegment2, LineSegment3, Aabr, Aabb};
+        use  crate::vec::$mod::{Vec3, Vec4, Vec2};
+        use  crate::mat::$mod::row_major::{Mat2 as Rows2, Mat3 as Rows3, Mat4 as Rows4};
+        use  crate::mat::$mod::column_major::{Mat2 as Cols2, Mat3 as Cols3, Mat4 as Cols4};
+        use crate::geom::$mod::{LineSegment2, LineSegment3, Aabr, Aabb};
         use self::Rows4 as Mat4;
         use self::Rows3 as Mat3;
         bezier_impl_quadratic!{
@@ -844,7 +844,7 @@ pub use self::repr_c::*;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ::vec::{Vec2, Vec3};
+    use crate::vec::{Vec2, Vec3};
 
     macro_rules! test {
         ($Bezier:ident $bezier:ident $Vec:ident) => {

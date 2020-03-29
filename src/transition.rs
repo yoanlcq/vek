@@ -16,7 +16,7 @@
 
 use num_traits::{Zero, One};
 use std::ops::Range;
-use ops::{Lerp, Clamp};
+use crate::ops::{Lerp, Clamp};
 
 /// A functor that maps a progress value to a LERP factor.
 pub trait ProgressMapper<Progress=f32> {

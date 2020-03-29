@@ -205,7 +205,7 @@ macro_rules! geom_impl_aabr_or_aabb {
             }
             /// Makes this bounding shape valid by swapping elements of `self.min` with `self.max` as needed.
             pub fn make_valid(&mut self) where T: PartialOrd {
-                $(if self.min.$p > self.max.$p { ::std::mem::swap(&mut self.min.$p, &mut self.max.$p); })+
+                $(if self.min.$p > self.max.$p { std::mem::swap(&mut self.min.$p, &mut self.max.$p); })+
             }
             /// Returns this bounding shape made valid by swapping elements of `self.min` with `self.max` as needed.
             pub fn made_valid(mut self) -> Self where T: PartialOrd {
@@ -430,7 +430,7 @@ pub struct FrustumPlanes<T> {
 macro_rules! geom_complete_mod {
     ($mod:ident) => {
 
-        use vec::$mod::*;
+        use crate::vec::$mod::*;
 
         // XXX: Beware when using code that assumes that Y points downards.
         // Luckily, our matrix functions (those that receive a viewport) do not!
@@ -748,7 +748,7 @@ pub use self::repr_c::*;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ::vec::{Vec2, Vec3};
+    use crate::vec::{Vec2, Vec3};
 
     #[test] fn rect_center() {
         let min = Vec2::new(-1_f32, -1.);

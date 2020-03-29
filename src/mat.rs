@@ -8,11 +8,11 @@ use std::fmt::{self, Display, Formatter, Debug};
 use std::ops::*;
 use num_traits::{Zero, One, real::Real, FloatConst, NumCast};
 use approx::{AbsDiffEq, RelativeEq, UlpsEq};
-use ops::MulAdd;
-use vec;
-use geom::{Rect, FrustumPlanes}; // NOTE: Rect is therefore always repr_c here
-use quaternion;
-use transform;
+use crate::ops::MulAdd;
+use crate::vec;
+use crate::geom::{Rect, FrustumPlanes}; // NOTE: Rect is therefore always repr_c here
+use crate::quaternion;
+use crate::transform;
 
 // Needed because mem::transmute() isn't clever enough to figure out that e.g [T; 16] and [[T; 4]; 4]
 // always have the exact same size and layout, regardless of T. The opposite is impossible.
@@ -4013,7 +4013,7 @@ macro_rules! mat_declare_modules {
         /// Rationale:
         /// - (Matrix * Vector) multiplications are more efficient;
         /// - This is the layout expected by OpenGL;
-        pub use column_major::*;
+        pub use crate::column_major::*;
     }
 }
 
@@ -4160,9 +4160,9 @@ mod tests {
 
 
     #[test] fn simple_mat2() {
-        use ::vec::Vec2;
-        use ::mat::row_major::Mat2 as Rows2;
-        use ::mat::column_major::Mat2 as Cols2;
+        use crate::vec::Vec2;
+        use crate::mat::row_major::Mat2 as Rows2;
+        use crate::mat::column_major::Mat2 as Cols2;
         let a = Rows2::new(
             1, 2,
             3, 4

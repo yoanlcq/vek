@@ -26,7 +26,7 @@
 #![cfg_attr(not(test), no_std)]
 #![doc(
     test(attr(deny(warnings))),
-    html_root_url = "https://docs.rs/vek/0.9.12",
+    html_root_url = "https://docs.rs/vek/0.10.0",
     //html_logo_url = "https://yoanlcq.github.io/vek/logo.png",
     //html_favicon_url = "https://yoanlcq.github.io/vek/favicon.ico",
 )]
@@ -70,18 +70,18 @@ extern crate approx;
 extern crate static_assertions;
 
 pub mod ops;
-pub use ops::*;
+pub use crate::ops::*;
 pub mod vec;
-pub use vec::*;
+pub use crate::vec::*;
 pub mod mat;
-pub use mat::*;
+pub use crate::mat::*;
 pub mod quaternion;
-pub use quaternion::*;
+pub use crate::quaternion::*;
 pub mod transition;
-pub use transition::*;
+pub use crate::transition::*;
 pub mod transform;
-pub use transform::*;
+pub use crate::transform::*;
 pub mod bezier;
-pub use bezier::*;
+pub use crate::bezier::*;
 pub mod geom;
-pub use geom::*;
+pub use crate::geom::*;

@@ -1,5 +1,5 @@
 [package]
-version = "0.9.12" # remember to update html_root_url in src/lib.rs
+version = "0.10.0" # remember to update html_root_url in src/lib.rs
 authors = ["Yoan Lecoq <yoanlecoq.io@gmail.com>", "Joshua Barretto <joshua.s.barretto@gmail.com>", "Sunjay Varma <varma.sunjay@gmail.com>", "timokoesters <timo@koesters.xyz>"]
 description = "Generic 2D-3D math swiss army knife for game engines, with SIMD support and focus on convenience."
 documentation = "https://docs.rs/vek"
@@ -15,6 +15,7 @@ exclude = [
     "appveyor.yml",
     ".travis.yml",
 ]
+edition = "2018"
 
 [badges]
 travis-ci = { repository = "yoanlcq/vek" }

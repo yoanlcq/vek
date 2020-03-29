@@ -15,7 +15,7 @@ use std::ops::*;
 use std::slice::{self, /*SliceIndex*/}; // NOTE: Will want to use SliceIndex once it's stabilized
 use num_traits::{Zero, One, NumCast, Signed, real::Real};
 use approx::{AbsDiffEq, RelativeEq, UlpsEq};
-use ops::*;
+use crate::ops::*;
 
 macro_rules! vec_impl_cmp {
     ($(#[$attrs:meta])*, $Vec:ident, $cmp:ident, $op:tt, $Bounds:tt) => {
@@ -1361,7 +1361,7 @@ macro_rules! vec_impl_vec {
             }
         }
 
-        use ::std::mem::ManuallyDrop;
+        use std::mem::ManuallyDrop;
 
         /// Consuming iterator over this module's vector type.
         // Can't (De)Serialize a ManuallyDrop<T>
