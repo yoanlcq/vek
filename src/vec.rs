@@ -1580,13 +1580,13 @@ macro_rules! vec_impl_spatial {
                 self.map(|n| n.relative_eq(&T::zero(), T::default_epsilon(), T::default_max_relative())).reduce_and()
             }
             /// Get the smallest angle, in radians, between two direction vectors.
-            pub fn angle_between(self, v: Self) -> T where T: Sum + Real {
-                self.normalized().dot(v.normalized()).acos()
+            pub fn angle_between(self, v: Self) -> T where T: Sum + Real + Clamp {
+                self.normalized().dot(v.normalized()).clamped_minus1_1().acos()
             }
             #[deprecated(note="Use `to_degrees()` on the value returned by `angle_between()` instead")]
             /// Get the smallest angle, in degrees, between two direction vectors.
             pub fn angle_between_degrees(self, v: Self) -> T
-                where T: Sum + Real
+                where T: Sum + Real + Clamp
             {
                 self.angle_between(v).to_degrees()
             }
@@ -1796,7 +1796,7 @@ macro_rules! vec_impl_spatial_3d {
                     // From GLM, gtx/rotate_vector.inl
                     let (mag_from, mag_to) = (from.magnitude(), to.magnitude());
                     let (from, to) = (from/mag_from, to/mag_to);
-                    let cos_alpha = from.dot(to);
+                    let cos_alpha = from.dot(to).clamped_minus1_1();
                     let alpha = cos_alpha.acos();
                     let sin_alpha = alpha.sin();
                     let t1 = ((T::one() - factor) * alpha).sin() / sin_alpha;
