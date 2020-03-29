@@ -3,15 +3,24 @@
 set -ex
 
 main() {
-    cross build --features "serde repr_simd" --target $TARGET
-    cross build --features "serde repr_simd" --target $TARGET --release
+    cross build --no-default-features --features "libm serde repr_simd" --target $TARGET
+    cross build --no-default-features --features "libm serde repr_simd" --target $TARGET --release
 
-    if [ ! -z $DISABLE_TESTS ]; then
-        return
+    if [ -z $NO_STD ]; then
+        cross build --features "serde repr_simd" --target $TARGET
+        cross build --features "serde repr_simd" --target $TARGET --release
     fi
 
-    cross test --features "serde repr_simd" --target $TARGET
-    cross test --features "serde repr_simd" --target $TARGET --release
+    if [ -z $DISABLE_TESTS ]; then
+        cross test --no-default-features --features "libm serde repr_simd" --target $TARGET
+        cross test --no-default-features --features "libm serde repr_simd" --target $TARGET --release
+
+        if [ -z $NO_STD ]; then
+            cross test --features "serde repr_simd" --target $TARGET
+            cross test --features "serde repr_simd" --target $TARGET --release
+        fi
+    fi
+
     #if [ ! $AVOID_DOC_TESTS ]; then
     #    cross test --doc --no-fail-fast --target $TARGET
     #    cross test --doc --no-fail-fast --target $TARGET --release

@@ -61,7 +61,7 @@ matrix:
     #  rust: nightly
     
     # Some `no_std` target. `no_std` is nightly-only. Tests cannot work on no_std because the 'test' crate is not available.
-    - env: TARGET=thumbv7em-none-eabihf DISABLE_TESTS=1
+    - env: TARGET=thumbv7em-none-eabihf NO_STD=1 DISABLE_TESTS=1
       rust: nightly
 
     - env: TARGET=arm-unknown-linux-gnueabi
