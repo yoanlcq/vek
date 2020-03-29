@@ -1177,7 +1177,6 @@ macro_rules! vec_impl_vec {
         // - fn classify(self) -> FpCategory;
         // - fn integer_decode(self) -> (u64, i16, i8);
 
-
         impl<T: AbsDiffEq> AbsDiffEq for $Vec<T> where T::Epsilon: Copy {
             type Epsilon = T::Epsilon;
 
@@ -1185,24 +1184,9 @@ macro_rules! vec_impl_vec {
                 T::default_epsilon()
             }
 
-            fn abs_diff_eq(&self, other: &Self, epsilon: T::Epsilon) -> bool {
+            fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
                 for (l, r) in self.iter().zip(other.iter()) {
                     if !T::abs_diff_eq(l, r, epsilon) {
-                        return false;
-                    }
-                }
-                true
-            }
-        }
-
-        impl<T: RelativeEq> RelativeEq for $Vec<T> where T::Epsilon: Copy {
-            fn default_max_relative() -> T::Epsilon {
-                T::default_max_relative()
-            }
-
-            fn relative_eq(&self, other: &Self, epsilon: T::Epsilon, max_relative: T::Epsilon) -> bool {
-                for (l, r) in self.iter().zip(other.iter()) {
-                    if !T::relative_eq(l, r, epsilon, max_relative) {
                         return false;
                     }
                 }
@@ -1218,6 +1202,21 @@ macro_rules! vec_impl_vec {
             fn ulps_eq(&self, other: &Self, epsilon: T::Epsilon, max_ulps: u32) -> bool {
                 for (l, r) in self.iter().zip(other.iter()) {
                     if !T::ulps_eq(l, r, epsilon, max_ulps) {
+                        return false;
+                    }
+                }
+                true
+            }
+        }
+
+        impl<T: RelativeEq> RelativeEq for $Vec<T> where T::Epsilon: Copy {
+            fn default_max_relative() -> T::Epsilon {
+                T::default_max_relative()
+            }
+
+            fn relative_eq(&self, other: &Self, epsilon: T::Epsilon, max_relative: T::Epsilon) -> bool {
+                for (l, r) in self.iter().zip(other.iter()) {
+                    if !T::relative_eq(l, r, epsilon, max_relative) {
                         return false;
                     }
                 }

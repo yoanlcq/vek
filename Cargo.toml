@@ -23,7 +23,7 @@ appveyor  = { repository = "yoanlcq/vek" }
 maintenance = { status = "experimental" }
 
 [features]
-default = ["repr_simd", "rgba", "rgb"]
+default = ["repr_simd", "rgba", "rgb", "std"]
 # NOTE: The below ones (commented out) are enforced, because doc tests assume their availability.
 # vec2 = []
 # vec3 = []
@@ -45,13 +45,15 @@ rgba = []
 uv = []
 uvw = []
 repr_simd = []
+std = ["num-traits/std"]
+libm = ["num-traits/libm"]
 
 [build-dependencies]
 rustc_version = "~0.2.3"
 
 [dependencies]
 approx = { version = "~0.3.2", default-features = false }
-num-traits = { version = "~0.2.11", default-features = false, features = ["libm"] }
+num-traits = { version = "~0.2.11", default-features = false }
 num-integer = { version = "~0.1.42", default-features = false }
 static_assertions = "~1.1.0"
 image = { version = "~0.17", optional = true, default-features = false }

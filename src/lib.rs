@@ -32,6 +32,7 @@
 )]
 #![warn(missing_docs)]
 #![allow(stable_features)]
+#![deny(unconditional_recursion)]
 //#![deny(warnings)]
 //#![allow(unknown_lints)]
 //#![deny(incoherent_fundamental_impls)]
