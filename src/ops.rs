@@ -87,11 +87,23 @@ pub trait Clamp<Bound=Self>: Sized {
     fn clamp01(val: Self) -> Self where Bound: Zero + One {
         Self::clamp(val, Bound::zero(), Bound::one())
     }
+    /// Constrains this value to be between -1 and 1 (inclusive).
+    fn clamped_minus1_1(self) -> Self where Bound: One + Neg<Output=Bound> {
+        self.clamped(-Bound::one(), Bound::one())
+    }
+    /// Alias to `clamped_minus1_1`, which doesn't take `self`.
+    fn clamp_minus1_1(val: Self) -> Self where Bound: One + Neg<Output=Bound> {
+        Self::clamp(val, -Bound::one(), Bound::one())
+    }
 }
 
 /// A scalar or vector that can be constrained to be between 0 and 1 (inclusive).
 pub trait Clamp01: Clamp + Zero + One {}
 impl<T: Clamp + Zero + One> Clamp01 for T {}
+
+/// A scalar or vector that can be constrained to be between -1 and 1 (inclusive).
+pub trait ClampMinus1: Clamp + One + Neg<Output=Self> {}
+impl<T: Clamp + One + Neg<Output=T>> ClampMinus1 for T {}
 
 macro_rules! impl_clamp_float {
     ($($T:ty)+) => {
