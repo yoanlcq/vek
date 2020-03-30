@@ -1560,7 +1560,11 @@ macro_rules! vec_impl_spatial {
             }
             /// Get a copy of this direction vector such that its length equals 1.
             /// If all components approximately zero, None is returned (uses RelativeEq).
-            pub fn try_normalized(self) -> Option<Self> where T: RelativeEq + Sum + Real {
+            pub fn try_normalized<E>(self) -> Option<Self>
+            where
+                T: RelativeEq<Epsilon = E> + Sum + Real,
+                E: Add<Output = E> + Real,
+            {
                 if self.is_approx_zero() {
                     None
                 } else {
@@ -1572,12 +1576,37 @@ macro_rules! vec_impl_spatial {
                 *self = self.normalized();
             }
             /// Is this vector normalized ? (Uses `RelativeEq`)
-            pub fn is_normalized(self) -> bool where T: RelativeEq + Sum + Real {
-                self.magnitude_squared().relative_eq(&T::one(), T::default_epsilon(), T::default_max_relative())
+            pub fn is_normalized<E>(self) -> bool
+            where
+                T: RelativeEq<Epsilon = E> + Sum + Real,
+                E: Real,
+            {
+                self.is_magnitude_close_to(T::one())
             }
             /// Is this vector approximately zero ? (Uses `RelativeEq`)
-            pub fn is_approx_zero(self) -> bool where T: RelativeEq + Sum + Real {
-                self.map(|n| n.relative_eq(&T::zero(), T::default_epsilon(), T::default_max_relative())).reduce_and()
+            pub fn is_approx_zero<E>(self) -> bool
+            where
+                T: RelativeEq<Epsilon = E> + Sum + Real,
+                E: Real,
+            {
+                self.is_magnitude_close_to(T::zero())
+            }
+            /// Is the magnitude of the vector close to `x` ? (Uses `RelativeEq`)
+            pub fn is_magnitude_close_to<E>(self, x: T) -> bool
+            where
+                T: RelativeEq<Epsilon = E> + Sum + Real,
+                E: Real,
+            {
+                let epsilon = T::default_epsilon();
+                let max_rel = T::default_max_relative();
+
+                let four_epsilon = epsilon + epsilon + epsilon + epsilon;
+                let four_max_rel = max_rel + max_rel + max_rel + max_rel;
+
+                let x_squared = x * x;
+
+                self.magnitude_squared()
+                    .relative_eq(&(x_squared), four_epsilon, four_max_rel)
             }
             /// Get the smallest angle, in radians, between two direction vectors.
             pub fn angle_between(self, v: Self) -> T where T: Sum + Real + Clamp {

@@ -32,3 +32,4 @@ If you plan to work a pull request, please file an issue first so that we can ag
 - Joshua Barretto (GitHub: [@zesterer](https://github.com/zesterer))
 - Sunjay Varma (GitHub : [@sunjay](https://github.com/sunjay))
 - Timo Kösters (GitHub : [@timokoesters](https://github.com/timokoesters))
+- Imbris (Github: [@imberflur](https://github.com/imberflur))
