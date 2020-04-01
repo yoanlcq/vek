@@ -11,6 +11,10 @@ Generic 2D-3D math swiss army knife for game engines, with SIMD support and focu
 
 See [the wiki](https://github.com/yoanlcq/vek/wiki) for an overview, FAQ, guides, and other info.
 
+# Release notes and breaking changes
+
+Please see [the relevant wiki page](https://github.com/yoanlcq/vek/wiki/Release-notes).
+
 # Compiling on `no_std`
 
 Specify the `vek` dependency in `Cargo.toml` like so :
