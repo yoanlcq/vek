@@ -154,9 +154,9 @@ macro_rules! geom_impl_rect_or_rect3 {
             /// `sp` is assumed to be a position along the
             #[doc=$p_s]
             /// axis that is within this shape's bounds.
-            pub fn $split_at_p(self, sp: T) -> (Self, Self) {
-                let (low, high) = self.$into_aab().$split_at_p(sp);
-                (low.into(), high.into())
+            pub fn $split_at_p(self, sp: T) -> [Self; 2] {
+                let s = self.$into_aab().$split_at_p(sp);
+                [s[0].into(), s[1].into()]
             }
             )+
         }
@@ -311,7 +311,7 @@ macro_rules! geom_impl_aabr_or_aabb {
             /// `sp` is assumed to be a position along the
             #[doc=$p_s]
             /// axis that is within this shape's bounds.
-            pub fn $split_at_p(self, sp: T) -> (Self, Self) where T: Copy + PartialOrd {
+            pub fn $split_at_p(self, sp: T) -> [Self; 2] where T: Copy + PartialOrd {
                 debug_assert!(sp >= self.min.$p);
                 debug_assert!(sp <= self.max.$p);
                 let low = Self {
@@ -322,7 +322,7 @@ macro_rules! geom_impl_aabr_or_aabb {
                     min: { let mut v = self.min; v.$p = sp; v },
                     max: self.max,
                 };
-                (low, high)
+                [low, high]
             }
             )+
 

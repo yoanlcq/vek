@@ -475,7 +475,7 @@ macro_rules! bezier_impl_quadratic {
             /// Splits this quadratic Bézier curve into two curves, at interpolation factor `t`.
             // NOTE that some computations may be reused, but the compiler can
             // reason about these. Clarity wins here IMO.
-            pub fn split(self, t: T) -> (Self, Self) {
+            pub fn split(self, t: T) -> [Self; 2] {
                 let l = T::one();
                 let two = l+l;
                 let first = $QuadraticBezier {
@@ -488,7 +488,7 @@ macro_rules! bezier_impl_quadratic {
                     ctrl:  self.end*t - self.ctrl*(t-l),
                     end:   self.end,
                 };
-                (first, second)
+                [first, second]
             }
             /// Elevates this curve into a cubic Bézier curve.
             pub fn into_cubic(self) -> $CubicBezier<T> {
@@ -664,7 +664,7 @@ macro_rules! bezier_impl_cubic {
             /// Splits this cubic Bézier curve into two curves, at interpolation factor `t`.
             // NOTE that some computations may be reused, but the compiler can
             // reason about these. Clarity wins here IMO.
-            pub fn split(self, t: T) -> (Self, Self) {
+            pub fn split(self, t: T) -> [Self; 2] {
                 let l = T::one();
                 let two = l+l;
                 let three = l+l+l;
@@ -680,7 +680,7 @@ macro_rules! bezier_impl_cubic {
                     ctrl1: self.end*t - self.ctrl1*(t-l),
                     end:   self.end,
                 };
-                (first, second)
+                [first, second]
             }
             /// Gets the cubic Bézier curve that approximates a unit quarter circle.
             ///
@@ -699,12 +699,12 @@ macro_rules! bezier_impl_cubic {
             /// Gets the 4 cubic Bézier curves that, used together, approximate a unit quarter circle.
             ///
             /// The returned tuple is `(north-east, north-west, south-west, south-east)`.
-            pub fn unit_circle() -> (Self, Self, Self, Self) {
+            pub fn unit_circle() -> [Self; 4] {
                 let a = Self::unit_quarter_circle();
                 let b = a.flipped_x();
                 let c = b.flipped_y();
                 let d = a.flipped_y();
-                (a, b, c, d)
+                [a, b, c, d]
             }
         }
         impl<T> $CubicBezier<T> {
