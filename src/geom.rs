@@ -6,6 +6,7 @@ use num_traits::{real::Real, FloatConst, Zero, One};
 use approx::RelativeEq;
 use std::ops::*;
 use std::iter::Sum;
+use crate::ops::Clamp;
 
 // WISH: add useful impls to this module (inclusing basic conversions from rect to vec pairs)
 // WISH: lerp for all shapes
@@ -300,6 +301,17 @@ macro_rules! geom_impl_aabr_or_aabb {
                 } else {
                     b1.min.$p - b2.max.$p
                 }),+}
+            }
+            /// Project the given point into the bounding shape (equivalent to 'snapping' the point
+            /// to the closest point in the bounding shape).
+            pub fn projected_point(self, p: $Vec<T>) -> $Vec<T>
+                where T: Clamp
+            {
+                p.clamped(self.min, self.max)
+            }
+            /// Get the smallest distance between the bounding shape and a point.
+            pub fn distance_to_point(self, p: $Vec<T>) -> T where T: Clamp + Real + Sum + RelativeEq {
+                self.projected_point(p).distance(p)
             }
             $(
             /// Splits this shape in two, by a straight plane along the
