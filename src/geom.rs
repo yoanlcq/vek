@@ -307,7 +307,7 @@ macro_rules! geom_impl_aabr_or_aabb {
             pub fn projected_point(self, p: $Vec<T>) -> $Vec<T>
                 where T: Clamp
             {
-                p.map2(self.min.zip(self.max), |e, (min, max)| Clamp::clamp(e, min, max))
+                p.clamped(self.min, self.max)
             }
             /// Get the smallest distance between the bounding shape and a point.
             pub fn distance_to_point(self, p: $Vec<T>) -> T where T: Clamp + Real + Sum + RelativeEq {
