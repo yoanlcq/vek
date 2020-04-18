@@ -37,3 +37,4 @@ If you plan to work a pull request, please file an issue first so that we can ag
 - Sunjay Varma (GitHub : [@sunjay](https://github.com/sunjay))
 - Timo Kösters (GitHub : [@timokoesters](https://github.com/timokoesters))
 - Imbris (Github: [@imberflur](https://github.com/imberflur))
+- Lukas Wirth (Github: [@veykril](https://github.com/veykril))
