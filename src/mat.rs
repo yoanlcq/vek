@@ -4070,7 +4070,7 @@ mod tests {
                 // repr_simd matrices are not necessarily expected to be packed in the first place.
                 mod repr_c {
                     $(mod $T {
-                        use $crate::mat::repr_c::$Mat;
+                        use $crate::mat::repr_c::column_major::$Mat;
                         use $crate::vtest::Rc;
 
                         #[test]
@@ -4119,7 +4119,7 @@ mod tests {
                 #[cfg(all(nightly, feature="repr_simd"))]
                 mod repr_simd {
                     mod bool {
-                        use $crate::mat::repr_simd::$Mat;
+                        use $crate::mat::repr_simd::column_major::$Mat;
                         #[test]
                         fn can_monomorphize() {
                             let _: $Mat<bool> = $Mat::<u32>::identity().map(|x| x != 0);
