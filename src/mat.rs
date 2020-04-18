@@ -4013,7 +4013,7 @@ macro_rules! mat_declare_modules {
         /// Rationale:
         /// - (Matrix * Vector) multiplications are more efficient;
         /// - This is the layout expected by OpenGL;
-        pub use crate::column_major::*;
+        pub use self::column_major::*;
     }
 }
 
