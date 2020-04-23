@@ -348,6 +348,13 @@ macro_rules! geom_impl_aabr_or_aabb {
                 let max = $Vec { $($p: f($p),)+ };
                 $Aab { min, max }
             }
+
+            /// Returns this bounding shape, with each bound converted using the given closure.
+            pub fn map_bounds<D,F>(self, mut f: F) -> $Aab<D> where F: FnMut($Vec<T>) -> $Vec<D>
+            {
+                let Self { min, max } = self;
+                $Aab { min: f(min), max: f(max) }
+            }
         }
     };
 }
