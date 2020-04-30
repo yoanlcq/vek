@@ -13,7 +13,7 @@ use std::ptr;
 use std::cmp;
 use std::ops::*;
 use std::slice::{self, /*SliceIndex*/}; // NOTE: Will want to use SliceIndex once it's stabilized
-use num_traits::{Zero, One, NumCast, Signed, real::Real};
+use num_traits::{Zero, One, NumCast, AsPrimitive, Signed, real::Real};
 use approx::{AbsDiffEq, RelativeEq, UlpsEq};
 use crate::ops::*;
 
@@ -566,6 +566,41 @@ macro_rules! vec_impl_vec {
             /// ```
             pub fn zip<S>(self, other: $Vec<S>) -> $Vec<(T, S)> {
                 self.map2(other, |a, b| (a, b))
+            }
+            /// Returns a memberwise-converted copy of this vector, using `AsPrimitive`.
+            ///
+            /// # Examples
+            /// 
+            /// ```
+            /// # use vek::vec::Vec4;
+            /// let v = Vec4::new(0_f32, 1., 2., 3.);
+            /// let i: Vec4<i32> = v.as_();
+            /// assert_eq!(i, Vec4::new(0, 1, 2, 3));
+            /// ```
+            /// 
+            /// # Safety
+            ///
+            /// As stated by the `AsPrimitive` trait documentation:  
+            /// Currently, some uses of the `as` operator are not entirely safe.
+            /// In particular, it is undefined behavior if:
+            ///
+            /// - A truncated floating point value cannot fit in the target integer
+            ///   type ([#10184](https://github.com/rust-lang/rust/issues/10184));
+            ///
+            /// ```ignore
+            /// # use num_traits::AsPrimitive;
+            /// let x: u8 = (1.04E+17).as_(); // UB
+            /// ```
+            ///
+            /// - Or a floating point value does not fit in another floating
+            ///   point type ([#15536](https://github.com/rust-lang/rust/issues/15536)).
+            ///
+            /// ```ignore
+            /// # use num_traits::AsPrimitive;
+            /// let x: f32 = (1e300f64).as_(); // UB
+            /// ```
+            pub fn as_<D>(self) -> $Vec<D> where T: AsPrimitive<D>, D: 'static + Copy {
+                $Vec::new($(self.$get.as_()),+)
             }
             /// Returns a memberwise-converted copy of this vector, using `NumCast`.
             ///
