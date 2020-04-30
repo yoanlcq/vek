@@ -6,7 +6,7 @@ use std::slice;
 use std::iter::Sum;
 use std::fmt::{self, Display, Formatter, Debug};
 use std::ops::*;
-use num_traits::{Zero, One, real::Real, FloatConst, NumCast};
+use num_traits::{Zero, One, real::Real, FloatConst, NumCast, AsPrimitive};
 use approx::{AbsDiffEq, RelativeEq, UlpsEq};
 use crate::ops::MulAdd;
 use crate::vec;
@@ -1506,6 +1506,50 @@ macro_rules! mat_impl_mat4 {
                         Vec4::new(f(m.y.x), f(m.y.y), f(m.y.z), f(m.y.w)),
                         Vec4::new(f(m.z.x), f(m.z.y), f(m.z.z), f(m.z.w)),
                         Vec4::new(f(m.w.x), f(m.w.y), f(m.w.z), f(m.w.w))
+                    )
+                }
+            }
+
+            /// Returns a memberwise-converted copy of this matrix, using `AsPrimitive`.
+            ///
+            /// # Examples
+            /// 
+            /// ```
+            /// # use vek::vec::Vec4;
+            /// let v = Vec4::new(0_f32, 1., 2., 3.);
+            /// let i: Vec4<i32> = v.as_();
+            /// assert_eq!(i, Vec4::new(0, 1, 2, 3));
+            /// ```
+            /// 
+            /// # Safety
+            ///
+            /// As stated by the `AsPrimitive` trait documentation:  
+            /// Currently, some uses of the `as` operator are not entirely safe.
+            /// In particular, it is undefined behavior if:
+            ///
+            /// - A truncated floating point value cannot fit in the target integer
+            ///   type ([#10184](https://github.com/rust-lang/rust/issues/10184));
+            ///
+            /// ```ignore
+            /// # use num_traits::AsPrimitive;
+            /// let x: u8 = (1.04E+17).as_(); // UB
+            /// ```
+            ///
+            /// - Or a floating point value does not fit in another floating
+            ///   point type ([#15536](https://github.com/rust-lang/rust/issues/15536)).
+            ///
+            /// ```ignore
+            /// # use num_traits::AsPrimitive;
+            /// let x: f32 = (1e300f64).as_(); // UB
+            /// ```
+            pub fn as_<D>(self) -> Mat4<D> where T: AsPrimitive<D>, D: 'static + Copy {
+                let m = self.$lines;
+                Mat4 {
+                    $lines: CVec4::new(
+                        Vec4::new(m.x.x.as_(), m.x.y.as_(), m.x.z.as_(), m.x.w.as_()),
+                        Vec4::new(m.y.x.as_(), m.y.y.as_(), m.y.z.as_(), m.y.w.as_()),
+                        Vec4::new(m.z.x.as_(), m.z.y.as_(), m.z.z.as_(), m.z.w.as_()),
+                        Vec4::new(m.w.x.as_(), m.w.y.as_(), m.w.z.as_(), m.w.w.as_())
                     )
                 }
             }
@@ -3232,6 +3276,49 @@ macro_rules! mat_impl_mat3 {
                 }
             }
 
+            /// Returns a memberwise-converted copy of this matrix, using `AsPrimitive`.
+            ///
+            /// # Examples
+            /// 
+            /// ```
+            /// # use vek::vec::Vec4;
+            /// let v = Vec4::new(0_f32, 1., 2., 3.);
+            /// let i: Vec4<i32> = v.as_();
+            /// assert_eq!(i, Vec4::new(0, 1, 2, 3));
+            /// ```
+            /// 
+            /// # Safety
+            ///
+            /// As stated by the `AsPrimitive` trait documentation:  
+            /// Currently, some uses of the `as` operator are not entirely safe.
+            /// In particular, it is undefined behavior if:
+            ///
+            /// - A truncated floating point value cannot fit in the target integer
+            ///   type ([#10184](https://github.com/rust-lang/rust/issues/10184));
+            ///
+            /// ```ignore
+            /// # use num_traits::AsPrimitive;
+            /// let x: u8 = (1.04E+17).as_(); // UB
+            /// ```
+            ///
+            /// - Or a floating point value does not fit in another floating
+            ///   point type ([#15536](https://github.com/rust-lang/rust/issues/15536)).
+            ///
+            /// ```ignore
+            /// # use num_traits::AsPrimitive;
+            /// let x: f32 = (1e300f64).as_(); // UB
+            /// ```
+            pub fn as_<D>(self) -> Mat3<D> where T: AsPrimitive<D>, D: 'static + Copy {
+                let m = self.$lines;
+                Mat3 {
+                    $lines: CVec3::new(
+                        Vec3::new(m.x.x.as_(), m.x.y.as_(), m.x.z.as_()),
+                        Vec3::new(m.y.x.as_(), m.y.y.as_(), m.y.z.as_()),
+                        Vec3::new(m.z.x.as_(), m.z.y.as_(), m.z.z.as_()),
+                    )
+                }
+            }
+
             /// Applies the function f to each element of two matrices, pairwise, and returns the result.
             ///
             /// ```
@@ -3709,6 +3796,48 @@ macro_rules! mat_impl_mat2 {
                     $lines: CVec2::new(
                         Vec2::new(f(m.x.x), f(m.x.y)),
                         Vec2::new(f(m.y.x), f(m.y.y)),
+                    )
+                }
+            }
+
+            /// Returns a memberwise-converted copy of this matrix, using `AsPrimitive`.
+            ///
+            /// # Examples
+            /// 
+            /// ```
+            /// # use vek::vec::Vec4;
+            /// let v = Vec4::new(0_f32, 1., 2., 3.);
+            /// let i: Vec4<i32> = v.as_();
+            /// assert_eq!(i, Vec4::new(0, 1, 2, 3));
+            /// ```
+            /// 
+            /// # Safety
+            ///
+            /// As stated by the `AsPrimitive` trait documentation:  
+            /// Currently, some uses of the `as` operator are not entirely safe.
+            /// In particular, it is undefined behavior if:
+            ///
+            /// - A truncated floating point value cannot fit in the target integer
+            ///   type ([#10184](https://github.com/rust-lang/rust/issues/10184));
+            ///
+            /// ```ignore
+            /// # use num_traits::AsPrimitive;
+            /// let x: u8 = (1.04E+17).as_(); // UB
+            /// ```
+            ///
+            /// - Or a floating point value does not fit in another floating
+            ///   point type ([#15536](https://github.com/rust-lang/rust/issues/15536)).
+            ///
+            /// ```ignore
+            /// # use num_traits::AsPrimitive;
+            /// let x: f32 = (1e300f64).as_(); // UB
+            /// ```
+            pub fn as_<D>(self) -> Mat2<D> where T: AsPrimitive<D>, D: 'static + Copy {
+                let m = self.$lines;
+                Mat2 {
+                    $lines: CVec2::new(
+                        Vec2::new(m.x.x.as_(), m.x.y.as_()),
+                        Vec2::new(m.y.x.as_(), m.y.y.as_()),
                     )
                 }
             }
