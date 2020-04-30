@@ -2,7 +2,7 @@
 
 // NOTE: in this module, the type parameters <P,E> usually stand for Position and Extent.
 
-use num_traits::{real::Real, FloatConst, Zero, One};
+use num_traits::{real::Real, FloatConst, Zero, One, AsPrimitive};
 use approx::RelativeEq;
 use std::ops::*;
 use std::iter::Sum;
@@ -45,6 +45,12 @@ macro_rules! geom_impl_line_segment {
             /// Get the smallest distance between the line segment and a point.
             pub fn distance_to_point(self, p: $Vec<T>) -> T where T: Real + Sum + RelativeEq {
                 self.projected_point(p).distance(p)
+            }
+
+            // Converts this line to a line of another type, using the `as` conversion.
+            pub fn as_<D>(self) -> $LineSegment<D> where T: AsPrimitive<D>, D: 'static + Copy {
+                let Self { start, end } = self;
+                $LineSegment { start: start.as_(), end: end.as_() }
             }
         }
     };
@@ -89,6 +95,17 @@ macro_rules! geom_impl_rect_or_rect3 {
                 let Self { $($p,)+ $($e,)+ } = self;
                 let $Vec { $($p,)+ } = $Vec { $($p,)+ }.map(pf);
                 let $Extent { $($e,)+ } = $Extent { $($e,)+ }.map(ef);
+                $Rect { $($p,)+ $($e,)+ }
+            }
+
+            // Converts this rectangle to a rectangle of another type, using the `as` conversion.
+            pub fn as_<DP,DE>(self) -> $Rect<DP,DE>
+                where P: AsPrimitive<DP>, DP: 'static + Copy,
+                      E: AsPrimitive<DE>, DE: 'static + Copy
+            {
+                let Self { $($p,)+ $($e,)+ } = self;
+                let $Vec { $($p,)+ } = $Vec { $($p,)+ }.as_();
+                let $Extent { $($e,)+ } = $Extent { $($e,)+ }.as_();
                 $Rect { $($p,)+ $($e,)+ }
             }
         }
@@ -347,6 +364,12 @@ macro_rules! geom_impl_aabr_or_aabb {
                 let $Vec { $($p,)+ } = max;
                 let max = $Vec { $($p: f($p),)+ };
                 $Aab { min, max }
+            }
+
+            // Converts this rectangle to a rectangle of another type, using the `as` conversion.
+            pub fn as_<D>(self) -> $Aab<D> where T: AsPrimitive<D>, D: 'static + Copy {
+                let Self { min, max } = self;
+                $Aab { min: min.as_(), max: max.as_() }
             }
         }
     };
