@@ -47,7 +47,7 @@ macro_rules! geom_impl_line_segment {
                 self.projected_point(p).distance(p)
             }
 
-            // Converts this line to a line of another type, using the `as` conversion.
+            /// Converts this line to a line of another type, using the `as` conversion.
             pub fn as_<D>(self) -> $LineSegment<D> where T: AsPrimitive<D>, D: 'static + Copy {
                 let Self { start, end } = self;
                 $LineSegment { start: start.as_(), end: end.as_() }
@@ -98,7 +98,7 @@ macro_rules! geom_impl_rect_or_rect3 {
                 $Rect { $($p,)+ $($e,)+ }
             }
 
-            // Converts this rectangle to a rectangle of another type, using the `as` conversion.
+            /// Converts this rectangle to a rectangle of another type, using the `as` conversion.
             pub fn as_<DP,DE>(self) -> $Rect<DP,DE>
                 where P: AsPrimitive<DP>, DP: 'static + Copy,
                       E: AsPrimitive<DE>, DE: 'static + Copy
@@ -366,7 +366,7 @@ macro_rules! geom_impl_aabr_or_aabb {
                 $Aab { min, max }
             }
 
-            // Converts this rectangle to a rectangle of another type, using the `as` conversion.
+            /// Converts this rectangle to a rectangle of another type, using the `as` conversion.
             pub fn as_<D>(self) -> $Aab<D> where T: AsPrimitive<D>, D: 'static + Copy {
                 let Self { min, max } = self;
                 $Aab { min: min.as_(), max: max.as_() }
