@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Yoan Lecoq <yoanlecoq.io@gmail.com>"]
 
 [dependencies]
-vek = { path = "../../", default-features=false, features = ["repr_simd", "repr_align"] }
+vek = { path = "../../", features = ["repr_simd"] }
 
 [profile.release]
 opt-level = 3
