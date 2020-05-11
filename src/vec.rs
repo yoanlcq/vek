@@ -441,38 +441,12 @@ macro_rules! vec_impl_vec {
             }
             // NOTE: Deref<[T]> provides `to_vec()`. Don't write one here!
 
-
-            /// Are elements of this vector tightly packed in memory ?
-            // NOTE: Private, because assumed to be always true at compile-time!
-            // Conversion to pointer and slice are never supposed to panic!
-            // See extensive tests.
-            pub(crate) fn is_packed(&self) -> bool {
-                let ptr = self as *const _ as *const T;
-                let mut i = -1isize;
-                $(
-                    i += 1;
-                    if ptr.wrapping_offset(i) != &self.$get as *const _ {
-                        return false;
-                    }
-                )+
-                true
-            }
             /// Converts this into a raw pointer of read-only data.
             fn as_ptr_priv(&self) -> *const T {
-                // This ought to be true and is checked by tests.
-                // Still, let's be careful about exotic architectures
-                // or alignment requirement of elements.
-                // This panic case is not documented because it is never supposed to happen in the
-                // first place (otherwise, we missed something).
-                // Also, it would have to be mentioned in all APIs that use
-                // as_ptr(), such as as_slice and impl Index.
-                assert!(self.is_packed());
                 self as *const _ as *const T
             }
             /// Converts this into a raw pointer.
             fn as_mut_ptr_priv(&mut self) -> *mut T {
-                // See rationale in as_ptr_priv()
-                assert!(self.is_packed());
                 self as *mut _ as *mut T
             }
 
@@ -2060,15 +2034,11 @@ macro_rules! vec_impl_pixel_rgb {
             }
             fn from_slice(slice: &[Self::Subpixel]) -> &Self {
                 assert!(slice.len() >= Self::channel_count() as _);
-                let s = unsafe { &*(slice.as_ptr() as *const _ as *const Self) };
-                assert!(s.is_packed());
-                s
+                unsafe { &*(slice.as_ptr() as *const _ as *const Self) };
             }
             fn from_slice_mut(slice: &mut [Self::Subpixel]) -> &mut Self {
                 assert!(slice.len() >= Self::channel_count() as _);
-                let s = unsafe { &mut *(slice.as_mut_ptr() as *mut _ as *mut Self) };
-                assert!(s.is_packed());
-                s
+                unsafe { &mut *(slice.as_mut_ptr() as *mut _ as *mut Self) };
             }
             fn to_rgb(&self) -> image::Rgb<Self::Subpixel> {
                 image::Rgb { data: [self.r, self.g, self.b] }
@@ -2166,15 +2136,11 @@ macro_rules! vec_impl_pixel_rgba {
             }
             fn from_slice(slice: &[Self::Subpixel]) -> &Self {
                 assert!(slice.len() >= Self::channel_count() as _);
-                let s = unsafe { &*(slice.as_ptr() as *const _ as *const Self) };
-                assert!(s.is_packed());
-                s
+                unsafe { &*(slice.as_ptr() as *const _ as *const Self) };
             }
             fn from_slice_mut(slice: &mut [Self::Subpixel]) -> &mut Self {
                 assert!(slice.len() >= Self::channel_count() as _);
-                let s = unsafe { &mut *(slice.as_mut_ptr() as *mut _ as *mut Self) };
-                assert!(s.is_packed());
-                s
+                unsafe { &mut *(slice.as_mut_ptr() as *mut _ as *mut Self) };
             }
             fn to_rgb(&self) -> image::Rgb<Self::Subpixel> {
                 image::Rgb { data: [self.r, self.g, self.b] }
@@ -3162,14 +3128,11 @@ mod tests {
                 assert_eq!(Rc::strong_count(&rc), 1);
                 *Rc::make_mut(&mut rc) = 1; // Try to write. If there's a double free, this is supposed to crash.
             }
-
-            #[test] fn claims_to_be_packed_refcell() { assert!($Vec::<$T>::default().map(::std::cell::RefCell::new).is_packed()); }
         };
         (repr_simd $Vec:ident<$T:ident>) => {
             test_vec_t!{common $Vec<$T>}
         };
         (common $Vec:ident<$T:ident>) => {
-            #[test] fn claims_to_be_packed() { assert!($Vec::<$T>::default().is_packed()); }
             #[test] fn iterator_api() {
                 let v = $Vec::<i32>::default();
                 let mut v: $Vec<i32> = (0..).into_iter().take(v.elem_count()).collect();

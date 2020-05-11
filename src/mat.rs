@@ -1237,8 +1237,7 @@ macro_rules! mat_impl_mat {
             /// This might not be the case for matrices in the `repr_simd` module
             /// (it depends on the target architecture).
             pub fn is_packed(&self) -> bool {
-                self.$lines.is_packed() && self.$lines[0].is_packed()
-                && mem::size_of::<Self>() == $nrows*$ncols*mem::size_of::<T>()
+                mem::size_of::<Self>() == $nrows*$ncols*mem::size_of::<T>()
             }
         }
 
