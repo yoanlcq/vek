@@ -324,7 +324,7 @@ macro_rules! mat_impl_mat {
             /// which may be the case for matrices in the `repr_simd` module.
             /// You may check this with the `is_packed()` method.
             pub fn as_row_ptr(&self) -> *const T {
-                assert!(self.is_packed());
+                debug_assert!(self.is_packed());
                 self.rows.as_ptr() as *const _ as *const T
             }
             /// Gets a mut pointer to this matrix's elements.
@@ -334,7 +334,7 @@ macro_rules! mat_impl_mat {
             /// which may be the case for matrices in the `repr_simd` module.
             /// You may check this with the `is_packed()` method.
             pub fn as_mut_row_ptr(&mut self) -> *mut T {
-                assert!(self.is_packed());
+                debug_assert!(self.is_packed());
                 self.rows.as_mut_ptr() as *mut _ as *mut T
             }
             /// View this matrix as an immutable slice.
@@ -844,7 +844,7 @@ macro_rules! mat_impl_mat {
             /// which may be the case for matrices in the `repr_simd` module.
             /// You may check this with the `is_packed()` method.
             pub fn as_col_ptr(&self) -> *const T {
-                assert!(self.is_packed());
+                debug_assert!(self.is_packed());
                 self.cols.as_ptr() as *const _ as *const T
             }
             /// Gets a mut pointer to this matrix's elements.
@@ -854,7 +854,7 @@ macro_rules! mat_impl_mat {
             /// which may be the case for matrices in the `repr_simd` module.
             /// You may check this with the `is_packed()` method.
             pub fn as_mut_col_ptr(&mut self) -> *mut T {
-                assert!(self.is_packed());
+                debug_assert!(self.is_packed());
                 self.cols.as_mut_ptr() as *mut _ as *mut T
             }
             /// View this matrix as an immutable slice.
