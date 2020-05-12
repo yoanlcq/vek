@@ -4,7 +4,7 @@
 use num_traits::{Zero, real::Real};
 use crate::ops::*;
 use std::ops::*;
-use std::iter::Sum;
+use std::ops::Add;
 use crate::vec::repr_c::{
     Vec3 as CVec3,
     Vec4 as CVec4,
@@ -96,13 +96,13 @@ macro_rules! bezier_impl_any {
     ($Bezier:ident $Point:ident) => {
         impl<T: Real> $Bezier<T> {
             /// Evaluates the normalized tangent at interpolation factor `t`.
-            pub fn normalized_tangent(self, t: T) -> $Point<T> where T: Sum {
+            pub fn normalized_tangent(self, t: T) -> $Point<T> where T: Add<T, Output=T> {
                 self.evaluate_derivative(t).normalized()
             }
             // WISH: better length approximation estimations (e.g see https://math.stackexchange.com/a/61796)
             /// Approximates the curve's length by subdividing it into step_count+1 segments.
             pub fn length_by_discretization(self, step_count: u16) -> T
-                where T: Sum + From<u16>
+                where T: Add<T, Output=T> + From<u16>
             {
                 let mut length = T::zero();
                 let mut prev_point = self.evaluate(T::zero());
@@ -156,7 +156,7 @@ macro_rules! bezier_impl_any {
             /// Panics if `epsilon` is less than or equal to `T::epsilon()`.  
             /// `epsilon` must be positive and not approximately equal to zero.
             pub fn binary_search_point_by_steps(self, p: $Point<T>, steps: u16, epsilon: T) -> (T, $Point<T>) 
-                where T: Sum + From<u16>
+                where T: Add<T, Output=T> + From<u16>
             {
                 let steps_f = <T as From<u16>>::from(steps);
                 let it = (0..steps).map(|i| {
@@ -191,7 +191,7 @@ macro_rules! bezier_impl_any {
             /// Panics if `epsilon` is less than or equal to `T::epsilon()`.  
             /// `epsilon` must be positive and not approximately equal to zero.
             pub fn binary_search_point<I>(self, p: $Point<T>, coarse: I, half_interval: T, epsilon: T) -> (T, $Point<T>)
-                where T: Sum, I: IntoIterator<Item=(T, $Point<T>)>
+                where T: Add<T, Output=T>, I: IntoIterator<Item=(T, $Point<T>)>
             {
                 debug_assert!(epsilon > T::epsilon());
                 let mut t = T::one();

@@ -17,118 +17,70 @@ use num_traits::{Zero, One, NumCast, AsPrimitive, Signed, real::Real};
 use approx::{AbsDiffEq, RelativeEq, UlpsEq};
 use crate::ops::*;
 
+macro_rules! cond_borrow {
+    (ref, $a:expr) => { &$a };
+    (move, $a:expr) => { $a };
+}
+
+macro_rules! reduce_fn {
+    ($fn:expr, $a:expr, $b:expr) => { $fn($a, $b) };
+    ($fn:expr, $a:expr, $b:expr, $($v:expr),+) => { reduce_fn!($fn, reduce_fn!($fn, $a, $b), $($v),+) };
+}
+
+// reduce_fn_mut is no different than reduce_fn, but it introduces "unnecessary" let bindings (and therefore, debug symbols or whatever).
+// It's specifically for when $fn is an FnMut.
+macro_rules! reduce_fn_mut {
+    ($fn:expr, $a:expr, $b:expr) => { $fn($a, $b) };
+    ($fn:expr, $a:expr, $b:expr, $($v:expr),+) => { { let x = reduce_fn_mut!($fn, $a, $b); reduce_fn_mut!($fn, x, $($v),+) } };
+}
+
+// NOTE: using reduce_binop!() form should be preferred instead of reduce_fn!() when possible.
+// For instance:
+// - reduce_binop!(&&, x, y, z) will yield: x && y && z.
+// - reduce_fn!(And::and, x, y, z) will yield: And::and(And::and(x, y), z).
+// Notice that when using reduce_binop!(), we benefit from short-circuit semantics and operator priority.
+macro_rules! reduce_binop {
+    ($op:tt, $a:expr, $b:expr) => { $a $op $b };
+    ($op:tt, $a:expr, $b:expr, $($v:expr),+) => { reduce_binop!($op, reduce_binop!($op, $a, $b), $($v),+) };
+}
+
+// Same semantics as "horizontal add".
+macro_rules! horizontal_binop {
+    ($op:tt, $out:expr => $a:expr, $b:expr) => { $out = $a $op $b; };
+    ($op:tt, $out:expr, $($vout:expr),+ => $a:expr, $b:expr, $($v:expr),+) => { horizontal_binop!($op, $out => $a, $b); horizontal_binop!($op, $($vout),+ => $($v),+); };
+}
+
+
 macro_rules! vec_impl_cmp {
-    ($(#[$attrs:meta])*, $Vec:ident, $cmp:ident, $op:tt, $Bounds:tt) => {
+    ($(#[$attrs:meta])*, $Vec:ident, $cmp:ident, $op:tt, $Bounds:tt, ($($get:tt)+)) => {
         // NOTE: Rhs is taken as reference: see how std::cmp::PartialEq is implemented.
         $(#[$attrs])*
         pub fn $cmp<Rhs: AsRef<Self>>(&self, rhs: &Rhs) -> $Vec<bool> where T: $Bounds {
-            let mut out: $Vec<bool> = $Vec::broadcast(false);
-            let mut iter = self.iter().zip(rhs.as_ref().iter());
-            for elem in &mut out {
-                let (a, b) = iter.next().unwrap();
-                *elem = a $op b;
-            }
-            out
+            let rhs = rhs.as_ref();
+            $Vec::new($(self.$get $op rhs.$get),+)
         }
     }
 }
 
 macro_rules! vec_impl_trinop_vec_vec {
-    ($op:ident, $Out:ty, $Rhs1:ty, $Rhs2:ty, ($($namedget:ident)+)) => {
+    ($op:ident, $Out:ty, $Rhs1:ty, $Rhs2:ty, ($($namedget:ident)+) ($($get:tt)+) ($lborrow:tt) ($rborrow:tt)) => {
         type Output = $Out;
         fn $op(self, a: $Rhs1, b: $Rhs2) -> Self::Output {
-            let mut iter = self.into_iter().zip(a.into_iter().zip(b.into_iter()));
-            $(
-                let (val, (aa, bb)) = iter.next().unwrap();
-                let $namedget = val.$op(aa, bb);
-            )+
-            Self::Output::new($($namedget),+)
+            Self::Output::new($(self.$get.$op(cond_borrow!($lborrow, a.$get), cond_borrow!($rborrow, b.$get))),+)
         }
     }
 }
-/*
-macro_rules! vec_impl_trinop_vec_s {
-    ($op:ident, $Out:ty, $Rhs1:ty, $Rhs2:ty, $getb:expr) => {
-        type Output = $Out;
-        fn $op(self, a: $Rhs1, b: $Rhs2) -> Self::Output {
-            let mut out: $Out = unsafe { mem::uninitialized() };
-            let mut iter = self.into_iter().zip(a.into_iter());
-            for elem in &mut out {
-                let (val, aa) = iter.next().unwrap();
-                *elem = val.$op(aa, $getb);
-            }
-            out
-        }
-    }
-}
-macro_rules! vec_impl_trinop_s_vec {
-    ($op:ident, $Out:ty, $Rhs1:ty, $Rhs2:ty, $geta:expr) => {
-        type Output = $Out;
-        fn $op(self, a: $Rhs1, b: $Rhs2) -> Self::Output {
-            let mut out: $Out = unsafe { mem::uninitialized() };
-            let mut iter = self.into_iter().zip(b.into_iter());
-            for elem in &mut out {
-                let (val, bb) = iter.next().unwrap();
-                *elem = val.$op($geta, bb);
-            }
-            out
-        }
-    }
-}
-macro_rules! vec_impl_trinop_s_s {
-    ($op:ident, $Out:ty, $Rhs1:ty, $Rhs2:ty, $geta:expr, $getb:expr) => {
-        type Output = $Out;
-        fn $op(self, a: $Rhs1, b: $Rhs2) -> Self::Output {
-            let mut out: $Out = unsafe { mem::uninitialized() };
-            let mut iter = self.into_iter();
-            for elem in &mut out {
-                let val = iter.next().unwrap();
-                *elem = val.$op($geta, $getb);
-            }
-            out
-        }
-    }
-}
-*/
+
 macro_rules! vec_impl_trinop {
-    (impl $Op:ident for $Vec:ident { $op:tt } ($($namedget:tt)+)) => {
-        impl<           T> $Op< $Vec<T>,     $Vec<T>> for    $Vec<T> where   T: $Op<    T,   T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>,   $Vec<T>,    $Vec<T>, ($($namedget)+)} }
-        impl<       'c, T> $Op< $Vec<T>,     $Vec<T>> for &'c $Vec<T> where &'c T: $Op< T,   T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>,   $Vec<T>,    $Vec<T>, ($($namedget)+)} }
-        impl<   'b,  T> $Op<    $Vec<T>, &'b $Vec<T>> for    $Vec<T> where   T: $Op<    T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>,     $Vec<T>, &'b $Vec<T>, ($($namedget)+)} }
-        impl<   'b, 'c, T> $Op< $Vec<T>, &'b $Vec<T>> for &'c $Vec<T> where &'c T: $Op< T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>,     $Vec<T>, &'b $Vec<T>, ($($namedget)+)} }
-        impl<'a,         T> $Op<&'a $Vec<T>,     $Vec<T>> for    $Vec<T> where   T: $Op<&'a T,   T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>,  $Vec<T>, ($($namedget)+)} }
-        impl<'a,     'c, T> $Op<&'a $Vec<T>,     $Vec<T>> for &'c $Vec<T> where &'c T: $Op<&'a T,    T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>,  $Vec<T>, ($($namedget)+)} }
-        impl<'a, 'b,     T> $Op<&'a $Vec<T>, &'b $Vec<T>> for    $Vec<T> where   T: $Op<&'a T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>, &'b $Vec<T>, ($($namedget)+)} }
-        impl<'a, 'b, 'c, T> $Op<&'a $Vec<T>, &'b $Vec<T>> for &'c $Vec<T> where &'c T: $Op<&'a T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>, &'b $Vec<T>, ($($namedget)+)} }
-
-        /* I give up, it's dumb.
-        impl<           T> $Op< T,   T> for  $Vec<T> where   T: $Op<    T,   T, Output=T>, T: Copy { vec_impl_trinop_s_s!{$op, $Vec<T>,  T,  T, a, b} }
-        impl<       'c, T> $Op< T,   T> for &'c $Vec<T> where &'c T: $Op<   T,   T, Output=T>, T: Copy { vec_impl_trinop_s_s!{$op, $Vec<T>,  T,  T, a, b} }
-        impl<   'b,  T> $Op<    T, &'b T> for    $Vec<T> where   T: $Op<    T, &'b T, Output=T>, T: Copy { vec_impl_trinop_s_s!{$op, $Vec<T>,    T, &'b T, a, b     } }
-        impl<   'b, 'c, T> $Op< T, &'b T> for &'c $Vec<T> where &'c T: $Op< T, &'b T, Output=T>, T: Copy { vec_impl_trinop_s_s!{$op, $Vec<T>,    T, &'b T, a, b     } }
-        impl<'a,         T> $Op<&'a T,   T> for  $Vec<T> where   T: $Op<&'a T,   T, Output=T>, T: Copy { vec_impl_trinop_s_s!{$op, $Vec<T>, &'a T,   T, a       , b} }
-        impl<'a,     'c, T> $Op<&'a T,   T> for &'c $Vec<T> where &'c T: $Op<&'a T,  T, Output=T>, T: Copy { vec_impl_trinop_s_s!{$op, $Vec<T>, &'a T,   T, a       , b} }
-        impl<'a, 'b,     T> $Op<&'a T, &'b T> for    $Vec<T> where   T: $Op<&'a T, &'b T, Output=T>, T: Copy { vec_impl_trinop_s_s!{$op, $Vec<T>, &'a T, &'b T, a       , b     } }
-        impl<'a, 'b, 'c, T> $Op<&'a T, &'b T> for &'c $Vec<T> where &'c T: $Op<&'a T, &'b T, Output=T>, T: Copy { vec_impl_trinop_s_s!{$op, $Vec<T>, &'a T, &'b T, a        , b     } }
-
-        impl<           T> $Op< $Vec<T>,     T> for  $Vec<T> where   T: $Op<    T,   T, Output=T>, T: Copy { vec_impl_trinop_vec_s!{$op, $Vec<T>,    $Vec<T>,    T, b }
-        impl<       'c, T> $Op< $Vec<T>,     T> for &'c $Vec<T> where &'c T: $Op<   T,   T, Output=T>, T: Copy { vec_impl_trinop_vec_s!{$op, $Vec<T>,    $Vec<T>,    T, b }
-        impl<   'b,  T> $Op<    $Vec<T>, &'b T> for  $Vec<T> where   T: $Op<    T, &'b T, Output=T>, T: Copy { vec_impl_trinop_vec_s!{$op, $Vec<T>,  $Vec<T>, &'b T, b }
-        impl<   'b, 'c, T> $Op< $Vec<T>, &'b T> for &'c $Vec<T> where &'c T: $Op<   T, &'b T, Output=T>, T: Copy { vec_impl_trinop_vec_s!{$op, $Vec<T>,  $Vec<T>, &'b T, b }
-        impl<'a,         T> $Op<&'a $Vec<T>,     T> for  $Vec<T> where   T: $Op<&'a T,   T, Output=T>, T: Copy { vec_impl_trinop_vec_s!{$op, $Vec<T>, &'a $Vec<T>,   T, b }
-        impl<'a,     'c, T> $Op<&'a $Vec<T>,     T> for &'c $Vec<T> where &'c T: $Op<&'a T,  T, Output=T>, T: Copy { vec_impl_trinop_vec_s!{$op, $Vec<T>, &'a $Vec<T>,   T, b }
-        impl<'a, 'b,     T> $Op<&'a $Vec<T>, &'b T> for  $Vec<T> where   T: $Op<&'a T, &'b T, Output=T>, T: Copy { vec_impl_trinop_vec_s!{$op, $Vec<T>, &'a $Vec<T>, &'b T, b }
-        impl<'a, 'b, 'c, T> $Op<&'a $Vec<T>, &'b T> for &'c $Vec<T> where &'c T: $Op<&'a T, &'b T, Output=T>, T: Copy { vec_impl_trinop_vec_s!{$op, $Vec<T>, &'a $Vec<T>, &'b T, b }
-
-        impl<           T> $Op< T,   $Vec<T>> for    $Vec<T> where   T: $Op<    T,   T, Output=T>, T: Copy { vec_impl_trinop_s_vec!{$op, $Vec<T>,    T,  $Vec<T>, a }
-        impl<       'c, T> $Op< T,   $Vec<T>> for &'c $Vec<T> where &'c T: $Op< T,   T, Output=T>, T: Copy { vec_impl_trinop_s_vec!{$op, $Vec<T>,    T,  $Vec<T>, a }
-        impl<   'b,  T> $Op<    T, &'b $Vec<T>> for  $Vec<T> where   T: $Op<    T, &'b T, Output=T>, T: Copy { vec_impl_trinop_s_vec!{$op, $Vec<T>,  T, &'b $Vec<T>, a }
-        impl<   'b, 'c, T> $Op< T, &'b $Vec<T>> for &'c $Vec<T> where &'c T: $Op<   T, &'b T, Output=T>, T: Copy { vec_impl_trinop_s_vec!{$op, $Vec<T>,  T, &'b $Vec<T>, a }
-        impl<'a,         T> $Op<&'a T,   $Vec<T>> for    $Vec<T> where   T: $Op<&'a T,   T, Output=T>, T: Copy { vec_impl_trinop_s_vec!{$op, $Vec<T>, &'a T,     $Vec<T>, a }
-        impl<'a,     'c, T> $Op<&'a T,   $Vec<T>> for &'c $Vec<T> where &'c T: $Op<&'a T,    T, Output=T>, T: Copy { vec_impl_trinop_s_vec!{$op, $Vec<T>, &'a T,     $Vec<T>, a }
-        impl<'a, 'b,     T> $Op<&'a T, &'b $Vec<T>> for  $Vec<T> where   T: $Op<&'a T, &'b T, Output=T>, T: Copy { vec_impl_trinop_s_vec!{$op, $Vec<T>, &'a T, &'b $Vec<T>, a }
-        impl<'a, 'b, 'c, T> $Op<&'a T, &'b $Vec<T>> for &'c $Vec<T> where &'c T: $Op<&'a T, &'b T, Output=T>, T: Copy { vec_impl_trinop_s_vec!{$op, $Vec<T>, &'a T, &'b $Vec<T>, a }
-        */
+    (impl $Op:ident for $Vec:ident { $op:tt } ($($namedget:tt)+) ($($get:tt)+)) => {
+        impl<            T> $Op<    $Vec<T>,     $Vec<T>> for     $Vec<T> where     T: $Op<    T,     T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>,     $Vec<T>,     $Vec<T>, ($($namedget)+) ($($get)+) (move) (move)} }
+        impl<       'c,  T> $Op<    $Vec<T>,     $Vec<T>> for &'c $Vec<T> where &'c T: $Op<    T,     T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>,     $Vec<T>,     $Vec<T>, ($($namedget)+) ($($get)+) (move) (move)} }
+        impl<   'b,      T> $Op<    $Vec<T>, &'b $Vec<T>> for     $Vec<T> where     T: $Op<    T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>,     $Vec<T>, &'b $Vec<T>, ($($namedget)+) ($($get)+) (move) (ref)} }
+        impl<   'b, 'c,  T> $Op<    $Vec<T>, &'b $Vec<T>> for &'c $Vec<T> where &'c T: $Op<    T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>,     $Vec<T>, &'b $Vec<T>, ($($namedget)+) ($($get)+) (move) (ref)} }
+        impl<'a,         T> $Op<&'a $Vec<T>,     $Vec<T>> for     $Vec<T> where     T: $Op<&'a T,     T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>,     $Vec<T>, ($($namedget)+) ($($get)+) (ref) (move)} }
+        impl<'a,     'c, T> $Op<&'a $Vec<T>,     $Vec<T>> for &'c $Vec<T> where &'c T: $Op<&'a T,     T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>,     $Vec<T>, ($($namedget)+) ($($get)+) (ref) (move)} }
+        impl<'a, 'b,     T> $Op<&'a $Vec<T>, &'b $Vec<T>> for     $Vec<T> where     T: $Op<&'a T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>, &'b $Vec<T>, ($($namedget)+) ($($get)+) (ref) (ref)} }
+        impl<'a, 'b, 'c, T> $Op<&'a $Vec<T>, &'b $Vec<T>> for &'c $Vec<T> where &'c T: $Op<&'a T, &'b T, Output=T> { vec_impl_trinop_vec_vec!{$op, $Vec<T>, &'a $Vec<T>, &'b $Vec<T>, ($($namedget)+) ($($get)+) (ref) (ref)} }
     }
 }
 
@@ -505,6 +457,19 @@ macro_rules! vec_impl_vec {
             pub fn map2<D,F,S>(self, other: $Vec<S>, mut f: F) -> $Vec<D> where F: FnMut(T, S) -> D {
                 $Vec::new($(f(self.$get, other.$get)),+)
             }
+            /// Applies the function f to each element of three vectors, and returns the result.
+            ///
+            /// ```
+            /// # use vek::vec::Vec4;
+            /// let a = Vec4::<u8>::new(255, 254, 253, 252);
+            /// let b = Vec4::<u8>::new(1, 2, 3, 4);
+            /// let c = Vec4::<u8>::new(1, 2, 3, 4);
+            /// let v = a.map3(b, c, |a, b, c| a.wrapping_add(b) + c);
+            /// assert_eq!(v, c);
+            /// ```
+            pub fn map3<D,F,S1,S2>(self, a: $Vec<S1>, b: $Vec<S2>, mut f: F) -> $Vec<D> where F: FnMut(T, S1, S2) -> D {
+                $Vec::new($(f(self.$get, a.$get, b.$get)),+)
+            }
             /// Applies the function f to each element of this vector, in-place.
             ///
             /// ```
@@ -529,6 +494,19 @@ macro_rules! vec_impl_vec {
             /// ```
             pub fn apply2<F, S>(&mut self, other: $Vec<S>, mut f: F) where T: Copy, F: FnMut(T, S) -> T {
                 $(self.$get = f(self.$get, other.$get);)+
+            }
+            /// Applies the function f to each element of three vectors, in-place.
+            ///
+            /// ```
+            /// # use vek::vec::Vec4;
+            /// let mut a = Vec4::<u8>::new(255, 254, 253, 252);
+            /// let b = Vec4::<u8>::new(1, 2, 3, 4);
+            /// let c = Vec4::<u8>::new(1, 2, 3, 4);
+            /// a.apply3(b, c, |a, b, c| a.wrapping_add(b) + c);
+            /// assert_eq!(a, c);
+            /// ```
+            pub fn apply3<F, S1, S2>(&mut self, a: $Vec<S1>, b: $Vec<S2>, mut f: F) where T: Copy, F: FnMut(T, S1, S2) -> T {
+                $(self.$get = f(self.$get, a.$get, b.$get);)+
             }
             /// "Zips" two vectors together into a vector of tuples.
             ///
@@ -612,13 +590,7 @@ macro_rules! vec_impl_vec {
             pub fn mul_add<V: Into<Self>>(self, mul: V, add: V) -> Self
                 where T: MulAdd<T,T,Output=T>
             {
-                let (mul, add) = (mul.into(), add.into());
-                let mut iter = self.into_iter().zip(mul.into_iter().zip(add.into_iter()));
-                $(
-                    let (val, (mul, add)) = iter.next().unwrap();
-                    let $namedget = val.mul_add(mul, add);
-                )+
-                Self::new($($namedget),+)
+                self.map3(mul.into(), add.into(), |x, m, a| x.mul_add(m, a))
             }
 
             /// Is any of the elements negative ?
@@ -626,12 +598,12 @@ macro_rules! vec_impl_vec {
             /// This was intended for checking the validity of extent vectors, but can make
             /// sense for other types too.
             pub fn is_any_negative(&self) -> bool where T: Signed {
-                self.iter().fold(false, |acc, x| acc || x.is_negative())
+                reduce_binop!(||, $(self.$get.is_negative()),+)
             }
 
             /// Are all of the elements positive ?
             pub fn are_all_positive(&self) -> bool where T: Signed {
-                !self.is_any_negative()
+                reduce_binop!(&&, $(self.$get.is_positive()),+)
             }
 
             /// Compares elements of `a` and `b`, and returns the minimum values into a new
@@ -699,7 +671,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(-5, Vec4::new(0, 5, -5, 8).reduce_min());
             /// ```
             pub fn reduce_min(self) -> T where T: Ord {
-                self.into_iter().min().unwrap()
+                reduce_fn!(cmp::min, $(self.$get),+)
             }
             /// Returns the element which has the highest value in this vector, using total
             /// ordering.
@@ -709,7 +681,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(8, Vec4::new(0, 5, -5, 8).reduce_max());
             /// ```
             pub fn reduce_max(self) -> T where T: Ord {
-                self.into_iter().max().unwrap()
+                reduce_fn!(cmp::max, $(self.$get),+)
             }
 
             /// Returns the element which has the lowest value in this vector, using partial
@@ -720,7 +692,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(-5_f32, Vec4::new(0_f32, 5., -5., 8.).reduce_partial_min());
             /// ```
             pub fn reduce_partial_min(self) -> T where T: PartialOrd {
-                self.reduce(partial_min)
+                reduce_fn!(partial_min, $(self.$get),+)
             }
             /// Returns the element which has the highest value in this vector, using partial
             /// ordering.
@@ -730,7 +702,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(8_f32, Vec4::new(0_f32, 5., -5., 8.).reduce_partial_max());
             /// ```
             pub fn reduce_partial_max(self) -> T where T: PartialOrd {
-                self.reduce(partial_max)
+                reduce_fn!(partial_max, $(self.$get),+)
             }
 
             /// Returns the result of bitwise-AND (`&`) on all elements of this vector.
@@ -742,7 +714,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(false, Vec4::new(true, true, true, false).reduce_bitand());
             /// ```
             pub fn reduce_bitand(self) -> T where T: BitAnd<T, Output=T> {
-                self.reduce(BitAnd::bitand)
+                reduce_binop!(&, $(self.$get),+)
             }
 
             /// Returns the result of bitwise-OR (`|`) on all elements of this vector.
@@ -753,7 +725,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(true,  Vec4::new(false, false, true, false).reduce_bitor());
             /// ```
             pub fn reduce_bitor(self) -> T where T: BitOr<T, Output=T> {
-                self.reduce(BitOr::bitor)
+                reduce_binop!(|, $(self.$get),+)
             }
 
             /// Returns the result of bitwise-XOR (`^`) on all elements of this vector.
@@ -764,14 +736,12 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(true,  Vec4::new(true, false, true, true).reduce_bitxor());
             /// ```
             pub fn reduce_bitxor(self) -> T where T: BitXor<T, Output=T> {
-                self.reduce(BitXor::bitxor)
+                reduce_binop!(^, $(self.$get),+)
             }
 
             /// Reduces this vector with the given accumulator closure.
-            pub fn reduce<F>(self, f: F) -> T where F: FnMut(T,T) -> T {
-                let mut i = self.into_iter();
-                let first = i.next().unwrap();
-                i.fold(first, f)
+            pub fn reduce<F>(self, mut f: F) -> T where F: FnMut(T,T) -> T {
+                reduce_fn_mut!(f, $(self.$get),+)
             }
 
             /// Returns the product of each of this vector's elements.
@@ -780,8 +750,8 @@ macro_rules! vec_impl_vec {
             /// # use vek::vec::Vec4;
             /// assert_eq!(1*2*3*4, Vec4::new(1, 2, 3, 4).product());
             /// ```
-            pub fn product(self) -> T where T: Product {
-                self.into_iter().product()
+            pub fn product(self) -> T where T: Mul<Output=T> {
+                reduce_binop!(*, $(self.$get),+)
             }
             /// Returns the sum of each of this vector's elements.
             ///
@@ -789,8 +759,8 @@ macro_rules! vec_impl_vec {
             /// # use vek::vec::Vec4;
             /// assert_eq!(1+2+3+4, Vec4::new(1, 2, 3, 4).sum());
             /// ```
-            pub fn sum(self) -> T where T: Sum {
-                self.into_iter().sum()
+            pub fn sum(self) -> T where T: Add<T, Output=T> {
+                reduce_binop!(+, $(self.$get),+)
             }
             /// Returns the average of this vector's elements.
             ///
@@ -826,7 +796,7 @@ macro_rules! vec_impl_vec {
             /// let grey_level = red.average().round() as u8;
             /// assert_eq!(grey_level, 128);
             /// ```
-            pub fn average(self) -> T where T: Sum + Div<T, Output=T> + From<u8> {
+            pub fn average(self) -> T where T: Add<T, Output=T> + Div<T, Output=T> + From<u8> {
                 self.sum() / T::from($dim as _)
             }
 
@@ -909,14 +879,8 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(h, a.hadd(b));
             /// ```
             pub fn hadd(self, rhs: Self) -> Self where T: Add<T, Output=T> {
-                let mut iter = self.into_iter().chain(rhs.into_iter());
-                $(
-                    let $namedget = {
-                        let a = iter.next().unwrap();
-                        let b = iter.next().unwrap();
-                        a + b
-                    };
-                )+
+                $(let $namedget;)+
+                horizontal_binop!(+, $($namedget),+ => $(self.$get,)+ $(rhs.$get),+);
                 Self::new($($namedget),+)
             }
 
@@ -929,7 +893,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.partial_cmpeq(&v), Vec4::new(true, false, true, false));
                 /// ```
-                , $Vec, partial_cmpeq, ==, PartialEq
+                , $Vec, partial_cmpeq, ==, PartialEq, ($($get)+)
             }
             vec_impl_cmp!{
                 /// Compares each element of two vectors with the partial not-equal test, returning a boolean vector.
@@ -940,7 +904,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.partial_cmpne(&v), Vec4::new(false, true, false, true));
                 /// ```
-                , $Vec, partial_cmpne, !=, PartialEq
+                , $Vec, partial_cmpne, !=, PartialEq, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -952,7 +916,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.partial_cmpge(&v), Vec4::new(true, true, true, false));
                 /// ```
-                , $Vec, partial_cmpge, >=, PartialOrd
+                , $Vec, partial_cmpge, >=, PartialOrd, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -964,7 +928,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.partial_cmpgt(&v), Vec4::new(false, true, false, true));
                 /// ```
-                , $Vec, partial_cmpgt, >, PartialOrd
+                , $Vec, partial_cmpgt, >, PartialOrd, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -976,7 +940,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.partial_cmple(&v), Vec4::new(true, false, true, true));
                 /// ```
-                , $Vec, partial_cmple, <=, PartialOrd
+                , $Vec, partial_cmple, <=, PartialOrd, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -988,7 +952,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.partial_cmplt(&v), Vec4::new(false, false, false, true));
                 /// ```
-                , $Vec, partial_cmplt, <, PartialOrd
+                , $Vec, partial_cmplt, <, PartialOrd, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -1000,7 +964,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.cmpeq(&v), Vec4::new(true, false, true, false));
                 /// ```
-                , $Vec, cmpeq, ==, Eq
+                , $Vec, cmpeq, ==, Eq, ($($get)+)
             }
             vec_impl_cmp!{
                 /// Compares each element of two vectors with the total not-equal test, returning a boolean vector.
@@ -1011,7 +975,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.cmpne(&v), Vec4::new(false, true, false, true));
                 /// ```
-                , $Vec, cmpne, !=, Eq
+                , $Vec, cmpne, !=, Eq, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -1023,7 +987,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.cmpge(&v), Vec4::new(true, true, true, false));
                 /// ```
-                , $Vec, cmpge, >=, Ord
+                , $Vec, cmpge, >=, Ord, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -1035,7 +999,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.cmpgt(&v), Vec4::new(false, true, false, true));
                 /// ```
-                , $Vec, cmpgt, >, Ord
+                , $Vec, cmpgt, >, Ord, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -1047,7 +1011,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.cmple(&v), Vec4::new(true, false, true, true));
                 /// ```
-                , $Vec, cmple, <=, Ord
+                , $Vec, cmple, <=, Ord, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -1059,7 +1023,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.cmplt(&v), Vec4::new(false, false, false, true));
                 /// ```
-                , $Vec, cmplt, <, Ord
+                , $Vec, cmplt, <, Ord, ($($get)+)
             }
 
             /// Returns the linear interpolation of `from` to `to` with `factor` unconstrained.
@@ -1194,12 +1158,7 @@ macro_rules! vec_impl_vec {
             }
 
             fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
-                for (l, r) in self.iter().zip(other.iter()) {
-                    if !T::abs_diff_eq(l, r, epsilon) {
-                        return false;
-                    }
-                }
-                true
+                reduce_binop!(&&, $(T::abs_diff_eq(&self.$get, &other.$get, epsilon)),+)
             }
         }
 
@@ -1209,12 +1168,7 @@ macro_rules! vec_impl_vec {
             }
 
             fn ulps_eq(&self, other: &Self, epsilon: T::Epsilon, max_ulps: u32) -> bool {
-                for (l, r) in self.iter().zip(other.iter()) {
-                    if !T::ulps_eq(l, r, epsilon, max_ulps) {
-                        return false;
-                    }
-                }
-                true
+                reduce_binop!(&&, $(T::ulps_eq(&self.$get, &other.$get, epsilon, max_ulps)),+)
             }
         }
 
@@ -1224,32 +1178,11 @@ macro_rules! vec_impl_vec {
             }
 
             fn relative_eq(&self, other: &Self, epsilon: T::Epsilon, max_relative: T::Epsilon) -> bool {
-                for (l, r) in self.iter().zip(other.iter()) {
-                    if !T::relative_eq(l, r, epsilon, max_relative) {
-                        return false;
-                    }
-                }
-                true
+                reduce_binop!(&&, $(T::relative_eq(&self.$get, &other.$get, epsilon, max_relative)),+)
             }
         }
 
         impl $Vec<bool> {
-            // NOTE: We DO NEED this method.
-            // Otherwise, on rustc rustc 1.24.0-nightly (77e189cd7 2017-12-28),
-            // we get an ICE, with #[repr(simd)] bool vectors, when running `cargo test --release` :
-            //     Invalid bitcast
-            //     %1 = bitcast i8 %0 to i1
-            //     Invalid bitcast
-            //     %3 = bitcast i8 %2 to i1
-            //     Invalid bitcast
-            //     %5 = bitcast i8 %4 to i1
-            //     LLVM ERROR: Broken function found, compilation aborted!
-            // Using iter() instead of into_iter() in this special case solves this.
-            fn reduce_bool<F>(&self, f: F) -> bool where F: FnMut(bool,&bool) -> bool {
-                let mut i = self.iter();
-                let first = i.next().unwrap();
-                i.fold(*first, f)
-            }
             /// Returns the result of logical AND (`&&`) on all elements of this vector.
             ///
             /// ```
@@ -1259,7 +1192,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(false, Vec4::new(true, true, true, false).reduce_and());
             /// ```
             pub fn reduce_and(self) -> bool {
-                self.reduce_bool(|a, b| a && *b)
+                reduce_binop!(&&, $(self.$get),+)
             }
             /// Returns the result of logical OR (`||`) on all elements of this vector.
             ///
@@ -1269,7 +1202,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(true,  Vec4::new(false, false, true, false).reduce_or());
             /// ```
             pub fn reduce_or(self) -> bool {
-                self.reduce_bool(|a, b| a || *b)
+                reduce_binop!(||, $(self.$get),+)
             }
             /// Reduces this vector using total inequality.
             ///
@@ -1279,10 +1212,10 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(true,  Vec4::new(true, false, true, true).reduce_ne());
             /// ```
             pub fn reduce_ne(self) -> bool {
-                self.reduce_bool(|a, b| a != *b)
+                reduce_binop!(!=, $(self.$get),+)
             }
         }
-        vec_impl_trinop!{impl MulAdd for $Vec { mul_add } ($($namedget)+)}
+        vec_impl_trinop!{impl MulAdd for $Vec { mul_add } ($($namedget)+) ($($get)+)}
         vec_impl_unop!{ impl Neg for $Vec { neg } ($($get)+)}
         vec_impl_binop!{commutative impl Add for $Vec { add } ($($get)+)}
         vec_impl_binop!{impl Sub for $Vec { sub } ($($get)+)}
@@ -1542,36 +1475,36 @@ macro_rules! vec_impl_spatial {
     ($Vec:ident) => {
         impl<T> $Vec<T> {
             /// Dot product between this vector and another.
-            pub fn dot(self, v: Self) -> T where T: Sum + Mul<Output=T> {
+            pub fn dot(self, v: Self) -> T where T: Add<T, Output=T> + Mul<Output=T> {
                 (self * v).sum()
             }
             /// The squared magnitude of a vector is its spatial length, squared.
             /// It is slightly cheaper to compute than `magnitude` because it avoids a square root.
-            pub fn magnitude_squared(self) -> T where T: Copy + Sum + Mul<Output=T> {
+            pub fn magnitude_squared(self) -> T where T: Copy + Add<T, Output=T> + Mul<Output=T> {
                 self.dot(self)
             }
             /// The magnitude of a vector is its spatial length.
-            pub fn magnitude(self) -> T where T: Sum + Real {
+            pub fn magnitude(self) -> T where T: Add<T, Output=T> + Real {
                 self.magnitude_squared().sqrt()
             }
             /// Squared distance between two point vectors.
             /// It is slightly cheaper to compute than `distance` because it avoids a square root.
-            pub fn distance_squared(self, v: Self) -> T where T: Copy + Sum + Sub<Output=T> + Mul<Output=T> {
+            pub fn distance_squared(self, v: Self) -> T where T: Copy + Add<T, Output=T> + Sub<Output=T> + Mul<Output=T> {
                 (self - v).magnitude_squared()
             }
             /// Distance between two point vectors.
-            pub fn distance(self, v: Self) -> T where T: Sum + Real {
+            pub fn distance(self, v: Self) -> T where T: Add<T, Output=T> + Real {
                 (self - v).magnitude()
             }
             /// Get a copy of this direction vector such that its length equals 1.
-            pub fn normalized(self) -> Self where T: Sum + Real {
+            pub fn normalized(self) -> Self where T: Add<T, Output=T> + Real {
                 self / self.magnitude()
             }
             /// Get a copy of this direction vector such that its length equals 1.
             /// If all components approximately zero, None is returned (uses RelativeEq).
             pub fn try_normalized<E>(self) -> Option<Self>
             where
-                T: RelativeEq<Epsilon = E> + Sum + Real,
+                T: RelativeEq<Epsilon = E> + Add<T, Output=T> + Real,
                 E: Add<Output = E> + Real,
             {
                 if self.is_approx_zero() {
@@ -1581,13 +1514,13 @@ macro_rules! vec_impl_spatial {
                 }
             }
             /// Divide this vector's components such that its length equals 1.
-            pub fn normalize(&mut self) where T: Sum + Real {
+            pub fn normalize(&mut self) where T: Add<T, Output=T> + Real {
                 *self = self.normalized();
             }
             /// Is this vector normalized ? (Uses `RelativeEq`)
             pub fn is_normalized<E>(self) -> bool
             where
-                T: RelativeEq<Epsilon = E> + Sum + Real,
+                T: RelativeEq<Epsilon = E> + Add<T, Output=T> + Real,
                 E: Real,
             {
                 self.is_magnitude_close_to(T::one())
@@ -1595,7 +1528,7 @@ macro_rules! vec_impl_spatial {
             /// Is this vector approximately zero ? (Uses `RelativeEq`)
             pub fn is_approx_zero<E>(self) -> bool
             where
-                T: RelativeEq<Epsilon = E> + Sum + Real,
+                T: RelativeEq<Epsilon = E> + Add<T, Output=T> + Real,
                 E: Real,
             {
                 self.is_magnitude_close_to(T::zero())
@@ -1603,7 +1536,7 @@ macro_rules! vec_impl_spatial {
             /// Is the magnitude of the vector close to `x` ? (Uses `RelativeEq`)
             pub fn is_magnitude_close_to<E>(self, x: T) -> bool
             where
-                T: RelativeEq<Epsilon = E> + Sum + Real,
+                T: RelativeEq<Epsilon = E> + Add<T, Output=T> + Real,
                 E: Real,
             {
                 let epsilon = T::default_epsilon();
@@ -1618,19 +1551,19 @@ macro_rules! vec_impl_spatial {
                     .relative_eq(&(x_squared), four_epsilon, four_max_rel)
             }
             /// Get the smallest angle, in radians, between two direction vectors.
-            pub fn angle_between(self, v: Self) -> T where T: Sum + Real + Clamp {
+            pub fn angle_between(self, v: Self) -> T where T: Add<T, Output=T> + Real + Clamp {
                 self.normalized().dot(v.normalized()).clamped_minus1_1().acos()
             }
             #[deprecated(note="Use `to_degrees()` on the value returned by `angle_between()` instead")]
             /// Get the smallest angle, in degrees, between two direction vectors.
             pub fn angle_between_degrees(self, v: Self) -> T
-                where T: Sum + Real + Clamp
+                where T: Add<T, Output=T> + Real + Clamp
             {
                 self.angle_between(v).to_degrees()
             }
             /// The reflection direction for this vector on a surface which normal is given.
             pub fn reflected(self, surface_normal: Self) -> Self
-                where T: Copy + Sum + Mul<Output=T> + Sub<Output=T> + Add<Output=T>
+                where T: Copy + Add<T, Output=T> + Mul<Output=T> + Sub<Output=T> + Add<Output=T>
             {
                 let dot = self.dot(surface_normal);
                 self - surface_normal * (dot + dot)
@@ -1638,7 +1571,7 @@ macro_rules! vec_impl_spatial {
             /// The refraction vector for this incident vector, a surface normal and a ratio of
             /// indices of refraction (`eta`).
             pub fn refracted(self, surface_normal: Self, eta: T) -> Self
-                where T: Real + Sum + Mul<Output=T>
+                where T: Real + Add<T, Output=T> + Mul<Output=T>
             {
                 let n = surface_normal;
                 let i = self;
@@ -1652,7 +1585,7 @@ macro_rules! vec_impl_spatial {
             }
             /// Orients a vector to point away from a surface as defined by its normal.
             pub fn face_forward(self, incident: Self, reference: Self) -> Self
-                where T: Sum + Mul<Output=T> + Zero + PartialOrd + Neg<Output=T>
+                where T: Add<T, Output=T> + Mul<Output=T> + Zero + PartialOrd + Neg<Output=T>
             {
                 if reference.dot(incident) <= T::zero() {
                     self
@@ -1829,7 +1762,7 @@ macro_rules! vec_impl_spatial_3d {
                 /// # }
                 /// ```
                 pub fn slerp_unclamped(from: Self, to: Self, factor: T) -> Self
-                    where T: Sum + Real + Clamp + Lerp<T,Output=T>
+                    where T: Add<T, Output=T> + Real + Clamp + Lerp<T,Output=T>
                 {
                     // From GLM, gtx/rotate_vector.inl
                     let (mag_from, mag_to) = (from.magnitude(), to.magnitude());
@@ -1847,7 +1780,7 @@ macro_rules! vec_impl_spatial_3d {
                 /// The vectors are not required to be normalized; their length
                 /// is also interpolated in the process.
                 pub fn slerp(from: Self, to: Self, factor: T) -> Self
-                    where T: Sum + Real + Clamp + Lerp<T,Output=T>
+                    where T: Add<T, Output=T> + Real + Clamp + Lerp<T,Output=T>
                 {
                     Slerp::slerp(from, to, factor)
                 }
@@ -1876,7 +1809,7 @@ macro_rules! vec_impl_spatial_3d {
                 pub fn back_rh   () -> Self where T: Zero + One {  Self::unit_z() }
             }
             impl<T> Slerp<T> for $Vec<T>
-                where T: Sum + Real + Clamp + Lerp<T,Output=T>
+                where T: Add<T, Output=T> + Real + Clamp + Lerp<T,Output=T>
             {
                 type Output = Self;
                 fn slerp_unclamped(from: Self, to: Self, factor: T) -> Self {
@@ -2276,7 +2209,7 @@ macro_rules! vec_impl_color_rgba {
             /// account, which includes alpha.
             /// Be careful when calling this on integer vectors. See the `average()` method
             /// of vectors for a discussion and example.
-            pub fn average_rgb(self) -> T where T: Sum + Div<T, Output=T> + From<u8> {
+            pub fn average_rgb(self) -> T where T: Add<T, Output=T> + Div<T, Output=T> + From<u8> {
                 let Self { r, g, b, .. } = self;
                 (r+g+b) / T::from(3)
             }
@@ -2357,7 +2290,7 @@ macro_rules! vec_impl_color_rgb {
             /// with `Rgba`.
             /// Be careful when calling this on integer vectors. See the `average()` method
             /// of vectors for a discussion and example.
-            pub fn average_rgb(self) -> T where T: Sum + Div<T, Output=T> + From<u8> {
+            pub fn average_rgb(self) -> T where T: Add<T, Output=T> + Div<T, Output=T> + From<u8> {
                 let Self { r, g, b, .. } = self;
                 (r+g+b) / T::from(3)
             }

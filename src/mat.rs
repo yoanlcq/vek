@@ -3,7 +3,7 @@
 use std::mem;
 use std::ptr;
 use std::slice;
-use std::iter::Sum;
+use std::ops::Add;
 use std::fmt::{self, Display, Formatter, Debug};
 use std::ops::*;
 use num_traits::{Zero, One, real::Real, FloatConst, NumCast, AsPrimitive};
@@ -1190,7 +1190,7 @@ macro_rules! mat_impl_mat {
             /// assert_eq!(Mat4::<u32>::zero().trace(), 0);
             /// assert_eq!(Mat4::<u32>::identity().trace(), 4);
             /// ```
-            pub fn trace(self) -> T where T: Sum {
+            pub fn trace(self) -> T where T: Add<T, Output=T> {
                 self.diagonal().sum()
             }
             /// Multiply elements of this matrix with another's.
@@ -1921,13 +1921,13 @@ macro_rules! mat_impl_mat4 {
 
             #[allow(dead_code)]
             /// XXX I don't know exactly what this does. Make it public when I do.
-            fn orthonormalize(&mut self) where T: Real + Sum + SubAssign {
+            fn orthonormalize(&mut self) where T: Real + Add<T, Output=T> + SubAssign {
                 *self = self.orthonormalized();
             }
             #[allow(dead_code)]
             /// XXX I don't know exactly what this does. Make it public when I do.
             // Taken verbatim from linmath.h - I don't know exactly what it does.
-            fn orthonormalized(self) -> Self where T: Real + Sum + SubAssign {
+            fn orthonormalized(self) -> Self where T: Real + Add<T, Output=T> + SubAssign {
                 let mut r = Rows4::from(self).rows;
 
                 r[2] = r[2].normalized();
@@ -2015,7 +2015,7 @@ macro_rules! mat_impl_mat4 {
             }
             #[allow(dead_code)]
             /// XXX: This was from linmath.h. I'm not confident what this does. Make it pub when I do.
-            fn translate_in_place_3d<V: Into<Vec3<T>>>(&mut self, v: V) where T: Copy + Zero + One + AddAssign + Sum {
+            fn translate_in_place_3d<V: Into<Vec3<T>>>(&mut self, v: V) where T: Copy + Zero + One + AddAssign + Add<T, Output=T> {
                 let Vec3 { x, y, z } = v.into();
                 let t = Vec4 { x, y, z, w: T::zero() };
                 let mut rows = Rows4::from(*self).rows;
@@ -2122,14 +2122,14 @@ macro_rules! mat_impl_mat4 {
             /// Rotates this matrix around a 3D axis.
             /// The axis is not required to be normalized.
             pub fn rotate_3d<V: Into<Vec3<T>>>(&mut self, angle_radians: T, axis: V)
-                where T: Real + MulAdd<T,T,Output=T> + Sum
+                where T: Real + MulAdd<T,T,Output=T> + Add<T, Output=T>
             {
                 *self = self.rotated_3d(angle_radians, axis);
             }
             /// Returns this matrix rotated around a 3D axis.
             /// The axis is not required to be normalized.
             pub fn rotated_3d<V: Into<Vec3<T>>>(self, angle_radians: T, axis: V) -> Self
-                where T: Real + MulAdd<T,T,Output=T> + Sum
+                where T: Real + MulAdd<T,T,Output=T> + Add<T, Output=T>
             {
                 Self::rotation_3d(angle_radians, axis) * self
             }
@@ -2179,7 +2179,7 @@ macro_rules! mat_impl_mat4 {
             /// }
             /// # }
             /// ```
-            pub fn rotation_3d<V: Into<Vec3<T>>>(angle_radians: T, axis: V) -> Self where T: Real + Sum {
+            pub fn rotation_3d<V: Into<Vec3<T>>>(angle_radians: T, axis: V) -> Self where T: Real + Add<T, Output=T> {
                 let Vec3 { x, y, z } = axis.into().normalized();
                 let s = angle_radians.sin();
                 let c = angle_radians.cos();
@@ -2211,7 +2211,7 @@ macro_rules! mat_impl_mat4 {
             /// # }
             /// ```
             pub fn rotation_from_to_3d<V: Into<Vec3<T>>>(from: V, to: V) -> Self
-                where T: Real + Sum
+                where T: Real + Add<T, Output=T>
             {
                 Self::from(Quaternion::rotation_from_to_3d(from, to))
             }
@@ -2271,7 +2271,7 @@ macro_rules! mat_impl_mat4 {
             /// # }
             /// ```
             pub fn basis_to_local<V: Into<Vec3<T>>>(origin: V, i: V, j: V, k: V) -> Self
-                where T: Zero + One + Neg<Output=T> + Real + Sum
+                where T: Zero + One + Neg<Output=T> + Real + Add<T, Output=T>
             {
                 let (origin, i, j, k) = (origin.into(), i.into(), j.into(), k.into());
                 Self::new(
@@ -2353,7 +2353,7 @@ macro_rules! mat_impl_mat4 {
             /// world-space to eye-space.
             #[deprecated(since = "0.9.7", note = "Use look_at_lh() or look_at_rh() instead depending on your space's handedness")]
             pub fn look_at<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
-                where T: Real + Sum
+                where T: Real + Add<T, Output=T>
             {
                 Self::look_at_lh(eye, target, up)
             }
@@ -2376,7 +2376,7 @@ macro_rules! mat_impl_mat4 {
             /// # }
             /// ```
             pub fn look_at_lh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
-                where T: Real + Sum
+                where T: Real + Add<T, Output=T>
             {
                 // From GLM
                 let (eye, target, up) = (eye.into(), target.into(), up.into());
@@ -2409,7 +2409,7 @@ macro_rules! mat_impl_mat4 {
             /// # }
             /// ```
             pub fn look_at_rh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
-                where T: Real + Sum
+                where T: Real + Add<T, Output=T>
             {
                 // From GLM
                 let (eye, target, up) = (eye.into(), target.into(), up.into());
@@ -2429,7 +2429,7 @@ macro_rules! mat_impl_mat4 {
             /// Preferred for transforming objects.
             #[deprecated(since = "0.9.7", note = "Use model_look_at_lh() or model_look_at_rh() instead depending on your space's handedness")]
             pub fn model_look_at<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
-                where T: Real + Sum
+                where T: Real + Add<T, Output=T>
             {
                 Self::model_look_at_lh(eye, target, up)
             }
@@ -2457,7 +2457,7 @@ macro_rules! mat_impl_mat4 {
             /// # }
             /// ```
             pub fn model_look_at_lh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
-                where T: Real + Sum
+                where T: Real + Add<T, Output=T>
             {
                 // Advanced 3D Game Programming with DirectX 10.0, p. 173
                 let (eye, target, up) = (eye.into(), target.into(), up.into());
@@ -2494,7 +2494,7 @@ macro_rules! mat_impl_mat4 {
             /// # }
             /// ```
             pub fn model_look_at_rh<V: Into<Vec3<T>>>(eye: V, target: V, up: V) -> Self
-                where T: Real + Sum + MulAdd<T,T,Output=T>
+                where T: Real + Add<T, Output=T> + MulAdd<T,T,Output=T>
             {
                 let (eye, target, up) = (eye.into(), target.into(), up.into());
                 let f = (target - eye).normalized();
@@ -3567,14 +3567,14 @@ macro_rules! mat_impl_mat3 {
             /// Rotates this matrix around a 3D axis.
             /// The axis is not required to be normalized.
             pub fn rotate_3d<V: Into<Vec3<T>>>(&mut self, angle_radians: T, axis: V)
-                where T: Real + MulAdd<T,T,Output=T> + Sum
+                where T: Real + MulAdd<T,T,Output=T> + Add<T, Output=T>
             {
                 *self = self.rotated_3d(angle_radians, axis);
             }
             /// Returns this matrix rotated around a 3D axis.
             /// The axis is not required to be normalized.
             pub fn rotated_3d<V: Into<Vec3<T>>>(self, angle_radians: T, axis: V) -> Self
-                where T: Real + MulAdd<T,T,Output=T> + Sum
+                where T: Real + MulAdd<T,T,Output=T> + Add<T, Output=T>
             {
                 Self::rotation_3d(angle_radians, axis) * self
             }
@@ -3625,7 +3625,7 @@ macro_rules! mat_impl_mat3 {
             /// }
             /// # }
             /// ```
-            pub fn rotation_3d<V: Into<Vec3<T>>>(angle_radians: T, axis: V) -> Self where T: Real + Sum {
+            pub fn rotation_3d<V: Into<Vec3<T>>>(angle_radians: T, axis: V) -> Self where T: Real + Add<T, Output=T> {
                 let Vec3 { x, y, z } = axis.into().normalized();
                 let s = angle_radians.sin();
                 let c = angle_radians.cos();
@@ -3654,7 +3654,7 @@ macro_rules! mat_impl_mat3 {
             /// # }
             /// ```
             pub fn rotation_from_to_3d<V: Into<Vec3<T>>>(from: V, to: V) -> Self
-                where T: Real + Sum
+                where T: Real + Add<T, Output=T>
             {
                 Self::from(Quaternion::rotation_from_to_3d(from, to))
             }

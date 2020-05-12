@@ -3,7 +3,7 @@
 use approx::{AbsDiffEq, RelativeEq, UlpsEq};
 use num_traits::{real::Real, One, Zero};
 use crate::ops::*;
-use std::iter::Sum;
+use std::ops::Add;
 use std::ops::*;
 
 macro_rules! impl_mul_by_vec {
@@ -55,7 +55,7 @@ macro_rules! impl_mul_by_vec {
         /// }
         /// # }
         /// ```
-        impl<T: Real + Sum> Mul<$Vec4<T>> for Quaternion<T> {
+        impl<T: Real + Add<T, Output=T>> Mul<$Vec4<T>> for Quaternion<T> {
             type Output = $Vec4<T>;
             fn mul(self, rhs: $Vec4<T>) -> Self::Output {
                 let $Vec4 { x, y, z, w } = rhs;
@@ -65,7 +65,7 @@ macro_rules! impl_mul_by_vec {
         }
         /// 3D vectors can be rotated by being premultiplied by a quaternion, **assuming the
         /// quaternion is normalized**.
-        impl<T: Real + Sum> Mul<$Vec3<T>> for Quaternion<T> {
+        impl<T: Real + Add<T, Output=T>> Mul<$Vec3<T>> for Quaternion<T> {
             type Output = $Vec3<T>;
             fn mul(self, rhs: $Vec3<T>) -> Self::Output {
                 let $Vec3 { x, y, z } = rhs;
@@ -248,25 +248,25 @@ macro_rules! quaternion_complete_mod {
             /// assert_relative_eq!((p*q).inverse(), q.inverse() * p.inverse());
             /// # }
             /// ```
-            pub fn inverse(self) -> Self where T: Neg<Output=T> + Copy + Sum + Mul<Output=T> + Div<Output=T> {
+            pub fn inverse(self) -> Self where T: Neg<Output=T> + Copy + Add<T, Output=T> + Mul<Output=T> + Div<Output=T> {
                 self.conjugate() / self.into_vec4().magnitude_squared()
             }
             /// Gets the dot product between two quaternions.
             pub fn dot(self, q: Self) -> T
-                where T: Copy + Sum + Mul<Output=T>
+                where T: Copy + Add<T, Output=T> + Mul<Output=T>
             {
                 self.into_vec4().dot(q.into_vec4())
             }
             /// Gets a normalized copy of this quaternion.
-            pub fn normalized(self) -> Self where T: Real + Sum {
+            pub fn normalized(self) -> Self where T: Real + Add<T, Output=T> {
                 self.into_vec4().normalized().into()
             }
             /// Gets this quaternion's magnitude, squared.
-            pub fn magnitude_squared(self) -> T where T: Real + Sum {
+            pub fn magnitude_squared(self) -> T where T: Real + Add<T, Output=T> {
                 self.into_vec4().magnitude_squared().into()
             }
             /// Gets this quaternion's magnitude.
-            pub fn magnitude(self) -> T where T: Real + Sum {
+            pub fn magnitude(self) -> T where T: Real + Add<T, Output=T> {
                 self.into_vec4().magnitude().into()
             }
 
@@ -289,7 +289,7 @@ macro_rules! quaternion_complete_mod {
             /// # }
             /// ```
             pub fn rotation_from_to_3d<V: Into<Vec3<T>>>(from: V, to: V) -> Self
-                where T: Real + Sum
+                where T: Real + Add<T, Output=T>
             {
                 // From GLM
                 let (from, to) = (from.into(), to.into());
@@ -311,7 +311,7 @@ macro_rules! quaternion_complete_mod {
             /// Creates a quaternion from an angle and axis.
             /// The axis is not required to be normalized.
             pub fn rotation_3d<V: Into<Vec3<T>>>(angle_radians: T, axis: V) -> Self
-                where T: Real + Sum
+                where T: Real + Add<T, Output=T>
             {
                 let axis = axis.into().normalized();
                 let two = T::one() + T::one();
@@ -320,49 +320,49 @@ macro_rules! quaternion_complete_mod {
                 Self { x, y, z, w }
             }
             /// Creates a quaternion from an angle for a rotation around the X axis.
-            pub fn rotation_x(angle_radians: T) -> Self where T: Real + Sum {
+            pub fn rotation_x(angle_radians: T) -> Self where T: Real + Add<T, Output=T> {
                 Self::rotation_3d(angle_radians, Vec3::unit_x())
             }
             /// Creates a quaternion from an angle for a rotation around the Y axis.
-            pub fn rotation_y(angle_radians: T) -> Self where T: Real + Sum {
+            pub fn rotation_y(angle_radians: T) -> Self where T: Real + Add<T, Output=T> {
                 Self::rotation_3d(angle_radians, Vec3::unit_y())
             }
             /// Creates a quaternion from an angle for a rotation around the Y axis.
-            pub fn rotation_z(angle_radians: T) -> Self where T: Real + Sum {
+            pub fn rotation_z(angle_radians: T) -> Self where T: Real + Add<T, Output=T> {
                 Self::rotation_3d(angle_radians, Vec3::unit_z())
             }
             /// Returns this quaternion rotated around the given axis with given angle.
             /// The axis is not required to be normalized.
-            pub fn rotated_3d<V: Into<Vec3<T>>>(self, angle_radians: T, axis: V) -> Self where T: Real + Sum {
+            pub fn rotated_3d<V: Into<Vec3<T>>>(self, angle_radians: T, axis: V) -> Self where T: Real + Add<T, Output=T> {
                 Self::rotation_3d(angle_radians, axis) * self
             }
             /// Returns this quaternion rotated around the X axis with given angle.
-            pub fn rotated_x(self, angle_radians: T) -> Self where T: Real + Sum {
+            pub fn rotated_x(self, angle_radians: T) -> Self where T: Real + Add<T, Output=T> {
                 Self::rotation_x(angle_radians) * self
             }
             /// Returns this quaternion rotated around the Y axis with given angle.
-            pub fn rotated_y(self, angle_radians: T) -> Self where T: Real + Sum {
+            pub fn rotated_y(self, angle_radians: T) -> Self where T: Real + Add<T, Output=T> {
                 Self::rotation_y(angle_radians) * self
             }
             /// Returns this quaternion rotated around the Z axis with given angle.
-            pub fn rotated_z(self, angle_radians: T) -> Self where T: Real + Sum {
+            pub fn rotated_z(self, angle_radians: T) -> Self where T: Real + Add<T, Output=T> {
                 Self::rotation_z(angle_radians) * self
             }
             /// Rotates this quaternion around the given axis with given angle.
             /// The axis is not required to be normalized.
-            pub fn rotate_3d<V: Into<Vec3<T>>>(&mut self, angle_radians: T, axis: V) where T: Real + Sum {
+            pub fn rotate_3d<V: Into<Vec3<T>>>(&mut self, angle_radians: T, axis: V) where T: Real + Add<T, Output=T> {
                 *self = self.rotated_3d(angle_radians, axis);
             }
             /// Rotates this quaternion around the X axis with given angle.
-            pub fn rotate_x(&mut self, angle_radians: T) where T: Real + Sum {
+            pub fn rotate_x(&mut self, angle_radians: T) where T: Real + Add<T, Output=T> {
                 *self = self.rotated_x(angle_radians);
             }
             /// Rotates this quaternion around the Y axis with given angle.
-            pub fn rotate_y(&mut self, angle_radians: T) where T: Real + Sum {
+            pub fn rotate_y(&mut self, angle_radians: T) where T: Real + Add<T, Output=T> {
                 *self = self.rotated_y(angle_radians);
             }
             /// Rotates this quaternion around the Z axis with given angle.
-            pub fn rotate_z(&mut self, angle_radians: T) where T: Real + Sum {
+            pub fn rotate_z(&mut self, angle_radians: T) where T: Real + Add<T, Output=T> {
                 *self = self.rotated_z(angle_radians);
             }
 
@@ -437,7 +437,7 @@ macro_rules! quaternion_complete_mod {
 
         /// The `Lerp` implementation for quaternion is the "Normalized LERP".
         impl<T, Factor> Lerp<Factor> for Quaternion<T>
-            where T: Lerp<Factor,Output=T> + Sum + Real,
+            where T: Lerp<Factor,Output=T> + Add<T, Output=T> + Real,
                   Factor: Copy
         {
             type Output = Self;
@@ -453,7 +453,7 @@ macro_rules! quaternion_complete_mod {
         /// The `Lerp` implementation for quaternion is the "Normalized LERP".
         impl<'a, T, Factor> Lerp<Factor> for &'a Quaternion<T>
             // Real implies Copy, so no &'a T here.
-            where T: Lerp<Factor,Output=T> + Sum + Real,
+            where T: Lerp<Factor,Output=T> + Add<T, Output=T> + Real,
                   Factor: Copy
         {
             type Output = Quaternion<T>;
@@ -505,7 +505,7 @@ macro_rules! quaternion_complete_mod {
             }
         }
         impl<T> Quaternion<T>
-            where T: Lerp<T,Output=T> + Sum + Real
+            where T: Lerp<T,Output=T> + Add<T, Output=T> + Real
         {
             /// Performs spherical linear interpolation without implictly constraining `factor` to
             /// be between 0 and 1.
@@ -554,7 +554,7 @@ macro_rules! quaternion_complete_mod {
         }
 
         impl<T, Factor> Slerp<Factor> for Quaternion<T>
-            where T: Lerp<T,Output=T> + Sum + Real,
+            where T: Lerp<T,Output=T> + Add<T, Output=T> + Real,
                   Factor: Into<T>
         {
             type Output = Self;
@@ -563,7 +563,7 @@ macro_rules! quaternion_complete_mod {
             }
         }
         impl<'a, T, Factor> Slerp<Factor> for &'a Quaternion<T>
-            where T: Lerp<T,Output=T> + Sum + Real,
+            where T: Lerp<T,Output=T> + Add<T, Output=T> + Real,
                   Factor: Into<T>
         {
             type Output = Quaternion<T>;
@@ -638,7 +638,7 @@ macro_rules! quaternion_complete_mod {
         /// # }
         /// ```
         impl<T> Mul for Quaternion<T>
-            where T: Copy + Mul<Output=T> + Sub<Output=T> + Zero + Sum
+            where T: Copy + Mul<Output=T> + Sub<Output=T> + Zero + Add<T, Output=T>
         {
             type Output = Self;
             fn mul(self, rhs: Self) -> Self::Output {

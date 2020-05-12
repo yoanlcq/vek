@@ -5,7 +5,7 @@
 use num_traits::{real::Real, FloatConst, Zero, One, AsPrimitive};
 use approx::RelativeEq;
 use std::ops::*;
-use std::iter::Sum;
+use std::ops::Add;
 use crate::ops::Clamp;
 
 // WISH: add useful impls to this module (inclusing basic conversions from rect to vec pairs)
@@ -29,7 +29,7 @@ macro_rules! geom_impl_line_segment {
 
             /// Project the given point onto the line segment (equivalent to 'snapping' the point
             /// to the closest point on the line segment).
-            pub fn projected_point(self, p: $Vec<T>) -> $Vec<T> where T: Real + Sum + RelativeEq {
+            pub fn projected_point(self, p: $Vec<T>) -> $Vec<T> where T: Real + Add<T, Output=T> + RelativeEq {
                 let len_sq = self.start.distance_squared(self.end);
 
                 if len_sq.relative_eq(&Zero::zero(), T::default_epsilon(), T::default_max_relative()) {
@@ -43,7 +43,7 @@ macro_rules! geom_impl_line_segment {
             }
 
             /// Get the smallest distance between the line segment and a point.
-            pub fn distance_to_point(self, p: $Vec<T>) -> T where T: Real + Sum + RelativeEq {
+            pub fn distance_to_point(self, p: $Vec<T>) -> T where T: Real + Add<T, Output=T> + RelativeEq {
                 self.projected_point(p).distance(p)
             }
 
@@ -327,7 +327,7 @@ macro_rules! geom_impl_aabr_or_aabb {
                 p.clamped(self.min, self.max)
             }
             /// Get the smallest distance between the bounding shape and a point.
-            pub fn distance_to_point(self, p: $Vec<T>) -> T where T: Clamp + Real + Sum + RelativeEq {
+            pub fn distance_to_point(self, p: $Vec<T>) -> T where T: Clamp + Real + Add<T, Output=T> + RelativeEq {
                 self.projected_point(p).distance(p)
             }
             $(
@@ -426,7 +426,7 @@ macro_rules! geom_impl_disk_or_sphere {
                 }
             }
         }
-        impl<T: Real + Sum> $Shape<T,T> {
+        impl<T: Real + Add<T, Output=T>> $Shape<T,T> {
             /// Does this shape contain the given point ?
             pub fn contains_point(self, p: $Vec<T>) -> bool where T: PartialOrd {
                 self.center.distance(p) <= self.radius
@@ -724,7 +724,7 @@ macro_rules! geom_complete_mod {
             pub direction: Vec3<T>,
         }
 
-        impl<T: Real + Sum> Ray<T> {
+        impl<T: Real + Add<T, Output=T>> Ray<T> {
             /// Creates a `Ray` from a starting point and direction.
             ///
             /// This doesn't check if `direction` is normalized, because either you know it is, or
