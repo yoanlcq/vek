@@ -55,6 +55,7 @@ macro_rules! vec_impl_cmp {
     ($(#[$attrs:meta])*, $Vec:ident, $cmp:ident, $op:tt, $Bounds:tt, ($($get:tt)+)) => {
         // NOTE: Rhs is taken as reference: see how std::cmp::PartialEq is implemented.
         $(#[$attrs])*
+        #[inline]
         pub fn $cmp<Rhs: AsRef<Self>>(&self, rhs: &Rhs) -> $Vec<bool> where T: $Bounds {
             let rhs = rhs.as_ref();
             $Vec::new($(self.$get $op rhs.$get),+)
@@ -65,6 +66,7 @@ macro_rules! vec_impl_cmp {
 macro_rules! vec_impl_trinop_vec_vec {
     ($op:ident, $Out:ty, $Rhs1:ty, $Rhs2:ty, ($($namedget:ident)+) ($($get:tt)+) ($lborrow:tt) ($rborrow:tt)) => {
         type Output = $Out;
+        #[inline]
         fn $op(self, a: $Rhs1, b: $Rhs2) -> Self::Output {
             Self::Output::new($(self.$get.$op(cond_borrow!($lborrow, a.$get), cond_borrow!($rborrow, b.$get))),+)
         }
@@ -91,6 +93,7 @@ macro_rules! vec_impl_binop_commutative {
             impl $Op<$Vec<$lhs>> for $lhs {
                 type Output = $Vec<$lhs>;
 
+                #[inline]
                 fn $op(self, rhs: $Vec<$lhs>) -> Self::Output {
                     rhs.$op(self)
                 }
@@ -125,6 +128,7 @@ macro_rules! vec_impl_binop {
         // NOTE: Reminder that scalars T: Copy also implement Into<$Vec<T>>.
         impl<V, T> $Op<V> for $Vec<T> where V: Into<$Vec<T>>, T: $Op<T, Output=T> {
             type Output = Self;
+            #[inline]
             fn $op(self, rhs: V) -> Self::Output {
                 let rhs = rhs.into();
                 $Vec::new($(self.$get.$op(rhs.$get)),+)
@@ -133,18 +137,21 @@ macro_rules! vec_impl_binop {
 
         impl<'a, T> $Op<&'a $Vec<T>> for $Vec<T> where T: $Op<&'a T, Output=T> {
             type Output = $Vec<T>;
+            #[inline]
             fn $op(self, rhs: &'a $Vec<T>) -> Self::Output {
                 $Vec::new($(self.$get.$op(&rhs.$get)),+)
             }
         }
         impl<'a, T> $Op<$Vec<T>> for &'a $Vec<T> where &'a T: $Op<T, Output=T> {
             type Output = $Vec<T>;
+            #[inline]
             fn $op(self, rhs: $Vec<T>) -> Self::Output {
                 $Vec::new($(self.$get.$op(rhs.$get)),+)
             }
         }
         impl<'a, 'b, T> $Op<&'a $Vec<T>> for &'b $Vec<T> where &'b T: $Op<&'a T, Output=T> {
             type Output = $Vec<T>;
+            #[inline]
             fn $op(self, rhs: &'a $Vec<T>) -> Self::Output {
                 $Vec::new($(self.$get.$op(&rhs.$get)),+)
             }
@@ -161,12 +168,14 @@ macro_rules! vec_impl_binop {
         */
         impl<'a, T> $Op<T> for &'a $Vec<T> where &'a T: $Op<T, Output=T>, T: Copy {
             type Output = $Vec<T>;
+            #[inline]
             fn $op(self, rhs: T) -> Self::Output {
                 $Vec::new($(self.$get.$op(rhs)),+)
             }
         }
         impl<'a, 'b, T> $Op<&'a T> for &'b $Vec<T> where &'b T: $Op<&'a T, Output=T> {
             type Output = $Vec<T>;
+            #[inline]
             fn $op(self, rhs: &'a T) -> Self::Output {
                 $Vec::new($(self.$get.$op(rhs)),+)
             }
@@ -177,6 +186,7 @@ macro_rules! vec_impl_binop_assign {
     (impl $Op:ident for $Vec:ident { $op:tt } ($($get:tt)+)) => {
         // NOTE: Reminder that scalars T: Copy also implement Into<$Vec<T>>.
         impl<V, T> $Op<V> for $Vec<T> where V: Into<$Vec<T>>, T: $Op<T> {
+            #[inline]
             fn $op(&mut self, rhs: V) {
                 let rhs = rhs.into();
                 $(self.$get.$op(rhs.$get);)+
@@ -202,6 +212,7 @@ macro_rules! vec_impl_unop {
     (impl $Op:ident for $Vec:ident { $op:tt } ($($get:tt)+)) => {
         impl<T> $Op for $Vec<T> where T: $Op<Output=T> {
             type Output = Self;
+            #[inline]
             fn $op(self) -> Self::Output {
                 Self::new($(self.$get.$op()),+)
             }
@@ -318,6 +329,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(Vec4::broadcast(5), Vec4::new(5,5,5,5));
             /// assert_eq!(Vec4::broadcast(5), Vec4::from(5));
             /// ```
+            #[inline]
             pub fn broadcast(val: T) -> Self where T: Copy {
                 Self::new($({let $namedget = val; $namedget}),+)
             }
@@ -330,6 +342,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(Vec4::zero(), Vec4::broadcast(0));
             /// assert_eq!(Vec4::zero(), Vec4::from(0));
             /// ```
+            #[inline]
             pub fn zero() -> Self where T: Zero {
                 Self::new($({let $namedget = T::zero(); $namedget}),+)
             }
@@ -342,6 +355,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(Vec4::one(), Vec4::broadcast(1));
             /// assert_eq!(Vec4::one(), Vec4::from(1));
             /// ```
+            #[inline]
             pub fn one() -> Self where T: One {
                 Self::new($({let $namedget = T::one(); $namedget}),+)
             }
@@ -394,21 +408,25 @@ macro_rules! vec_impl_vec {
             // NOTE: Deref<[T]> provides `to_vec()`. Don't write one here!
 
             /// Converts this into a raw pointer of read-only data.
+            #[inline]
             fn as_ptr_priv(&self) -> *const T {
                 self as *const _ as *const T
             }
             /// Converts this into a raw pointer.
+            #[inline]
             fn as_mut_ptr_priv(&mut self) -> *mut T {
                 self as *mut _ as *mut T
             }
 
             /// View this vector as an immutable slice.
+            #[inline]
             pub fn as_slice(&self) -> &[T] {
                 unsafe {
                     slice::from_raw_parts(self.as_ptr_priv(), $dim)
                 }
             }
             /// View this vector as a mutable slice.
+            #[inline]
             pub fn as_mut_slice(&mut self) -> &mut [T] {
                 unsafe {
                     slice::from_raw_parts_mut(self.as_mut_ptr_priv(), $dim)
@@ -440,6 +458,7 @@ macro_rules! vec_impl_vec {
             /// let v = Vec4::lerp(a, b, 0.5_f32).map(|x| x.round() as i32);
             /// assert_eq!(v, Vec4::new(1,2,3,4));
             /// ```
+            #[inline]
             pub fn map<D,F>(self, mut f: F) -> $Vec<D> where F: FnMut(T) -> D {
                 $Vec::new($(f(self.$get)),+)
             }
@@ -454,6 +473,7 @@ macro_rules! vec_impl_vec {
             /// let v = a.map2(b, u8::wrapping_add);
             /// assert_eq!(v, Vec4::zero());
             /// ```
+            #[inline]
             pub fn map2<D,F,S>(self, other: $Vec<S>, mut f: F) -> $Vec<D> where F: FnMut(T, S) -> D {
                 $Vec::new($(f(self.$get, other.$get)),+)
             }
@@ -467,6 +487,7 @@ macro_rules! vec_impl_vec {
             /// let v = a.map3(b, c, |a, b, c| a.wrapping_add(b) + c);
             /// assert_eq!(v, c);
             /// ```
+            #[inline]
             pub fn map3<D,F,S1,S2>(self, a: $Vec<S1>, b: $Vec<S2>, mut f: F) -> $Vec<D> where F: FnMut(T, S1, S2) -> D {
                 $Vec::new($(f(self.$get, a.$get, b.$get)),+)
             }
@@ -478,6 +499,7 @@ macro_rules! vec_impl_vec {
             /// v.apply(|x| x.count_ones());
             /// assert_eq!(v, Vec4::new(0, 1, 1, 2));
             /// ```
+            #[inline]
             pub fn apply<F>(&mut self, mut f: F) where T: Copy, F: FnMut(T) -> T {
                 $(self.$get = f(self.$get);)+
             }
@@ -492,6 +514,7 @@ macro_rules! vec_impl_vec {
             /// a.apply2(b, u8::wrapping_add);
             /// assert_eq!(a, b);
             /// ```
+            #[inline]
             pub fn apply2<F, S>(&mut self, other: $Vec<S>, mut f: F) where T: Copy, F: FnMut(T, S) -> T {
                 $(self.$get = f(self.$get, other.$get);)+
             }
@@ -505,6 +528,7 @@ macro_rules! vec_impl_vec {
             /// a.apply3(b, c, |a, b, c| a.wrapping_add(b) + c);
             /// assert_eq!(a, c);
             /// ```
+            #[inline]
             pub fn apply3<F, S1, S2>(&mut self, a: $Vec<S1>, b: $Vec<S2>, mut f: F) where T: Copy, F: FnMut(T, S1, S2) -> T {
                 $(self.$get = f(self.$get, a.$get, b.$get);)+
             }
@@ -551,6 +575,7 @@ macro_rules! vec_impl_vec {
             /// # use num_traits::AsPrimitive;
             /// let x: f32 = (1e300f64).as_(); // UB
             /// ```
+            #[inline]
             pub fn as_<D>(self) -> $Vec<D> where T: AsPrimitive<D>, D: 'static + Copy {
                 $Vec::new($(self.$get.as_()),+)
             }
@@ -587,6 +612,7 @@ macro_rules! vec_impl_vec {
             /// let c = Vec4::new(8,9,0,1);
             /// assert_eq!(a*b+c, a.mul_add(b, c));
             /// ```
+            #[inline]
             pub fn mul_add<V: Into<Self>>(self, mul: V, add: V) -> Self
                 where T: MulAdd<T,T,Output=T>
             {
@@ -597,11 +623,13 @@ macro_rules! vec_impl_vec {
             ///
             /// This was intended for checking the validity of extent vectors, but can make
             /// sense for other types too.
+            #[inline]
             pub fn is_any_negative(&self) -> bool where T: Signed {
                 reduce_binop!(||, $(self.$get.is_negative()),+)
             }
 
             /// Are all of the elements positive ?
+            #[inline]
             pub fn are_all_positive(&self) -> bool where T: Signed {
                 reduce_binop!(&&, $(self.$get.is_positive()),+)
             }
@@ -616,6 +644,7 @@ macro_rules! vec_impl_vec {
             /// let m = Vec4::new(0,1,1,0);
             /// assert_eq!(m, Vec4::min(a, b));
             /// ```
+            #[inline]
             pub fn min<V>(a: V, b: V) -> Self where V: Into<Self>, T: Ord {
                 let (a, b) = (a.into(), b.into());
                 Self::new($(cmp::min(a.$get, b.$get)),+)
@@ -630,6 +659,7 @@ macro_rules! vec_impl_vec {
             /// let m = Vec4::new(3,2,2,3);
             /// assert_eq!(m, Vec4::max(a, b));
             /// ```
+            #[inline]
             pub fn max<V>(a: V, b: V) -> Self where V: Into<Self>, T: Ord {
                 let (a, b) = (a.into(), b.into());
                 Self::new($(cmp::max(a.$get, b.$get)),+)
@@ -644,6 +674,7 @@ macro_rules! vec_impl_vec {
             /// let m = Vec4::new(0,1,1,0);
             /// assert_eq!(m, Vec4::partial_min(a, b));
             /// ```
+            #[inline]
             pub fn partial_min<V>(a: V, b: V) -> Self where V: Into<Self>, T: PartialOrd {
                 let (a, b) = (a.into(), b.into());
                 Self::new($(partial_min(a.$get, b.$get)),+)
@@ -658,6 +689,7 @@ macro_rules! vec_impl_vec {
             /// let m = Vec4::new(3,2,2,3);
             /// assert_eq!(m, Vec4::partial_max(a, b));
             /// ```
+            #[inline]
             pub fn partial_max<V>(a: V, b: V) -> Self where V: Into<Self>, T: PartialOrd {
                 let (a, b) = (a.into(), b.into());
                 Self::new($(partial_max(a.$get, b.$get)),+)
@@ -670,6 +702,7 @@ macro_rules! vec_impl_vec {
             /// # use vek::vec::Vec4;
             /// assert_eq!(-5, Vec4::new(0, 5, -5, 8).reduce_min());
             /// ```
+            #[inline]
             pub fn reduce_min(self) -> T where T: Ord {
                 reduce_fn!(cmp::min, $(self.$get),+)
             }
@@ -680,6 +713,7 @@ macro_rules! vec_impl_vec {
             /// # use vek::vec::Vec4;
             /// assert_eq!(8, Vec4::new(0, 5, -5, 8).reduce_max());
             /// ```
+            #[inline]
             pub fn reduce_max(self) -> T where T: Ord {
                 reduce_fn!(cmp::max, $(self.$get),+)
             }
@@ -691,6 +725,7 @@ macro_rules! vec_impl_vec {
             /// # use vek::vec::Vec4;
             /// assert_eq!(-5_f32, Vec4::new(0_f32, 5., -5., 8.).reduce_partial_min());
             /// ```
+            #[inline]
             pub fn reduce_partial_min(self) -> T where T: PartialOrd {
                 reduce_fn!(partial_min, $(self.$get),+)
             }
@@ -701,6 +736,7 @@ macro_rules! vec_impl_vec {
             /// # use vek::vec::Vec4;
             /// assert_eq!(8_f32, Vec4::new(0_f32, 5., -5., 8.).reduce_partial_max());
             /// ```
+            #[inline]
             pub fn reduce_partial_max(self) -> T where T: PartialOrd {
                 reduce_fn!(partial_max, $(self.$get),+)
             }
@@ -713,6 +749,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(false, Vec4::new(true, false, true, true).reduce_bitand());
             /// assert_eq!(false, Vec4::new(true, true, true, false).reduce_bitand());
             /// ```
+            #[inline]
             pub fn reduce_bitand(self) -> T where T: BitAnd<T, Output=T> {
                 reduce_binop!(&, $(self.$get),+)
             }
@@ -724,6 +761,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(false, Vec4::new(false, false, false, false).reduce_bitor());
             /// assert_eq!(true,  Vec4::new(false, false, true, false).reduce_bitor());
             /// ```
+            #[inline]
             pub fn reduce_bitor(self) -> T where T: BitOr<T, Output=T> {
                 reduce_binop!(|, $(self.$get),+)
             }
@@ -735,11 +773,13 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(false, Vec4::new(true, true, true, true).reduce_bitxor());
             /// assert_eq!(true,  Vec4::new(true, false, true, true).reduce_bitxor());
             /// ```
+            #[inline]
             pub fn reduce_bitxor(self) -> T where T: BitXor<T, Output=T> {
                 reduce_binop!(^, $(self.$get),+)
             }
 
             /// Reduces this vector with the given accumulator closure.
+            #[inline]
             pub fn reduce<F>(self, mut f: F) -> T where F: FnMut(T,T) -> T {
                 reduce_fn_mut!(f, $(self.$get),+)
             }
@@ -750,6 +790,7 @@ macro_rules! vec_impl_vec {
             /// # use vek::vec::Vec4;
             /// assert_eq!(1*2*3*4, Vec4::new(1, 2, 3, 4).product());
             /// ```
+            #[inline]
             pub fn product(self) -> T where T: Mul<Output=T> {
                 reduce_binop!(*, $(self.$get),+)
             }
@@ -759,6 +800,7 @@ macro_rules! vec_impl_vec {
             /// # use vek::vec::Vec4;
             /// assert_eq!(1+2+3+4, Vec4::new(1, 2, 3, 4).sum());
             /// ```
+            #[inline]
             pub fn sum(self) -> T where T: Add<T, Output=T> {
                 reduce_binop!(+, $(self.$get),+)
             }
@@ -796,6 +838,7 @@ macro_rules! vec_impl_vec {
             /// let grey_level = red.average().round() as u8;
             /// assert_eq!(grey_level, 128);
             /// ```
+            #[inline]
             pub fn average(self) -> T where T: Add<T, Output=T> + Div<T, Output=T> + From<u8> {
                 self.sum() / T::from($dim as _)
             }
@@ -809,6 +852,7 @@ macro_rules! vec_impl_vec {
             /// let s = Vec4::new(1f32, 4f32, 9f32, 16f32);
             /// assert_eq!(v, s.sqrt());
             /// ```
+            #[inline]
             pub fn sqrt(self) -> Self where T: Real {
                 Self::new($(self.$get.sqrt()),+)
             }
@@ -822,6 +866,7 @@ macro_rules! vec_impl_vec {
             /// let s = Vec4::new(1f32, 4f32, 9f32, 16f32);
             /// assert_eq!(v, s.rsqrt());
             /// ```
+            #[inline]
             pub fn rsqrt(self) -> Self where T: Real {
                 self.sqrt().recip()
             }
@@ -835,6 +880,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(v, s.recip());
             /// assert_eq!(s, v.recip());
             /// ```
+            #[inline]
             pub fn recip(self) -> Self where T: Real {
                 Self::new($(self.$get.recip()),+)
             }
@@ -845,6 +891,7 @@ macro_rules! vec_impl_vec {
             /// let v = Vec4::new(0_f32, 1., 1.8, 3.14);
             /// assert_eq!(v.ceil(), Vec4::new(0f32, 1f32, 2f32, 4f32));
             /// ```
+            #[inline]
             pub fn ceil(self) -> Self where T: Real {
                 Self::new($(self.$get.ceil()),+)
             }
@@ -855,6 +902,7 @@ macro_rules! vec_impl_vec {
             /// let v = Vec4::new(0_f32, 1., 1.8, 3.14);
             /// assert_eq!(v.floor(), Vec4::new(0f32, 1f32, 1f32, 3f32));
             /// ```
+            #[inline]
             pub fn floor(self) -> Self where T: Real {
                 Self::new($(self.$get.floor()),+)
             }
@@ -865,6 +913,7 @@ macro_rules! vec_impl_vec {
             /// let v = Vec4::new(0_f32, 1., 1.8, 3.14);
             /// assert_eq!(v.round(), Vec4::new(0f32, 1f32, 2f32, 3f32));
             /// ```
+            #[inline]
             pub fn round(self) -> Self where T: Real {
                 Self::new($(self.$get.round()),+)
             }
@@ -878,6 +927,7 @@ macro_rules! vec_impl_vec {
             /// let h = Vec4::new(0+1, 2+3, 4+5, 6+7);
             /// assert_eq!(h, a.hadd(b));
             /// ```
+            #[inline]
             pub fn hadd(self, rhs: Self) -> Self where T: Add<T, Output=T> {
                 $(let $namedget;)+
                 horizontal_binop!(+, $($namedget),+ => $(self.$get,)+ $(rhs.$get),+);
@@ -1028,6 +1078,7 @@ macro_rules! vec_impl_vec {
 
             /// Returns the linear interpolation of `from` to `to` with `factor` unconstrained.
             /// See the `Lerp` trait.
+            #[inline]
             pub fn lerp_unclamped_precise<S: Into<Self>>(from: Self, to: Self, factor: S) -> Self
                 where T: Copy + One + Mul<Output=T> + Sub<Output=T> + MulAdd<T,T,Output=T>
             {
@@ -1036,6 +1087,7 @@ macro_rules! vec_impl_vec {
             }
             /// Same as `lerp_unclamped_precise`, implemented as a possibly faster but less precise operation.
             /// See the `Lerp` trait.
+            #[inline]
             pub fn lerp_unclamped<S: Into<Self>>(from: Self, to: Self, factor: S) -> Self
                 where T: Copy + Sub<Output=T> + MulAdd<T,T,Output=T>
             {
@@ -1045,6 +1097,7 @@ macro_rules! vec_impl_vec {
             /// Returns the linear interpolation of `from` to `to` with `factor` constrained to be
             /// between 0 and 1.
             /// See the `Lerp` trait.
+            #[inline]
             pub fn lerp<S: Into<Self> + Clamp + Zero + One>(from: Self, to: Self, factor: S) -> Self
                 where T: Copy + Sub<Output=T> + MulAdd<T,T,Output=T>
             {
@@ -1053,6 +1106,7 @@ macro_rules! vec_impl_vec {
             /// Returns the linear interpolation of `from` to `to` with `factor` constrained to be
             /// between 0 and 1.
             /// See the `Lerp` trait.
+            #[inline]
             pub fn lerp_precise<S: Into<Self> + Clamp + Zero + One>(from: Self, to: Self, factor: S) -> Self
                 where T: Copy + One + Mul<Output=T> + Sub<Output=T> + MulAdd<T,T,Output=T>
             {
@@ -1157,6 +1211,7 @@ macro_rules! vec_impl_vec {
                 T::default_epsilon()
             }
 
+            #[inline]
             fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
                 reduce_binop!(&&, $(T::abs_diff_eq(&self.$get, &other.$get, epsilon)),+)
             }
@@ -1167,6 +1222,7 @@ macro_rules! vec_impl_vec {
                 T::default_max_ulps()
             }
 
+            #[inline]
             fn ulps_eq(&self, other: &Self, epsilon: T::Epsilon, max_ulps: u32) -> bool {
                 reduce_binop!(&&, $(T::ulps_eq(&self.$get, &other.$get, epsilon, max_ulps)),+)
             }
@@ -1177,6 +1233,7 @@ macro_rules! vec_impl_vec {
                 T::default_max_relative()
             }
 
+            #[inline]
             fn relative_eq(&self, other: &Self, epsilon: T::Epsilon, max_relative: T::Epsilon) -> bool {
                 reduce_binop!(&&, $(T::relative_eq(&self.$get, &other.$get, epsilon, max_relative)),+)
             }
@@ -1191,6 +1248,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(false, Vec4::new(true, false, true, true).reduce_and());
             /// assert_eq!(false, Vec4::new(true, true, true, false).reduce_and());
             /// ```
+            #[inline]
             pub fn reduce_and(self) -> bool {
                 reduce_binop!(&&, $(self.$get),+)
             }
@@ -1201,6 +1259,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(false, Vec4::new(false, false, false, false).reduce_or());
             /// assert_eq!(true,  Vec4::new(false, false, true, false).reduce_or());
             /// ```
+            #[inline]
             pub fn reduce_or(self) -> bool {
                 reduce_binop!(||, $(self.$get),+)
             }
@@ -1211,6 +1270,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(false, Vec4::new(true, true, true, true).reduce_ne());
             /// assert_eq!(true,  Vec4::new(true, false, true, true).reduce_ne());
             /// ```
+            #[inline]
             pub fn reduce_ne(self) -> bool {
                 reduce_binop!(!=, $(self.$get),+)
             }
@@ -1240,22 +1300,26 @@ macro_rules! vec_impl_vec {
         vec_impl_unop!{ impl Not for $Vec { not } ($($get)+)}
 
         impl<T> AsRef<[T]> for $Vec<T> {
+            #[inline]
             fn as_ref(&self) -> &[T] {
                 self.as_slice()
             }
         }
 
         impl<T> AsMut<[T]> for $Vec<T> {
+            #[inline]
             fn as_mut(&mut self) -> &mut [T] {
                 self.as_mut_slice()
             }
         }
         impl<T> Borrow<[T]> for $Vec<T> {
+            #[inline]
             fn borrow(&self) -> &[T] {
                 self.as_slice()
             }
         }
         impl<T> BorrowMut<[T]> for $Vec<T> {
+            #[inline]
             fn borrow_mut(&mut self) -> &mut [T] {
                 self.as_mut_slice()
             }
@@ -1276,6 +1340,7 @@ macro_rules! vec_impl_vec {
         impl<'a, T> IntoIterator for &'a $Vec<T> {
             type Item = &'a T;
             type IntoIter = slice::Iter<'a, T>;
+            #[inline]
             fn into_iter(self) -> Self::IntoIter {
                 // Note to self: DO NOT return self.iter() here. Causes infinite recursion.
                 self.as_slice().iter()
@@ -1284,6 +1349,7 @@ macro_rules! vec_impl_vec {
         impl<'a, T> IntoIterator for &'a mut $Vec<T> {
             type Item = &'a mut T;
             type IntoIter = slice::IterMut<'a, T>;
+            #[inline]
             fn into_iter(self) -> Self::IntoIter {
                 // Note to self: DO NOT return self.iter_mut() here. Causes infinite recursion.
                 self.as_mut_slice().iter_mut()
@@ -1292,11 +1358,13 @@ macro_rules! vec_impl_vec {
 
         impl<T> Deref for $Vec<T> {
             type Target = [T];
+            #[inline]
             fn deref(&self) -> &[T] {
                 self.as_slice()
             }
         }
         impl<T> DerefMut for $Vec<T> {
+            #[inline]
             fn deref_mut(&mut self) -> &mut [T] {
                 self.as_mut_slice()
             }
@@ -1455,6 +1523,7 @@ macro_rules! vec_impl_vec {
         /// // Vec2, Vec3 and Vec4, and also with both repr(C) and repr(simd) layouts.
         /// ```
         impl<T: Copy> From<T> for $Vec<T> {
+            #[inline]
             fn from(val: T) -> Self {
                 Self::broadcast(val)
             }
@@ -1475,28 +1544,34 @@ macro_rules! vec_impl_spatial {
     ($Vec:ident) => {
         impl<T> $Vec<T> {
             /// Dot product between this vector and another.
+            #[inline]
             pub fn dot(self, v: Self) -> T where T: Add<T, Output=T> + Mul<Output=T> {
                 (self * v).sum()
             }
             /// The squared magnitude of a vector is its spatial length, squared.
             /// It is slightly cheaper to compute than `magnitude` because it avoids a square root.
+            #[inline]
             pub fn magnitude_squared(self) -> T where T: Copy + Add<T, Output=T> + Mul<Output=T> {
                 self.dot(self)
             }
             /// The magnitude of a vector is its spatial length.
+            #[inline]
             pub fn magnitude(self) -> T where T: Add<T, Output=T> + Real {
                 self.magnitude_squared().sqrt()
             }
             /// Squared distance between two point vectors.
             /// It is slightly cheaper to compute than `distance` because it avoids a square root.
+            #[inline]
             pub fn distance_squared(self, v: Self) -> T where T: Copy + Add<T, Output=T> + Sub<Output=T> + Mul<Output=T> {
                 (self - v).magnitude_squared()
             }
             /// Distance between two point vectors.
+            #[inline]
             pub fn distance(self, v: Self) -> T where T: Add<T, Output=T> + Real {
                 (self - v).magnitude()
             }
             /// Get a copy of this direction vector such that its length equals 1.
+            #[inline]
             pub fn normalized(self) -> Self where T: Add<T, Output=T> + Real {
                 self / self.magnitude()
             }
@@ -1514,10 +1589,12 @@ macro_rules! vec_impl_spatial {
                 }
             }
             /// Divide this vector's components such that its length equals 1.
+            #[inline]
             pub fn normalize(&mut self) where T: Add<T, Output=T> + Real {
                 *self = self.normalized();
             }
             /// Is this vector normalized ? (Uses `RelativeEq`)
+            #[inline]
             pub fn is_normalized<E>(self) -> bool
             where
                 T: RelativeEq<Epsilon = E> + Add<T, Output=T> + Real,
@@ -1526,6 +1603,7 @@ macro_rules! vec_impl_spatial {
                 self.is_magnitude_close_to(T::one())
             }
             /// Is this vector approximately zero ? (Uses `RelativeEq`)
+            #[inline]
             pub fn is_approx_zero<E>(self) -> bool
             where
                 T: RelativeEq<Epsilon = E> + Add<T, Output=T> + Real,
@@ -1609,6 +1687,7 @@ macro_rules! vec_impl_spatial_2d {
             /// - ` < 0`: This point lies in the half-space right of segment `ab`.
             /// - `== 0`: This point lies in the infinite line along segment `ab`.
             /// - ` > 0`: This point lies in the half-space left of segment `ab`.
+            #[inline]
             pub fn determine_side(self, a: Self, b: Self) -> T
                 where T: Copy + Sub<Output=T> + Mul<Output=T>
             {
@@ -1650,6 +1729,7 @@ macro_rules! vec_impl_spatial_2d {
             /// assert_relative_eq!(Vec2::unit_x().rotated_z(PI*2.), Vec2::unit_x(), epsilon = 0.000001);
             /// # }
             /// ```
+            #[inline]
             pub fn rotated_z(self, angle_radians: T) -> Self where T: Real {
                 let c = angle_radians.cos();
                 let s = angle_radians.sin();
@@ -1657,6 +1737,7 @@ macro_rules! vec_impl_spatial_2d {
                 Self::new(c*x - s*y, s*x + c*y)
             }
             /// Rotates this vector in 2D. See `rotated_z()`.
+            #[inline]
             pub fn rotate_z(&mut self, angle_radians: T) where T: Real {
                 *self = self.rotated_z(angle_radians);
             }
@@ -1733,6 +1814,7 @@ macro_rules! vec_impl_spatial_3d {
                 /// assert_relative_eq!(i.cross(j), k);
                 /// # }
                 /// ```
+                #[inline]
                 pub fn cross(self, b: Self)
                     -> Self where T: Copy + Mul<Output=T> + Sub<Output=T>
                 {
