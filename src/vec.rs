@@ -233,8 +233,8 @@ macro_rules! vec_impl_vec {
             }
         }
 
-        vec_impl_vec!{common $Vec $vec ($dim) ($fmt) ($($get)+) ($($namedget)+) ($($tupleget)+) $Tuple}
-        vec_impl_vec!{$c_or_simd $Vec $vec ($dim) ($fmt) ($($get)+) ($($namedget)+) ($($tupleget)+) $Tuple}
+        vec_impl_vec!{common $c_or_simd $Vec $vec ($dim) ($fmt) ($($get)+) ($($namedget)+) ($($tupleget)+) $Tuple}
+        vec_impl_vec!{specific $c_or_simd $Vec $vec ($dim) ($fmt) ($($get)+) ($($namedget)+) ($($tupleget)+) $Tuple}
     };
 
     ($c_or_simd:ident struct $Vec:ident $vec:ident ($dim:expr) ($fmt:expr) ($($get:tt)+) ($($namedget:tt)+) ($($tupleget:tt)+) $Tuple:ty) => {
@@ -247,15 +247,15 @@ macro_rules! vec_impl_vec {
             }
         }
 
-        vec_impl_vec!{common $Vec $vec ($dim) ($fmt) ($($get)+) ($($namedget)+) ($($tupleget)+) $Tuple}
-        vec_impl_vec!{$c_or_simd $Vec $vec ($dim) ($fmt) ($($get)+) ($($namedget)+) ($($tupleget)+) $Tuple}
+        vec_impl_vec!{common $c_or_simd $Vec $vec ($dim) ($fmt) ($($get)+) ($($namedget)+) ($($tupleget)+) $Tuple}
+        vec_impl_vec!{specific $c_or_simd $Vec $vec ($dim) ($fmt) ($($get)+) ($($namedget)+) ($($tupleget)+) $Tuple}
     };
 
-    (c $Vec:ident $vec:ident ($dim:expr) ($fmt:expr) ($($get:tt)+) ($($namedget:tt)+) ($($tupleget:tt)+) $Tuple:ty) => {
+    (specific c $Vec:ident $vec:ident ($dim:expr) ($fmt:expr) ($($get:tt)+) ($($namedget:tt)+) ($($tupleget:tt)+) $Tuple:ty) => {
 
         use super::super::repr_c::$vec::$Vec as CVec;
     };
-    (simd $Vec:ident $vec:ident ($dim:expr) ($fmt:expr) ($($get:tt)+) ($($namedget:tt)+) ($($tupleget:tt)+) $Tuple:ty) => {
+    (specific simd $Vec:ident $vec:ident ($dim:expr) ($fmt:expr) ($($get:tt)+) ($($namedget:tt)+) ($($tupleget:tt)+) $Tuple:ty) => {
 
         use super::super::repr_c::$vec::$Vec as CVec;
 
@@ -301,7 +301,7 @@ macro_rules! vec_impl_vec {
             }
         }
     };
-    (common $Vec:ident $vec:ident ($dim:expr) ($fmt:expr) ($($get:tt)+) ($($namedget:tt)+) ($($tupleget:tt)+) $Tuple:ty) => {
+    (common $c_or_simd:ident $Vec:ident $vec:ident ($dim:expr) ($fmt:expr) ($($get:tt)+) ($($namedget:tt)+) ($($tupleget:tt)+) $Tuple:ty) => {
 
         #[allow(missing_docs)]
         /// Displays the vector, formatted as `
@@ -616,7 +616,9 @@ macro_rules! vec_impl_vec {
             pub fn mul_add<V: Into<Self>>(self, mul: V, add: V) -> Self
                 where T: MulAdd<T,T,Output=T>
             {
-                self.map3(mul.into(), add.into(), |x, m, a| x.mul_add(m, a))
+                let mul = mul.into();
+                let add = add.into();
+                $Vec::new($(self.$get.mul_add(mul.$get, add.$get)),+)
             }
 
             /// Is any of the elements negative ?
