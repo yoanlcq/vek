@@ -45,6 +45,7 @@ rgba = []
 uv = []
 uvw = []
 repr_simd = []
+platform_intrinsics = []
 std = ["num-traits/std", "serde/std"]
 libm = ["num-traits/libm"]
 
@@ -60,6 +61,3 @@ image = { version = "~0.17", optional = true, default-features = false }
 serde = { version = "~1.0.105", optional = true, default-features = false, features = ["derive"] }
 mint = { version = "~0.5.4", optional = true }
 # clippy = { version = "0.0.166", optional = true }
-
-[target.'cfg(any(target_arch="x86", target_arch="x86_64"))'.dependencies]
-x86intrin = { version = "0.4", optional = true }

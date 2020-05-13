@@ -14,9 +14,6 @@
 //!   On Stable, this feature has no effect.
 //! - `serde` makes vectors and matrices derive `Serialize` and `Deserialize`.
 //! - `image` makes color vectors implement the `Pixel` trait from the `image` crate.
-//! - `x86intrin` enables x86 intrinsics through the `x86intrin` crate. `vek` doesn't directly
-//!   depend on it because it won't compile on Stable and there's no way (as of this writing)
-//!   to selectively depend on a crate based on the `rustc` version, not even via build scripts.
 //! - `mint` enables conversion to the `mint` crate's types.
 //!   `mint` is an interoperability layer for math libraries.
 //!
@@ -40,6 +37,7 @@
 #![cfg_attr(all(nightly, feature = "clippy"), plugin(clippy))]
 //#![cfg_attr(all(nightly, feature="repr_simd" ), feature(cfg_target_feature))]
 #![cfg_attr(all(nightly, feature = "repr_simd"), feature(repr_simd, simd_ffi))]
+#![cfg_attr(all(nightly, feature = "platform_intrinsics"), feature(platform_intrinsics))]
 //#![cfg_attr(feature="repr_simd", allow(improper_ctypes)]
 //#![cfg_attr(feature="repr_simd", feature(link_llvm_intrinsics)]
 #![cfg_attr(all(nightly, test), feature(test))]
@@ -53,9 +51,6 @@ mod vtest;
 #[macro_use]
 extern crate serde;
 
-#[cfg(feature = "x86intrin")]
-extern crate x86intrin;
-
 #[cfg(feature = "mint")]
 extern crate mint;
 
@@ -68,6 +63,10 @@ extern crate approx;
 #[allow(unused_imports)]
 #[macro_use]
 extern crate static_assertions;
+
+#[cfg(feature = "platform_intrinsics")]
+mod simd_llvm;
+// ^ Please do not make this module public; we don't want people to use it, because it could change as the SIMD infrastructure evolves.
 
 pub mod ops;
 pub use crate::ops::*;
