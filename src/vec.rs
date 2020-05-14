@@ -17,6 +17,23 @@ use num_traits::{Zero, One, NumCast, AsPrimitive, Signed, real::Real};
 use approx::{AbsDiffEq, RelativeEq, UlpsEq};
 use crate::ops::*;
 
+#[cfg(feature = "platform_intrinsics")]
+use crate::simd_llvm;
+
+// Macro for selecting separate implementations for repr(C) vs repr(simd), at compile time.
+macro_rules! choose {
+    (c { c => $c_impl:expr, simd_llvm => $s_impl:expr, }) => {
+        { $c_impl }
+    };
+    (simd { c => $c_impl:expr, simd_llvm => $s_impl:expr, }) => {
+        #[cfg(not(feature = "platform_intrinsics"))]
+        { $c_impl }
+
+        #[cfg(feature = "platform_intrinsics")]
+        { $s_impl }
+    };
+}
+
 macro_rules! cond_borrow {
     (ref, $a:expr) => { &$a };
     (move, $a:expr) => { $a };
@@ -52,13 +69,16 @@ macro_rules! horizontal_binop {
 
 
 macro_rules! vec_impl_cmp {
-    ($(#[$attrs:meta])*, $Vec:ident, $cmp:ident, $op:tt, $Bounds:tt, ($($get:tt)+)) => {
+    ($(#[$attrs:meta])*, $c_or_simd:ident, $Vec:ident, $cmp:ident, $simd_cmp:ident, $op:tt, $Bounds:tt, ($($get:tt)+)) => {
         // NOTE: Rhs is taken as reference: see how std::cmp::PartialEq is implemented.
         $(#[$attrs])*
         #[inline]
         pub fn $cmp<Rhs: AsRef<Self>>(&self, rhs: &Rhs) -> $Vec<bool> where T: $Bounds {
             let rhs = rhs.as_ref();
-            $Vec::new($(self.$get $op rhs.$get),+)
+            choose!{$c_or_simd {
+                c => $Vec::new($(self.$get $op rhs.$get),+),
+                simd_llvm => unsafe { simd_llvm::$simd_cmp(self, rhs) },
+            }}
         }
     }
 }
@@ -87,7 +107,7 @@ macro_rules! vec_impl_trinop {
 }
 
 macro_rules! vec_impl_binop_commutative {
-    (impl $Op:ident<$Vec:ident> for T { $op:tt } where T = $($lhs:ident),+) => {
+    ($c_or_simd:ident, impl $Op:ident<$Vec:ident> for T { $op:tt, $simd_op:ident } where T = $($lhs:ident),+) => {
         $(
             // Allows $lhs * $Vec<$lhs>
             impl $Op<$Vec<$lhs>> for $lhs {
@@ -104,9 +124,9 @@ macro_rules! vec_impl_binop_commutative {
 
 macro_rules! vec_impl_binop {
     // If $Op is commutative, both "a $op b" and "b $op a" produce the same results
-    (commutative impl $Op:ident for $Vec:ident { $op:tt } ($($get:tt)+)) => {
+    ($c_or_simd:ident, commutative impl $Op:ident for $Vec:ident { $op:tt, $simd_op:ident } ($($get:tt)+)) => {
         // Generate the remaining non-commutative impls
-        vec_impl_binop!(impl $Op for $Vec { $op } ($($get)+));
+        vec_impl_binop!($c_or_simd, impl $Op for $Vec { $op, $simd_op } ($($get)+));
 
         /* This is the generic impl we'd like to write: (forbidden by the coherence rules due to
          * the uncovered type parameter before the local type)
@@ -122,16 +142,19 @@ macro_rules! vec_impl_binop {
         // Since the generic impl isn't possible, we'll compromise here and add impls for specific
         // types. This isn't ideally what we would want in a generic library like this, but it is a
         // reasonable compromise to enable a nice syntax for certain operators with certain common types.
-        vec_impl_binop_commutative!(impl $Op<$Vec> for T { $op } where T = i8, u8, i16, u16, i32, u32, i64, u64, f32, f64);
+        vec_impl_binop_commutative!($c_or_simd, impl $Op<$Vec> for T { $op, $simd_op } where T = i8, u8, i16, u16, i32, u32, i64, u64, f32, f64);
     };
-    (impl $Op:ident for $Vec:ident { $op:tt } ($($get:tt)+)) => {
+    ($c_or_simd:ident, impl $Op:ident for $Vec:ident { $op:tt, $simd_op:ident } ($($get:tt)+)) => {
         // NOTE: Reminder that scalars T: Copy also implement Into<$Vec<T>>.
         impl<V, T> $Op<V> for $Vec<T> where V: Into<$Vec<T>>, T: $Op<T, Output=T> {
             type Output = Self;
             #[inline]
             fn $op(self, rhs: V) -> Self::Output {
                 let rhs = rhs.into();
-                $Vec::new($(self.$get.$op(rhs.$get)),+)
+                choose!{$c_or_simd {
+                    c => $Vec::new($(self.$get.$op(rhs.$get)),+),
+                    simd_llvm => unsafe { simd_llvm::$simd_op(self, rhs) },
+                }}
             }
         }
 
@@ -183,7 +206,7 @@ macro_rules! vec_impl_binop {
     };
 }
 macro_rules! vec_impl_binop_assign {
-    (impl $Op:ident for $Vec:ident { $op:tt } ($($get:tt)+)) => {
+    ($c_or_simd:ident, impl $Op:ident for $Vec:ident { $op:tt } ($($get:tt)+)) => {
         // NOTE: Reminder that scalars T: Copy also implement Into<$Vec<T>>.
         impl<V, T> $Op<V> for $Vec<T> where V: Into<$Vec<T>>, T: $Op<T> {
             #[inline]
@@ -577,7 +600,10 @@ macro_rules! vec_impl_vec {
             /// ```
             #[inline]
             pub fn as_<D>(self) -> $Vec<D> where T: AsPrimitive<D>, D: 'static + Copy {
-                $Vec::new($(self.$get.as_()),+)
+                choose!{$c_or_simd {
+                    c => $Vec::new($(self.$get.as_()),+),
+                    simd_llvm => unsafe { simd_llvm::simd_cast(self) },
+                }}
             }
             /// Returns a memberwise-converted copy of this vector, using `NumCast`.
             ///
@@ -618,7 +644,10 @@ macro_rules! vec_impl_vec {
             {
                 let mul = mul.into();
                 let add = add.into();
-                $Vec::new($(self.$get.mul_add(mul.$get, add.$get)),+)
+                choose!{$c_or_simd {
+                    c => $Vec::new($(self.$get.mul_add(mul.$get, add.$get)),+),
+                    simd_llvm => unsafe { simd_llvm::simd_fma(self, mul, add) },
+                }}
             }
 
             /// Is any of the elements negative ?
@@ -706,7 +735,10 @@ macro_rules! vec_impl_vec {
             /// ```
             #[inline]
             pub fn reduce_min(self) -> T where T: Ord {
-                reduce_fn!(cmp::min, $(self.$get),+)
+                choose!{$c_or_simd {
+                    c => reduce_fn!(cmp::min, $(self.$get),+),
+                    simd_llvm => unsafe { simd_llvm::simd_reduce_min(self) },
+                }}
             }
             /// Returns the element which has the highest value in this vector, using total
             /// ordering.
@@ -717,7 +749,10 @@ macro_rules! vec_impl_vec {
             /// ```
             #[inline]
             pub fn reduce_max(self) -> T where T: Ord {
-                reduce_fn!(cmp::max, $(self.$get),+)
+                choose!{$c_or_simd {
+                    c => reduce_fn!(cmp::max, $(self.$get),+),
+                    simd_llvm => unsafe { simd_llvm::simd_reduce_max(self) },
+                }}
             }
 
             /// Returns the element which has the lowest value in this vector, using partial
@@ -729,7 +764,10 @@ macro_rules! vec_impl_vec {
             /// ```
             #[inline]
             pub fn reduce_partial_min(self) -> T where T: PartialOrd {
-                reduce_fn!(partial_min, $(self.$get),+)
+                choose!{$c_or_simd {
+                    c => reduce_fn!(partial_min, $(self.$get),+),
+                    simd_llvm => unsafe { simd_llvm::simd_reduce_min(self) },
+                }}
             }
             /// Returns the element which has the highest value in this vector, using partial
             /// ordering.
@@ -740,7 +778,10 @@ macro_rules! vec_impl_vec {
             /// ```
             #[inline]
             pub fn reduce_partial_max(self) -> T where T: PartialOrd {
-                reduce_fn!(partial_max, $(self.$get),+)
+                choose!{$c_or_simd {
+                    c => reduce_fn!(partial_max, $(self.$get),+),
+                    simd_llvm => unsafe { simd_llvm::simd_reduce_max(self) },
+                }}
             }
 
             /// Returns the result of bitwise-AND (`&`) on all elements of this vector.
@@ -753,7 +794,10 @@ macro_rules! vec_impl_vec {
             /// ```
             #[inline]
             pub fn reduce_bitand(self) -> T where T: BitAnd<T, Output=T> {
-                reduce_binop!(&, $(self.$get),+)
+                choose!{$c_or_simd {
+                    c => reduce_binop!(&, $(self.$get),+),
+                    simd_llvm => unsafe { simd_llvm::simd_reduce_and(self) },
+                }}
             }
 
             /// Returns the result of bitwise-OR (`|`) on all elements of this vector.
@@ -765,7 +809,10 @@ macro_rules! vec_impl_vec {
             /// ```
             #[inline]
             pub fn reduce_bitor(self) -> T where T: BitOr<T, Output=T> {
-                reduce_binop!(|, $(self.$get),+)
+                choose!{$c_or_simd {
+                    c => reduce_binop!(|, $(self.$get),+),
+                    simd_llvm => unsafe { simd_llvm::simd_reduce_or(self) },
+                }}
             }
 
             /// Returns the result of bitwise-XOR (`^`) on all elements of this vector.
@@ -777,7 +824,10 @@ macro_rules! vec_impl_vec {
             /// ```
             #[inline]
             pub fn reduce_bitxor(self) -> T where T: BitXor<T, Output=T> {
-                reduce_binop!(^, $(self.$get),+)
+                choose!{$c_or_simd {
+                    c => reduce_binop!(^, $(self.$get),+),
+                    simd_llvm => unsafe { simd_llvm::simd_reduce_xor(self) },
+                }}
             }
 
             /// Reduces this vector with the given accumulator closure.
@@ -794,7 +844,10 @@ macro_rules! vec_impl_vec {
             /// ```
             #[inline]
             pub fn product(self) -> T where T: Mul<Output=T> {
-                reduce_binop!(*, $(self.$get),+)
+                choose!{$c_or_simd {
+                    c => reduce_binop!(*, $(self.$get),+),
+                    simd_llvm => unsafe { simd_llvm::simd_reduce_mul_unordered(self) },
+                }}
             }
             /// Returns the sum of each of this vector's elements.
             ///
@@ -804,7 +857,10 @@ macro_rules! vec_impl_vec {
             /// ```
             #[inline]
             pub fn sum(self) -> T where T: Add<T, Output=T> {
-                reduce_binop!(+, $(self.$get),+)
+                choose!{$c_or_simd {
+                    c => reduce_binop!(+, $(self.$get),+),
+                    simd_llvm => unsafe { simd_llvm::simd_reduce_add_unordered(self) },
+                }}
             }
             /// Returns the average of this vector's elements.
             ///
@@ -856,7 +912,10 @@ macro_rules! vec_impl_vec {
             /// ```
             #[inline]
             pub fn sqrt(self) -> Self where T: Real {
-                Self::new($(self.$get.sqrt()),+)
+                choose!{$c_or_simd {
+                    c => Self::new($(self.$get.sqrt()),+),
+                    simd_llvm => unsafe { simd_llvm::simd_fsqrt(self) },
+                }}
             }
 
             /// Returns a new vector which elements are the respective reciprocal
@@ -895,7 +954,10 @@ macro_rules! vec_impl_vec {
             /// ```
             #[inline]
             pub fn ceil(self) -> Self where T: Real {
-                Self::new($(self.$get.ceil()),+)
+                choose!{$c_or_simd {
+                    c => Self::new($(self.$get.ceil()),+),
+                    simd_llvm => unsafe { simd_llvm::simd_ceil(self) },
+                }}
             }
             /// Returns a new vector which elements are rounded down to the nearest lower integer.
             ///
@@ -906,7 +968,10 @@ macro_rules! vec_impl_vec {
             /// ```
             #[inline]
             pub fn floor(self) -> Self where T: Real {
-                Self::new($(self.$get.floor()),+)
+                choose!{$c_or_simd {
+                    c => Self::new($(self.$get.floor()),+),
+                    simd_llvm => unsafe { simd_llvm::simd_floor(self) },
+                }}
             }
             /// Returns a new vector which elements are rounded to the nearest integer.
             ///
@@ -945,7 +1010,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.partial_cmpeq(&v), Vec4::new(true, false, true, false));
                 /// ```
-                , $Vec, partial_cmpeq, ==, PartialEq, ($($get)+)
+                , $c_or_simd, $Vec, partial_cmpeq, simd_eq, ==, PartialEq, ($($get)+)
             }
             vec_impl_cmp!{
                 /// Compares each element of two vectors with the partial not-equal test, returning a boolean vector.
@@ -956,7 +1021,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.partial_cmpne(&v), Vec4::new(false, true, false, true));
                 /// ```
-                , $Vec, partial_cmpne, !=, PartialEq, ($($get)+)
+                , $c_or_simd, $Vec, partial_cmpne, simd_ne, !=, PartialEq, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -968,7 +1033,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.partial_cmpge(&v), Vec4::new(true, true, true, false));
                 /// ```
-                , $Vec, partial_cmpge, >=, PartialOrd, ($($get)+)
+                , $c_or_simd, $Vec, partial_cmpge, simd_ge, >=, PartialOrd, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -980,7 +1045,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.partial_cmpgt(&v), Vec4::new(false, true, false, true));
                 /// ```
-                , $Vec, partial_cmpgt, >, PartialOrd, ($($get)+)
+                , $c_or_simd, $Vec, partial_cmpgt, simd_gt, >, PartialOrd, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -992,7 +1057,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.partial_cmple(&v), Vec4::new(true, false, true, true));
                 /// ```
-                , $Vec, partial_cmple, <=, PartialOrd, ($($get)+)
+                , $c_or_simd, $Vec, partial_cmple, simd_le, <=, PartialOrd, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -1004,7 +1069,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.partial_cmplt(&v), Vec4::new(false, false, false, true));
                 /// ```
-                , $Vec, partial_cmplt, <, PartialOrd, ($($get)+)
+                , $c_or_simd, $Vec, partial_cmplt, simd_lt, <, PartialOrd, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -1016,7 +1081,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.cmpeq(&v), Vec4::new(true, false, true, false));
                 /// ```
-                , $Vec, cmpeq, ==, Eq, ($($get)+)
+                , $c_or_simd, $Vec, cmpeq, simd_eq, ==, Eq, ($($get)+)
             }
             vec_impl_cmp!{
                 /// Compares each element of two vectors with the total not-equal test, returning a boolean vector.
@@ -1027,7 +1092,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.cmpne(&v), Vec4::new(false, true, false, true));
                 /// ```
-                , $Vec, cmpne, !=, Eq, ($($get)+)
+                , $c_or_simd, $Vec, cmpne, simd_ne, !=, Eq, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -1039,7 +1104,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.cmpge(&v), Vec4::new(true, true, true, false));
                 /// ```
-                , $Vec, cmpge, >=, Ord, ($($get)+)
+                , $c_or_simd, $Vec, cmpge, simd_ge, >=, Ord, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -1051,7 +1116,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.cmpgt(&v), Vec4::new(false, true, false, true));
                 /// ```
-                , $Vec, cmpgt, >, Ord, ($($get)+)
+                , $c_or_simd, $Vec, cmpgt, simd_gt, >, Ord, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -1063,7 +1128,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.cmple(&v), Vec4::new(true, false, true, true));
                 /// ```
-                , $Vec, cmple, <=, Ord, ($($get)+)
+                , $c_or_simd, $Vec, cmple, simd_le, <=, Ord, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -1075,7 +1140,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.cmplt(&v), Vec4::new(false, false, false, true));
                 /// ```
-                , $Vec, cmplt, <, Ord, ($($get)+)
+                , $c_or_simd, $Vec, cmplt, simd_lt, <, Ord, ($($get)+)
             }
 
             /// Returns the linear interpolation of `from` to `to` with `factor` unconstrained.
@@ -1252,7 +1317,10 @@ macro_rules! vec_impl_vec {
             /// ```
             #[inline]
             pub fn reduce_and(self) -> bool {
-                reduce_binop!(&&, $(self.$get),+)
+                choose!{$c_or_simd {
+                    c => reduce_binop!(&&, $(self.$get),+),
+                    simd_llvm => unsafe { simd_llvm::simd_reduce_all(self) },
+                }}
             }
             /// Returns the result of logical OR (`||`) on all elements of this vector.
             ///
@@ -1263,7 +1331,10 @@ macro_rules! vec_impl_vec {
             /// ```
             #[inline]
             pub fn reduce_or(self) -> bool {
-                reduce_binop!(||, $(self.$get),+)
+                choose!{$c_or_simd {
+                    c => reduce_binop!(||, $(self.$get),+),
+                    simd_llvm => unsafe { simd_llvm::simd_reduce_any(self) },
+                }}
             }
             /// Reduces this vector using total inequality.
             ///
@@ -1279,26 +1350,26 @@ macro_rules! vec_impl_vec {
         }
         vec_impl_trinop!{impl MulAdd for $Vec { mul_add } ($($namedget)+) ($($get)+)}
         vec_impl_unop!{ impl Neg for $Vec { neg } ($($get)+)}
-        vec_impl_binop!{commutative impl Add for $Vec { add } ($($get)+)}
-        vec_impl_binop!{impl Sub for $Vec { sub } ($($get)+)}
-        vec_impl_binop!{commutative impl Mul for $Vec { mul } ($($get)+)}
-        vec_impl_binop!{impl Div for $Vec { div } ($($get)+)}
-        vec_impl_binop!{impl Rem for $Vec { rem } ($($get)+)}
-        vec_impl_binop_assign!{ impl AddAssign for $Vec { add_assign } ($($get)+)}
-        vec_impl_binop_assign!{ impl SubAssign for $Vec { sub_assign } ($($get)+)}
-        vec_impl_binop_assign!{ impl MulAssign for $Vec { mul_assign } ($($get)+)}
-        vec_impl_binop_assign!{ impl DivAssign for $Vec { div_assign } ($($get)+)}
-        vec_impl_binop_assign!{ impl RemAssign for $Vec { rem_assign } ($($get)+)}
-        vec_impl_binop!{impl Shl    for $Vec { shl    } ($($get)+)}
-        vec_impl_binop!{impl Shr    for $Vec { shr    } ($($get)+)}
-        vec_impl_binop_assign!{impl ShlAssign    for $Vec { shl_assign    } ($($get)+)}
-        vec_impl_binop_assign!{impl ShrAssign    for $Vec { shr_assign    } ($($get)+)}
-        vec_impl_binop!{impl BitAnd for $Vec { bitand } ($($get)+)}
-        vec_impl_binop!{impl BitOr  for $Vec { bitor  } ($($get)+)}
-        vec_impl_binop!{impl BitXor for $Vec { bitxor } ($($get)+)}
-        vec_impl_binop_assign!{impl BitAndAssign for $Vec { bitand_assign } ($($get)+)}
-        vec_impl_binop_assign!{impl BitOrAssign  for $Vec { bitor_assign  } ($($get)+)}
-        vec_impl_binop_assign!{impl BitXorAssign for $Vec { bitxor_assign } ($($get)+)}
+        vec_impl_binop!{$c_or_simd, commutative impl Add for $Vec { add, simd_add } ($($get)+)}
+        vec_impl_binop!{$c_or_simd,             impl Sub for $Vec { sub, simd_sub } ($($get)+)}
+        vec_impl_binop!{$c_or_simd, commutative impl Mul for $Vec { mul, simd_mul } ($($get)+)}
+        vec_impl_binop!{$c_or_simd,             impl Div for $Vec { div, simd_div } ($($get)+)}
+        vec_impl_binop!{c,                      impl Rem for $Vec { rem, simd_rem } ($($get)+)}
+        vec_impl_binop_assign!{$c_or_simd, impl AddAssign for $Vec { add_assign } ($($get)+)}
+        vec_impl_binop_assign!{$c_or_simd, impl SubAssign for $Vec { sub_assign } ($($get)+)}
+        vec_impl_binop_assign!{$c_or_simd, impl MulAssign for $Vec { mul_assign } ($($get)+)}
+        vec_impl_binop_assign!{$c_or_simd, impl DivAssign for $Vec { div_assign } ($($get)+)}
+        vec_impl_binop_assign!{$c_or_simd, impl RemAssign for $Vec { rem_assign } ($($get)+)}
+        vec_impl_binop!{$c_or_simd, impl Shl    for $Vec { shl, simd_shl } ($($get)+)}
+        vec_impl_binop!{$c_or_simd, impl Shr    for $Vec { shr, simd_shr } ($($get)+)}
+        vec_impl_binop_assign!{$c_or_simd, impl ShlAssign    for $Vec { shl_assign    } ($($get)+)}
+        vec_impl_binop_assign!{$c_or_simd, impl ShrAssign    for $Vec { shr_assign    } ($($get)+)}
+        vec_impl_binop!{$c_or_simd, impl BitAnd for $Vec { bitand, simd_and } ($($get)+)}
+        vec_impl_binop!{$c_or_simd, impl BitOr  for $Vec { bitor , simd_or  } ($($get)+)}
+        vec_impl_binop!{$c_or_simd, impl BitXor for $Vec { bitxor, simd_xor } ($($get)+)}
+        vec_impl_binop_assign!{$c_or_simd, impl BitAndAssign for $Vec { bitand_assign } ($($get)+)}
+        vec_impl_binop_assign!{$c_or_simd, impl BitOrAssign  for $Vec { bitor_assign  } ($($get)+)}
+        vec_impl_binop_assign!{$c_or_simd, impl BitXorAssign for $Vec { bitxor_assign } ($($get)+)}
         vec_impl_unop!{ impl Not for $Vec { not } ($($get)+)}
 
         impl<T> AsRef<[T]> for $Vec<T> {
