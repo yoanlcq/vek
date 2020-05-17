@@ -37,7 +37,7 @@ macro_rules! transform_complete_mod {
         // https://www.gamedev.net/forums/topic/611925-is-there-a-name-for-position-orientation/
         #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        pub struct Transform3<P,O,S> {
+        pub struct Transform<P,O,S> {
             /// Local position.
             pub position: Vec3<P>,
             /// Local orientation; It is not named `rotation` because `rotation` denotes an
@@ -58,7 +58,7 @@ macro_rules! transform_complete_mod {
         /// };
         /// assert_eq!(a, Transform::default());
         /// ```
-        impl<P: Zero, O: Zero + One, S: One> Default for Transform3<P,O,S> {
+        impl<P: Zero, O: Zero + One, S: One> Default for Transform<P,O,S> {
             fn default() -> Self {
                 Self {
                     position: Vec3::zero(),
@@ -70,7 +70,7 @@ macro_rules! transform_complete_mod {
 
         /// LERP on a `Transform` is defined as LERP-ing between the positions and scales, 
         /// and performing SLERP between the orientations.
-        impl<P,O,S,Factor> Lerp<Factor> for Transform3<P,O,S> 
+        impl<P,O,S,Factor> Lerp<Factor> for Transform<P,O,S> 
             where Factor: Copy + Into<O>,
                   P: Lerp<Factor,Output=P>,
                   S: Lerp<Factor,Output=S>,
@@ -78,14 +78,14 @@ macro_rules! transform_complete_mod {
         {
             type Output = Self;
             fn lerp_unclamped(a: Self, b: Self, t: Factor) -> Self {
-                Transform3 {
+                Transform {
                     position: Lerp::lerp_unclamped(a.position, b.position, t),
                     orientation: Slerp::slerp_unclamped(a.orientation, b.orientation, t),
                     scale: Lerp::lerp_unclamped(a.scale, b.scale, t),
                 }
             }
             fn lerp_unclamped_precise(a: Self, b: Self, t: Factor) -> Self {
-                Transform3 {
+                Transform {
                     position: Lerp::lerp_unclamped_precise(a.position, b.position, t),
                     orientation: Slerp::slerp_unclamped(a.orientation, b.orientation, t),
                     scale: Lerp::lerp_unclamped_precise(a.scale, b.scale, t),

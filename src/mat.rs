@@ -3034,13 +3034,13 @@ macro_rules! mat_impl_mat4 {
             }
         }
 
-        /// A `Mat4` can be obtained from a `Transform3`, by rotating, then scaling, then
+        /// A `Mat4` can be obtained from a `Transform`, by rotating, then scaling, then
         /// translating.
-        impl<T> From<Transform3<T,T,T>> for Mat4<T>
+        impl<T> From<Transform<T,T,T>> for Mat4<T>
             where T: Real + MulAdd<T,T,Output=T>
         {
-            fn from(xform: Transform3<T,T,T>) -> Self {
-                let Transform3 { position, orientation, scale } = xform;
+            fn from(xform: Transform<T,T,T>) -> Self {
+                let Transform { position, orientation, scale } = xform;
                 Mat4::from(orientation).scaled_3d(scale).translated_3d(position)
             }
         }
