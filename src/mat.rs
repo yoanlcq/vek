@@ -3034,13 +3034,13 @@ macro_rules! mat_impl_mat4 {
             }
         }
 
-        /// A `Mat4` can be obtained from a `Transform`, by rotating, then scaling, then
+        /// A `Mat4` can be obtained from a `Transform3`, by rotating, then scaling, then
         /// translating.
-        impl<T> From<Transform<T,T,T>> for Mat4<T>
+        impl<T> From<Transform3<T,T,T>> for Mat4<T>
             where T: Real + MulAdd<T,T,Output=T>
         {
-            fn from(xform: Transform<T,T,T>) -> Self {
-                let Transform { position, orientation, scale } = xform;
+            fn from(xform: Transform3<T,T,T>) -> Self {
+                let Transform3 { position, orientation, scale } = xform;
                 Mat4::from(orientation).scaled_3d(scale).translated_3d(position)
             }
         }
@@ -3686,6 +3686,16 @@ macro_rules! mat_impl_mat3 {
                 }
             }
         }
+        /// A `Mat3` can be obtained from a `Transform2`, by rotating, then scaling, then
+        /// translating.
+        impl<T> From<Transform2<T,T,T>> for Mat3<T>
+            where T: Real + MulAdd<T,T,Output=T>
+        {
+            fn from(xform: Transform2<T,T,T>) -> Self {
+                let Transform2 { position, orientation, scale } = xform;
+                Mat3::rotation_z(orientation).scaled_3d(scale).translated_2d(position)
+            }
+        }
         impl<T> From<Quaternion<T>> for Mat3<T>
             where T: Copy + Zero + One + Mul<Output=T> + Add<Output=T> + Sub<Output=T>
         {
@@ -4159,7 +4169,7 @@ pub mod repr_c {
     use super::vec::repr_c::{Vec4, Vec4 as CVec4};
 
     use super::quaternion::repr_c::Quaternion;
-    use super::transform::repr_c::Transform;
+    use super::transform::repr_c::*;
 
     mat_declare_modules!{}
 }
@@ -4181,7 +4191,7 @@ pub mod repr_simd {
     use super::vec::repr_c::{Vec4 as CVec4};
 
     use super::quaternion::repr_simd::Quaternion;
-    use super::transform::repr_simd::Transform;
+    use super::transform::repr_simd::*;
 
     mat_declare_modules!{}
 }
