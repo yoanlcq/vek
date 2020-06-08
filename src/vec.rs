@@ -2122,11 +2122,11 @@ macro_rules! vec_impl_pixel_rgb {
             }
             fn from_slice(slice: &[Self::Subpixel]) -> &Self {
                 assert!(slice.len() >= Self::channel_count() as _);
-                unsafe { &*(slice.as_ptr() as *const _ as *const Self) };
+                unsafe { &*(slice.as_ptr() as *const _ as *const Self) }
             }
             fn from_slice_mut(slice: &mut [Self::Subpixel]) -> &mut Self {
                 assert!(slice.len() >= Self::channel_count() as _);
-                unsafe { &mut *(slice.as_mut_ptr() as *mut _ as *mut Self) };
+                unsafe { &mut *(slice.as_mut_ptr() as *mut _ as *mut Self) }
             }
             fn to_rgb(&self) -> image::Rgb<Self::Subpixel> {
                 image::Rgb { data: [self.r, self.g, self.b] }
@@ -2224,11 +2224,11 @@ macro_rules! vec_impl_pixel_rgba {
             }
             fn from_slice(slice: &[Self::Subpixel]) -> &Self {
                 assert!(slice.len() >= Self::channel_count() as _);
-                unsafe { &*(slice.as_ptr() as *const _ as *const Self) };
+                unsafe { &*(slice.as_ptr() as *const _ as *const Self) }
             }
             fn from_slice_mut(slice: &mut [Self::Subpixel]) -> &mut Self {
                 assert!(slice.len() >= Self::channel_count() as _);
-                unsafe { &mut *(slice.as_mut_ptr() as *mut _ as *mut Self) };
+                unsafe { &mut *(slice.as_mut_ptr() as *mut _ as *mut Self) }
             }
             fn to_rgb(&self) -> image::Rgb<Self::Subpixel> {
                 image::Rgb { data: [self.r, self.g, self.b] }
