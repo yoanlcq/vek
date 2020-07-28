@@ -243,7 +243,7 @@ macro_rules! vec_impl_unop {
     }
 }
 
-/// Write vector fields on the {}, {}, {} format - without a trailing comma.
+/// Write out vector fields separated by commas, without a trailing comma.
 macro_rules! write_separated {
     ($self:ident, $f:ident, $getter:tt) => {
         $self.$getter.fmt($f)?;
