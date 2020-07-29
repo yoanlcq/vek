@@ -579,9 +579,8 @@ macro_rules! vec_impl_vec {
             /// 
             /// # Safety
             ///
-            /// As stated by the `AsPrimitive` trait documentation:  
-            /// Currently, some uses of the `as` operator are not entirely safe.
-            /// In particular, it is undefined behavior if:
+            /// **In Rust versions before 1.45.0**, some uses of the `as` operator were not entirely safe.
+            /// In particular, it was undefined behavior if:
             ///
             /// - A truncated floating point value cannot fit in the target integer
             ///   type ([#10184](https://github.com/rust-lang/rust/issues/10184));
