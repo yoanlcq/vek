@@ -243,18 +243,6 @@ macro_rules! vec_impl_unop {
     }
 }
 
-/// Write out vector fields separated by commas, without a trailing comma.
-macro_rules! write_separated {
-    ($self:ident, $f:ident, $getter:tt) => {
-        $self.$getter.fmt($f)?;
-    };
-    ($self:ident, $f:ident, $getter:tt $($getters:tt)+) => {
-        $self.$getter.fmt($f)?;
-        write!($f, ", ")?;
-        write_separated!($self, $f, $($getters)+);
-    };
-}
-
 /// Generates implementations specific to the given vector type.
 macro_rules! vec_impl_vec {
 
@@ -346,9 +334,16 @@ macro_rules! vec_impl_vec {
             fn fmt(&self, f: &mut Formatter) -> fmt::Result {
                 write!(f, $fmt_prefix)?;
                 write!(f, "(")?;
-                write_separated!(self, f, $($get)+);
-                write!(f, ")")?;
-                Ok(())
+                let mut elems = self.iter();
+                if let Some(elem)=elems.next(){
+                    write!(f, " ")?;
+                    elem.fmt(f)?;
+                }
+                for elem in elems {
+                    write!(f, ", ")?;
+                    elem.fmt(f)?;
+                }
+                write!(f, " )")
             }
         }
 
