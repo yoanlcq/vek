@@ -377,12 +377,21 @@ macro_rules! mat_impl_mat {
         impl<T: Display> Display for $Mat<T> {
             fn fmt(&self, f: &mut Formatter) -> fmt::Result {
                 write!(f, "(")?;
-                for row in &self.rows {
+                let mut rows = self.rows.iter();
+                // first row goes after the opening paren
+                if let Some(row) = rows.next(){
                     for elem in row {
-                        write!(f, " {}", elem)?;
+                        write!(f, " ")?;
+                        elem.fmt(f)?;
                     }
-                    writeln!(f, "")?;
-                    write!(f, " ")?;
+                }
+                // subsequent rows start on a new line
+                for row in rows{
+                    write!(f, "\n ")?;
+                    for elem in row {
+                        write!(f, " ")?;
+                        elem.fmt(f)?;
+                    }
                 }
                 write!(f, " )")
             }
@@ -897,15 +906,24 @@ macro_rules! mat_impl_mat {
         impl<T: Display> Display for $Mat<T> {
             fn fmt(&self, f: &mut Formatter) -> fmt::Result {
                 write!(f, "(")?;
-                for y in 0..$nrows {
+                // first row goes after the opening paren
+                for x in 0..$ncols {
+                    write!(f, " ")?;
+                    let elem = unsafe {
+                        self.cols.get_unchecked(x).get_unchecked(0)
+                    };
+                    elem.fmt(f)?;
+                }
+                // subsequent rows start on a new line
+                for y in 1..$nrows {
+                    write!(f, "\n ")?;
                     for x in 0..$ncols {
+                        write!(f, " ")?;
                         let elem = unsafe {
                             self.cols.get_unchecked(x).get_unchecked(y)
                         };
-                        write!(f, " {}", elem)?;
+                        elem.fmt(f)?;
                     }
-                    writeln!(f, "")?;
-                    write!(f, " ")?;
                 }
                 write!(f, " )")
             }
