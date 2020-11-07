@@ -96,7 +96,7 @@ macro_rules! bezier_impl_any {
     ($Bezier:ident $Point:ident) => {
         impl<T: Real> $Bezier<T> {
             /// Evaluates the normalized tangent at interpolation factor `t`.
-            pub fn normalized_tangent(self, t: T) -> $Point<T> where T: Add<T, Output=T> {
+            pub fn normalized_tangent(self, t: T) -> Point<T> where T: Add<T, Output=T> {
                 self.evaluate_derivative(t).normalized()
             }
             // WISH: better length approximation estimations (e.g see https://math.stackexchange.com/a/61796)
@@ -155,7 +155,7 @@ macro_rules! bezier_impl_any {
             /// # Panics
             /// Panics if `epsilon` is less than or equal to `T::epsilon()`.  
             /// `epsilon` must be positive and not approximately equal to zero.
-            pub fn binary_search_point_by_steps(self, p: $Point<T>, steps: u16, epsilon: T) -> (T, $Point<T>) 
+            pub fn binary_search_point_by_steps(self, p: Point<T>, steps: u16, epsilon: T) -> (T, Point<T>) 
                 where T: Add<T, Output=T> + From<u16>
             {
                 let steps_f = <T as From<u16>>::from(steps);
@@ -190,8 +190,8 @@ macro_rules! bezier_impl_any {
             /// # Panics
             /// Panics if `epsilon` is less than or equal to `T::epsilon()`.  
             /// `epsilon` must be positive and not approximately equal to zero.
-            pub fn binary_search_point<I>(self, p: $Point<T>, coarse: I, half_interval: T, epsilon: T) -> (T, $Point<T>)
-                where T: Add<T, Output=T>, I: IntoIterator<Item=(T, $Point<T>)>
+            pub fn binary_search_point<I>(self, p: Point<T>, coarse: I, half_interval: T, epsilon: T) -> (T, Point<T>)
+                where T: Add<T, Output=T>, I: IntoIterator<Item=(T, Point<T>)>
             {
                 debug_assert!(epsilon > T::epsilon());
                 let mut t = T::one();
@@ -415,6 +415,8 @@ macro_rules! bezier_impl_quadratic {
         bezier_impl_any!(2 $QuadraticBezier $Point);
     };
     ($(#[$attrs:meta])* $QuadraticBezier:ident $CubicBezier:ident $Point:ident $LineSegment:ident) => {
+
+        type Point<T> = $Point<T>;
         
         $(#[$attrs])*
         #[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, /*PartialOrd, Ord*/)]
@@ -425,11 +427,11 @@ macro_rules! bezier_impl_quadratic {
         /// for an explanation.
         pub struct $QuadraticBezier<T> {
             /// Starting point of the curve.
-            pub start: $Point<T>,
+            pub start: Point<T>,
             /// Control point of the curve.
-            pub ctrl: $Point<T>, 
+            pub ctrl: Point<T>, 
             /// End point of the curve.
-            pub end: $Point<T>,
+            pub end: Point<T>,
         }
         
         impl<T: Real> $QuadraticBezier<T> {
@@ -441,7 +443,7 @@ macro_rules! bezier_impl_quadratic {
             /// The common use case is to successively evaluate a curve at a set of values
             /// that range from 0 to 1, to approximate the curve as an array of
             /// line segments which are then rendered.
-            pub fn evaluate(self, t: T) -> $Point<T> {
+            pub fn evaluate(self, t: T) -> Point<T> {
                 let l = T::one();
                 let two = l+l;
                 self.start*(l-t)*(l-t) + self.ctrl*two*(l-t)*t + self.end*t*t
@@ -450,7 +452,7 @@ macro_rules! bezier_impl_quadratic {
             /// a non-normalized tangent vector.
             ///
             /// See also `normalized_tangent()`.
-            pub fn evaluate_derivative(self, t: T) -> $Point<T> {
+            pub fn evaluate_derivative(self, t: T) -> Point<T> {
                 let l = T::one();
                 let n = l+l;
                 (self.ctrl-self.start)*(l-t)*n + (self.end-self.ctrl)*t*n
@@ -506,25 +508,25 @@ macro_rules! bezier_impl_quadratic {
                 std::mem::swap(&mut self.start, &mut self.end);
             }
             // Convenience for this module
-            pub(crate) fn into_vector(self) -> Vec3<$Point<T>> {
+            pub(crate) fn into_vector(self) -> Vec3<Point<T>> {
                 self.into_vec3()
             }
             /// Converts this curve into a `Vec3` of points.
-            pub fn into_vec3(self) -> Vec3<$Point<T>> {
+            pub fn into_vec3(self) -> Vec3<Point<T>> {
                 self.into()
             }
             /// Converts this curve into a tuple of points.
-            pub fn into_tuple(self) -> ($Point<T>, $Point<T>, $Point<T>) {
+            pub fn into_tuple(self) -> (Point<T>, Point<T>, Point<T>) {
                 self.into_vec3().into_tuple()
             }
             /// Converts this curve into an array of points.
-            pub fn into_array(self) -> [$Point<T>; 3] {
+            pub fn into_array(self) -> [Point<T>; 3] {
                 self.into_vec3().into_array()
             }
         }
         
-        impl<T> From<Vec3<$Point<T>>> for $QuadraticBezier<T> {
-            fn from(v: Vec3<$Point<T>>) -> Self {
+        impl<T> From<Vec3<Point<T>>> for $QuadraticBezier<T> {
+            fn from(v: Vec3<Point<T>>) -> Self {
                 $QuadraticBezier {
                     start: v.x, 
                     ctrl: v.y, 
@@ -532,7 +534,7 @@ macro_rules! bezier_impl_quadratic {
                 }
             }
         }
-        impl<T> From<$QuadraticBezier<T>> for Vec3<$Point<T>> {
+        impl<T> From<$QuadraticBezier<T>> for Vec3<Point<T>> {
             fn from(v: $QuadraticBezier<T>) -> Self {
                 Vec3::new(v.start, v.ctrl, v.end)
             }
@@ -548,8 +550,8 @@ macro_rules! bezier_impl_quadratic {
                 }
             }
         }
-        impl<T: Real> From<Range<$Point<T>>> for $QuadraticBezier<T> {
-            fn from(range: Range<$Point<T>>) -> Self {
+        impl<T: Real> From<Range<Point<T>>> for $QuadraticBezier<T> {
+            fn from(range: Range<Point<T>>) -> Self {
                 Self::from($LineSegment::from(range))
             }
         }
@@ -603,19 +605,21 @@ macro_rules! bezier_impl_cubic {
         bezier_impl_any!(2 $CubicBezier $Point);
     };
     ($(#[$attrs:meta])* $QuadraticBezier:ident $CubicBezier:ident $Point:ident $LineSegment:ident) => {
+
+        type Point<T> = $Point<T>;
         
         $(#[$attrs])*
         #[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, /*PartialOrd, Ord*/)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct $CubicBezier<T> {
             /// Starting point of the curve.
-            pub start: $Point<T>, 
+            pub start: Point<T>, 
             /// First control point of the curve, associated with `start`.
-            pub ctrl0: $Point<T>, 
+            pub ctrl0: Point<T>, 
             /// Second control point of the curve, associated with `end`.
-            pub ctrl1: $Point<T>,
+            pub ctrl1: Point<T>,
             /// End point of the curve.
-            pub end: $Point<T>,
+            pub end: Point<T>,
         }
 
         impl<T: Real> $CubicBezier<T> {
@@ -627,7 +631,7 @@ macro_rules! bezier_impl_cubic {
             /// The common use case is to successively evaluate a curve at a set of values
             /// that range from 0 to 1, to approximate the curve as an array of
             /// line segments which are then rendered.
-            pub fn evaluate(self, t: T) -> $Point<T> {
+            pub fn evaluate(self, t: T) -> Point<T> {
                 let l = T::one();
                 let three = l+l+l;
                 self.start*(l-t)*(l-t)*(l-t) + self.ctrl0*three*(l-t)*(l-t)*t + self.ctrl1*three*(l-t)*t*t + self.end*t*t*t
@@ -636,7 +640,7 @@ macro_rules! bezier_impl_cubic {
             /// a non-normalized tangent vector.
             ///
             /// See also `normalized_tangent()`.
-            pub fn evaluate_derivative(self, t: T) -> $Point<T> {
+            pub fn evaluate_derivative(self, t: T) -> Point<T> {
                 let l = T::one();
                 let n = l+l+l;
                 let two = l+l;
@@ -719,25 +723,25 @@ macro_rules! bezier_impl_cubic {
                 std::mem::swap(&mut self.ctrl0, &mut self.ctrl1);
             }
             // Convenience for this module
-            pub(crate) fn into_vector(self) -> Vec4<$Point<T>> {
+            pub(crate) fn into_vector(self) -> Vec4<Point<T>> {
                 self.into_vec4()
             }
             /// Converts this curve into a `Vec4` of points.
-            pub fn into_vec4(self) -> Vec4<$Point<T>> {
+            pub fn into_vec4(self) -> Vec4<Point<T>> {
                 self.into()
             }
             /// Converts this curve into a tuple of points.
-            pub fn into_tuple(self) -> ($Point<T>, $Point<T>, $Point<T>, $Point<T>) {
+            pub fn into_tuple(self) -> (Point<T>, Point<T>, Point<T>, Point<T>) {
                 self.into_vec4().into_tuple()
             }
             /// Converts this curve into an array of points.
-            pub fn into_array(self) -> [$Point<T>; 4] {
+            pub fn into_array(self) -> [Point<T>; 4] {
                 self.into_vec4().into_array()
             }
         }
         
-        impl<T> From<Vec4<$Point<T>>> for $CubicBezier<T> {
-            fn from(v: Vec4<$Point<T>>) -> Self {
+        impl<T> From<Vec4<Point<T>>> for $CubicBezier<T> {
+            fn from(v: Vec4<Point<T>>) -> Self {
                 $CubicBezier {
                     start: v.x, 
                     ctrl0: v.y,
@@ -746,7 +750,7 @@ macro_rules! bezier_impl_cubic {
                 }
             }
         }
-        impl<T> From<$CubicBezier<T>> for Vec4<$Point<T>> {
+        impl<T> From<$CubicBezier<T>> for Vec4<Point<T>> {
             fn from(v: $CubicBezier<T>) -> Self {
                 Vec4::new(v.start, v.ctrl0, v.ctrl1, v.end)
             }
@@ -766,8 +770,8 @@ macro_rules! bezier_impl_cubic {
                 }
             }
         }
-        impl<T: Real + Lerp<T, Output=T>> From<Range<$Point<T>>> for $CubicBezier<T> {
-            fn from(range: Range<$Point<T>>) -> Self {
+        impl<T: Real + Lerp<T, Output=T>> From<Range<Point<T>>> for $CubicBezier<T> {
+            fn from(range: Range<Point<T>>) -> Self {
                 Self::from($LineSegment::from(range))
             }
         }
@@ -796,34 +800,57 @@ macro_rules! impl_all_beziers {
         use crate::geom::$mod::{LineSegment2, LineSegment3, Aabr, Aabb};
         use self::Rows4 as Mat4;
         use self::Rows3 as Mat3;
-        bezier_impl_quadratic!{
-            /// A 2D Bézier curve with one control point.
-            ///
-            /// 2x2 and 3x3 matrices can be multiplied by a Bézier curve to transform all of its points.
-            2 QuadraticBezier2 CubicBezier2 Vec2 LineSegment2
+
+        mod quadratic_bezier2 {
+            use super::*;
+            bezier_impl_quadratic!{
+                /// A 2D Bézier curve with one control point.
+                ///
+                /// 2x2 and 3x3 matrices can be multiplied by a Bézier curve to transform all of its points.
+                2 QuadraticBezier2 CubicBezier2 Vec2 LineSegment2
+            }
+            bezier_impl_2d_into_3d!{QuadraticBezier2 QuadraticBezier3}
         }
-        bezier_impl_2d_into_3d!{QuadraticBezier2 QuadraticBezier3}
-        bezier_impl_quadratic!{
-            /// A 3D Bézier curve with one control point.
-            ///
-            /// 3x3 and 4x4 matrices can be multiplied by a Bézier curve to transform all of its points.
-            3 QuadraticBezier3 CubicBezier3 Vec3 LineSegment3
+
+        mod quadratic_bezier3 {
+            use super::*;
+            bezier_impl_quadratic!{
+                /// A 3D Bézier curve with one control point.
+                ///
+                /// 3x3 and 4x4 matrices can be multiplied by a Bézier curve to transform all of its points.
+                3 QuadraticBezier3 CubicBezier3 Vec3 LineSegment3
+            }
+            bezier_impl_3d_into_2d!{QuadraticBezier3 QuadraticBezier2}
         }
-        bezier_impl_3d_into_2d!{QuadraticBezier3 QuadraticBezier2}
-        bezier_impl_cubic!{
-            /// A 2D Bézier curve with two control points.
-            ///
-            /// 2x2 and 3x3 matrices can be multiplied by a Bézier curve to transform all of its points.
-            2 QuadraticBezier2 CubicBezier2 Vec2 LineSegment2
+
+
+        mod cubic_bezier2 {
+            use super::*;
+            bezier_impl_cubic!{
+                /// A 2D Bézier curve with two control points.
+                ///
+                /// 2x2 and 3x3 matrices can be multiplied by a Bézier curve to transform all of its points.
+                2 QuadraticBezier2 CubicBezier2 Vec2 LineSegment2
+            }
+            bezier_impl_2d_into_3d!{CubicBezier2 CubicBezier3}
         }
-        bezier_impl_2d_into_3d!{CubicBezier2 CubicBezier3}
-        bezier_impl_cubic!{
-            /// A 3D Bézier curve with two control points.
-            ///
-            /// 3x3 and 4x4 matrices can be multiplied by a Bézier curve to transform all of its points.
-            3 QuadraticBezier3 CubicBezier3 Vec3 LineSegment3
+
+
+        mod cubic_bezier3 {
+            use super::*;
+            bezier_impl_cubic!{
+                /// A 3D Bézier curve with two control points.
+                ///
+                /// 3x3 and 4x4 matrices can be multiplied by a Bézier curve to transform all of its points.
+                3 QuadraticBezier3 CubicBezier3 Vec3 LineSegment3
+            }
+            bezier_impl_3d_into_2d!{CubicBezier3 CubicBezier2}
         }
-        bezier_impl_3d_into_2d!{CubicBezier3 CubicBezier2}
+
+        pub use quadratic_bezier2::*;
+        pub use quadratic_bezier3::*;
+        pub use cubic_bezier2::*;
+        pub use cubic_bezier3::*;
     };
 }
 
