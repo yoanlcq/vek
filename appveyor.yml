@@ -44,7 +44,9 @@ test_script:
       cargo build --features "serde repr_simd" --target %TARGET% &&
       cargo build --features "serde repr_simd" --target %TARGET% --release &&
       cargo test  --features "serde repr_simd" --target %TARGET% &&
-      cargo test  --features "serde repr_simd" --target %TARGET% --release
+      cargo test  --features "serde repr_simd" --target %TARGET% --release &&
+      cargo install cargo-audit &&
+      cargo audit
     )
 
 cache:
