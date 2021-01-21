@@ -640,7 +640,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(a*b+c, a.mul_add(b, c));
             /// ```
             #[inline]
-            pub fn mul_add<V: Into<Self>>(self, mul: V, add: V) -> Self
+            pub fn mul_add<V0: Into<Self>, V1: Into<Self>>(self, mul: V0, add: V1) -> Self
                 where T: MulAdd<T,T,Output=T>
             {
                 let mul = mul.into();
@@ -677,7 +677,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(m, Vec4::min(a, b));
             /// ```
             #[inline]
-            pub fn min<V>(a: V, b: V) -> Self where V: Into<Self>, T: Ord {
+            pub fn min<V0, V1>(a: V0, b: V1) -> Self where V0: Into<Self>, V1: Into<Self>, T: Ord {
                 let (a, b) = (a.into(), b.into());
                 Self::new($(cmp::min(a.$get, b.$get)),+)
             }
@@ -692,7 +692,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(m, Vec4::max(a, b));
             /// ```
             #[inline]
-            pub fn max<V>(a: V, b: V) -> Self where V: Into<Self>, T: Ord {
+            pub fn max<V0, V1>(a: V0, b: V1) -> Self where V0: Into<Self>, V1: Into<Self>, T: Ord {
                 let (a, b) = (a.into(), b.into());
                 Self::new($(cmp::max(a.$get, b.$get)),+)
             }
@@ -707,7 +707,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(m, Vec4::partial_min(a, b));
             /// ```
             #[inline]
-            pub fn partial_min<V>(a: V, b: V) -> Self where V: Into<Self>, T: PartialOrd {
+            pub fn partial_min<V0, V1>(a: V0, b: V1) -> Self where V0: Into<Self>, V1: Into<Self>, T: PartialOrd {
                 let (a, b) = (a.into(), b.into());
                 Self::new($(partial_min(a.$get, b.$get)),+)
             }
@@ -722,7 +722,7 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(m, Vec4::partial_max(a, b));
             /// ```
             #[inline]
-            pub fn partial_max<V>(a: V, b: V) -> Self where V: Into<Self>, T: PartialOrd {
+            pub fn partial_max<V0, V1>(a: V0, b: V1) -> Self where V0: Into<Self>, V1: Into<Self>, T: PartialOrd {
                 let (a, b) = (a.into(), b.into());
                 Self::new($(partial_max(a.$get, b.$get)),+)
             }
