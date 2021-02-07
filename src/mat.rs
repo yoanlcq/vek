@@ -2378,7 +2378,7 @@ macro_rules! mat_impl_mat4 {
             /// # fn main() {
             /// let eye = Vec4::new(1_f32, 0., 1., 1.);
             /// let target = Vec4::new(2_f32, 0., 2., 1.);
-            /// let view = Mat4::<f32>::look_at_lh(eye, target, Vec4::up());
+            /// let view = Mat4::<f32>::look_at_lh(eye, target, Vec4::unit_y());
             /// assert_relative_eq!(view * eye, Vec4::unit_w());
             /// assert_relative_eq!(view * target, Vec4::new(0_f32, 0., 2_f32.sqrt(), 1.));
             /// # }
@@ -2411,7 +2411,7 @@ macro_rules! mat_impl_mat4 {
             /// # fn main() {
             /// let eye = Vec4::new(1_f32, 0., 1., 1.);
             /// let target = Vec4::new(2_f32, 0., 2., 1.);
-            /// let view = Mat4::<f32>::look_at_rh(eye, target, Vec4::up());
+            /// let view = Mat4::<f32>::look_at_rh(eye, target, Vec4::unit_y());
             /// assert_relative_eq!(view * eye, Vec4::unit_w());
             /// assert_relative_eq!(view * target, Vec4::new(0_f32, 0., -2_f32.sqrt(), 1.));
             /// # }
@@ -2453,13 +2453,13 @@ macro_rules! mat_impl_mat4 {
             /// # fn main() {
             /// let eye = Vec4::new(1_f32, 0., 1., 1.);
             /// let target = Vec4::new(2_f32, 0., 2., 1.);
-            /// let model = Mat4::<f32>::model_look_at_lh(eye, target, Vec4::up());
+            /// let model = Mat4::<f32>::model_look_at_lh(eye, target, Vec4::unit_y());
             /// assert_relative_eq!(model * Vec4::unit_w(), eye);
             /// let d = 2_f32.sqrt();
             /// assert_relative_eq!(model * Vec4::new(0_f32, 0., d, 1.), target);
             ///
             /// // A "model" look-at essentially undoes a "view" look-at
-            /// let view = Mat4::look_at_lh(eye, target, Vec4::up());
+            /// let view = Mat4::look_at_lh(eye, target, Vec4::unit_y());
             /// assert_relative_eq!(view * model, Mat4::identity());
             /// assert_relative_eq!(model * view, Mat4::identity());
             /// # }
@@ -2491,12 +2491,12 @@ macro_rules! mat_impl_mat4 {
             /// # fn main() {
             /// let eye = Vec4::new(1_f32, 0., -1., 1.);
             /// let forward = Vec4::new(0_f32, 0., -1., 0.);
-            /// let model = Mat4::<f32>::model_look_at_rh(eye, eye + forward, Vec4::up());
+            /// let model = Mat4::<f32>::model_look_at_rh(eye, eye + forward, Vec4::unit_y());
             /// assert_relative_eq!(model * Vec4::unit_w(), eye);
             /// assert_relative_eq!(model * forward, forward);
             ///
             /// // A "model" look-at essentially undoes a "view" look-at
-            /// let view = Mat4::look_at_rh(eye, eye + forward, Vec4::up());
+            /// let view = Mat4::look_at_rh(eye, eye + forward, Vec4::unit_y());
             /// assert_relative_eq!(view * model, Mat4::identity());
             /// assert_relative_eq!(model * view, Mat4::identity());
             /// # }
@@ -4279,12 +4279,12 @@ mod tests {
     fn test_model_look_at_rh() {
         let eye = Vec4::new(1_f32, 0., 1., 1.);
         let target = Vec4::new(2_f32, 0., 2., 1.);
-        let model = Mat4::<f32>::model_look_at_rh(eye, target, Vec4::up());
+        let model = Mat4::<f32>::model_look_at_rh(eye, target, Vec4::unit_y());
         assert_relative_eq!(model * Vec4::unit_w(), Vec4::new(1_f32, 0., 1., 1.));
         assert_relative_eq!(model * Vec4::new(0_f32, 0., -2_f32.sqrt(), 1.), Vec4::new(2_f32, 0., 2., 1.));
 
         // A "model" look-at essentially undoes a "view" look-at
-        let view = Mat4::<f32>::look_at_rh(eye, target, Vec4::up());
+        let view = Mat4::<f32>::look_at_rh(eye, target, Vec4::unit_y());
         assert_relative_eq!(view * model, Mat4::identity());
         assert_relative_eq!(model * view, Mat4::identity());
     }
@@ -4293,13 +4293,13 @@ mod tests {
     fn test_model_look_at_lh() {
         let eye = Vec4::new(1_f32, 0., 1., 1.);
         let target = Vec4::new(2_f32, 0., 2., 1.);
-        let model = Mat4::<f32>::model_look_at_lh(eye, target, Vec4::up());
+        let model = Mat4::<f32>::model_look_at_lh(eye, target, Vec4::unit_y());
         assert_relative_eq!(model * Vec4::unit_w(), eye);
         let d = 2_f32.sqrt();
         assert_relative_eq!(model * Vec4::new(0_f32, 0., d, 1.), target);
 
         // A "model" look-at essentially undoes a "view" look-at
-        let view = Mat4::look_at_lh(eye, target, Vec4::up());
+        let view = Mat4::look_at_lh(eye, target, Vec4::unit_y());
         assert_relative_eq!(view * model, Mat4::identity());
         assert_relative_eq!(model * view, Mat4::identity());
     }
@@ -4308,7 +4308,7 @@ mod tests {
     fn test_look_at_rh() {
         let eye = Vec4::new(1_f32, 0., 1., 1.);
         let target = Vec4::new(2_f32, 0., 2., 1.);
-        let view = Mat4::<f32>::look_at_rh(eye, target, Vec4::up());
+        let view = Mat4::<f32>::look_at_rh(eye, target, Vec4::unit_y());
         assert_relative_eq!(view * eye, Vec4::unit_w());
         assert_relative_eq!(view * target, Vec4::new(0_f32, 0., -2_f32.sqrt(), 1.));
     }
@@ -4317,7 +4317,7 @@ mod tests {
     fn test_look_at_lh() {
         let eye = Vec4::new(1_f32, 0., 1., 1.);
         let target = Vec4::new(2_f32, 0., 2., 1.);
-        let view = Mat4::<f32>::look_at_lh(eye, target, Vec4::up());
+        let view = Mat4::<f32>::look_at_lh(eye, target, Vec4::unit_y());
         assert_relative_eq!(view * eye, Vec4::unit_w());
         assert_relative_eq!(view * target, Vec4::new(0_f32, 0., 2_f32.sqrt(), 1.));
     }
