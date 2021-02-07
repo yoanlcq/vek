@@ -1820,14 +1820,18 @@ macro_rules! vec_impl_spatial_2d {
             /// Get the unit vector which has `y` set to 1.
             pub fn unit_y    () -> Self where T: Zero + One { Self::new(T::zero(), T::one()) }
             /// Get the unit vector which has `x` set to -1.
+            #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
             pub fn left      () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_x() }
             /// Get the unit vector which has `x` set to 1.
+            #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
             pub fn right     () -> Self where T: Zero + One {  Self::unit_x() }
             /// Get the unit vector which has `y` set to 1.
             /// This is not intended for screen-space coordinates (in which case the Y axis is reversed). When in doubt, just use `unit_y()` instead.
+            #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
             pub fn up        () -> Self where T: Zero + One {  Self::unit_y() }
             /// Get the unit vector which has `y` set to -1.
             /// This is not intended for screen-space coordinates (in which case the Y axis is reversed). When in doubt, just use `unit_y()` instead.
+            #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
             pub fn down      () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_y() }
         }
     };
@@ -1948,20 +1952,28 @@ macro_rules! vec_impl_spatial_3d {
                 /// Get the unit vector which has `z` set to 1.
                 pub fn unit_z    () -> Self where T: Zero + One { Self::new(T::zero(), T::zero(), T::one()) }
                 /// Get the unit vector which has `x` set to -1.
+                #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
                 pub fn left      () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_x() }
                 /// Get the unit vector which has `x` set to 1.
+                #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
                 pub fn right     () -> Self where T: Zero + One {  Self::unit_x() }
                 /// Get the unit vector which has `y` set to 1.
+                #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
                 pub fn up        () -> Self where T: Zero + One {  Self::unit_y() }
                 /// Get the unit vector which has `y` set to -1.
+                #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
                 pub fn down      () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_y() }
                 /// Get the unit vector which has `z` set to 1 ("forward" in a left-handed coordinate system).
+                #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
                 pub fn forward_lh() -> Self where T: Zero + One {  Self::unit_z() }
                 /// Get the unit vector which has `z` set to -1 ("forward" in a right-handed coordinate system).
+                #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
                 pub fn forward_rh() -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_z() }
                 /// Get the unit vector which has `z` set to -1 ("back" in a left-handed coordinate system).
+                #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
                 pub fn back_lh   () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_z() }
                 /// Get the unit vector which has `z` set to 1 ("back" in a right-handed coordinate system).
+                #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
                 pub fn back_rh   () -> Self where T: Zero + One {  Self::unit_z() }
             }
             impl<T> Slerp<T> for $Vec<T>
@@ -2007,20 +2019,28 @@ macro_rules! vec_impl_spatial_4d {
                 /// Get the vector which has `w` set to 1 and all other elements to zero.
                 pub fn unit_w    () -> Self where T: Zero + One { Self::new(T::zero(), T::zero(), T::zero(), T::one()) }
                 /// Get the unit direction vector which has `x` set to -1.
+                #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
                 pub fn left      () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_x() }
                 /// Get the unit direction vector which has `x` set to 1.
+                #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
                 pub fn right     () -> Self where T: Zero + One {  Self::unit_x() }
                 /// Get the unit direction vector which has `y` set to 1.
+                #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
                 pub fn up        () -> Self where T: Zero + One {  Self::unit_y() }
                 /// Get the unit direction vector which has `y` set to -1.
+                #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
                 pub fn down      () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_y() }
                 /// Get the unit direction vector which has `z` set to 1 ("forward" in a left-handed coordinate system).
+                #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
                 pub fn forward_lh() -> Self where T: Zero + One {  Self::unit_z() }
                 /// Get the unit direction vector which has `z` set to -1 ("forward" in a right-handed coordinate system).
+                #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
                 pub fn forward_rh() -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_z() }
                 /// Get the unit direction vector which has `z` set to -1 ("back" in a left-handed coordinate system).
+                #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
                 pub fn back_lh   () -> Self where T: Zero + One + Neg<Output=T> { -Self::unit_z() }
                 /// Get the unit direction vector which has `z` set to 1 ("back" in a right-handed coordinate system).
+                #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
                 pub fn back_rh   () -> Self where T: Zero + One {  Self::unit_z() }
 
                 /// Get the homogeneous point vector which has `x` set to 1.
@@ -2030,20 +2050,28 @@ macro_rules! vec_impl_spatial_4d {
                 /// Get the homogeneous point vector which has `z` set to 1.
                 pub fn unit_z_point    () -> Self where T: Zero + One { Self::new(T::zero(), T::zero(), T::one(), T::one()) }
                 /// Get the homogeneous point vector which has `x` set to -1.
+                #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
                 pub fn left_point      () -> Self where T: Zero + One + Neg<Output=T> { Self::new(-T::one(), T::zero(), T::zero(), T::one()) }
                 /// Get the homogeneous point vector which has `x` set to 1.
+                #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
                 pub fn right_point     () -> Self where T: Zero + One {  Self::unit_x_point() }
                 /// Get the homogeneous point vector which has `y` set to 1.
+                #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
                 pub fn up_point        () -> Self where T: Zero + One {  Self::unit_y_point() }
                 /// Get the homogeneous point vector which has `y` set to -1.
+                #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
                 pub fn down_point      () -> Self where T: Zero + One + Neg<Output=T> { Self::new(T::zero(), -T::one(), T::zero(), T::one()) }
                 /// Get the homogeneous point vector which has `z` set to 1 ("forward" in a left-handed coordinate system).
+                #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
                 pub fn forward_point_lh() -> Self where T: Zero + One {  Self::unit_z_point() }
                 /// Get the homogeneous point vector which has `z` set to -1 ("forward" in a right-handed coordinate system).
+                #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
                 pub fn forward_point_rh() -> Self where T: Zero + One + Neg<Output=T> { Self::new(T::zero(), T::zero(), -T::one(), T::one()) }
                 /// Get the homogeneous point vector which has `z` set to -1 ("back" in a left-handed coordinate system).
+                #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
                 pub fn back_point_lh   () -> Self where T: Zero + One + Neg<Output=T> { Self::new(T::zero(), T::zero(), -T::one(), T::one()) }
                 /// Get the homogeneous point vector which has `z` set to 1 ("back" in a right-handed coordinate system).
+                #[deprecated(since = "0.14.0", note = "This function is opinionated about the semantics of X,Y and Z axii, and should not be used. The mapping of axii (X,Y,Z) to perceived directions (e.g right, up, forward) is not universal at all and varies between libraries, graphics APIs, content creation tools and engines. If you want such helper functions, you should write these yourself as part of the package you're working on, according to what you know about YOUR current coordinate space.")]
                 pub fn back_point_rh   () -> Self where T: Zero + One {  Self::unit_z_point() }
 
                 /// Get a copy of this vector where each component has been divided in order to
@@ -2799,7 +2827,7 @@ macro_rules! vec_impl_all_vecs {
             vec_impl_spatial_3d!(Vec3);
 
             impl<T> Vec3<T> {
-                /// Returns a copy of this vector, with X and Z swapped.
+                /// Returns a copy of this vector, with X and Z swapped. This effectively reverses the order of the three elements.
                 pub fn zyx(self) -> Self {
                     let Self { x, y, z } = self;
                     Self { x: z, y, z: x }
@@ -2866,12 +2894,17 @@ macro_rules! vec_impl_all_vecs {
             vec_impl_mat2_via_vec4!(Vec4);
 
             impl<T> Vec4<T> {
+                /// Returns a copy of this vector, with W placed first and XYZ shifted to the right. This may be useful because some quaternion implementations store their elements in WXYZ order.
+                pub fn wxyz(self) -> Self {
+                    let Self { x, y, z, w } = self;
+                    Self { x: w, y: x, z: y, w: z }
+                }
                 /// Returns a copy of this vector, with elements reversed.
                 pub fn wzyx(self) -> Self {
                     let Self { x, y, z, w } = self;
                     Self { x: w, y: z, z: y, w: x }
                 }
-                /// Returns a copy of this vector, with X and Z swapped.
+                /// Returns a copy of this vector, with X and Z swapped. This effectively reverses the order of the first three elements.
                 pub fn zyxw(self) -> Self {
                     let Self { x, y, z, w } = self;
                     Self { x: z, y, z: x, w }
