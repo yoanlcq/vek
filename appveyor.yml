@@ -41,7 +41,7 @@ test_script:
   # because for some reason they always fail to compile on out AppVeyor builds.
   # Related issue: https://github.com/rust-lang/cargo/issues/4224.
   - if [%APPVEYOR_REPO_TAG%]==[false] (
-      set RUST_BACKTRACE=full
+      set RUST_BACKTRACE=1
       cargo build --features "serde repr_simd" --target %TARGET% &&
       cargo build --features "serde repr_simd" --target %TARGET% --release &&
       cargo test  --features "serde repr_simd" --target %TARGET% &&

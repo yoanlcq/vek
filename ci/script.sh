@@ -3,7 +3,7 @@
 set -ex
 
 main() {
-    RUST_BACKTRACE=full
+    RUST_BACKTRACE=1
 
     cross build --no-default-features --features "libm serde repr_simd" --target $TARGET
     cross build --no-default-features --features "libm serde repr_simd" --target $TARGET --release
