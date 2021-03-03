@@ -2791,9 +2791,23 @@ macro_rules! vec_impl_all_vecs {
                     let Self { x, y } = self;
                     Self { x: y, y: x }
                 }
+                /// Returns a copy of this vector, with a new X value.
+                pub fn with_x(mut self, x: T) -> Self {
+                    self.x = x;
+                    self
+                }
+                /// Returns a copy of this vector, with a new Y value.
+                pub fn with_y(mut self, y: T) -> Self {
+                    self.y = y;
+                    self
+                }
                 /// Add a Z component to this vector such that it becomes a Vec3.
                 pub fn with_z(self, z: T) -> Vec3<T> {
                     Vec3::new(self.x, self.y, z)
+                }
+                /// Add a W component to this vector such that it becomes a Vec4.
+                pub fn with_w(self, w: T) -> Vec4<T> where T: Zero {
+                    Vec4::new(self.x, self.y, T::zero(), w)
                 }
             }
 
@@ -2839,6 +2853,21 @@ macro_rules! vec_impl_all_vecs {
                 /// Same as Vec2::from(self), but shorter.
                 pub fn xy(self) -> Vec2<T> {
                     self.into()
+                }
+                /// Returns a copy of this vector, with a new X value.
+                pub fn with_x(mut self, x: T) -> Self {
+                    self.x = x;
+                    self
+                }
+                /// Returns a copy of this vector, with a new Y value.
+                pub fn with_y(mut self, y: T) -> Self {
+                    self.y = y;
+                    self
+                }
+                /// Returns a copy of this vector, with a new Z value.
+                pub fn with_z(mut self, z: T) -> Self {
+                    self.z = z;
+                    self
                 }
                 /// Add a W component to this vector such that it becomes a Vec4.
                 pub fn with_w(self, w: T) -> Vec4<T> {
@@ -2924,6 +2953,27 @@ macro_rules! vec_impl_all_vecs {
                 /// Same as Vec2::from(self), but shorter.
                 pub fn xy(self) -> Vec2<T> {
                     self.into()
+                }
+
+                /// Returns a copy of this vector, with a new X value.
+                pub fn with_x(mut self, x: T) -> Self {
+                    self.x = x;
+                    self
+                }
+                /// Returns a copy of this vector, with a new Y value.
+                pub fn with_y(mut self, y: T) -> Self {
+                    self.y = y;
+                    self
+                }
+                /// Returns a copy of this vector, with a new Z value.
+                pub fn with_z(mut self, z: T) -> Self {
+                    self.z = z;
+                    self
+                }
+                /// Returns a copy of this vector, with a new W value.
+                pub fn with_w(mut self, w: T) -> Self {
+                    self.w = w;
+                    self
                 }
             }
 
