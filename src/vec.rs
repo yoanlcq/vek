@@ -2791,6 +2791,10 @@ macro_rules! vec_impl_all_vecs {
                     let Self { x, y } = self;
                     Self { x: y, y: x }
                 }
+                /// Add a Z component to this vector such that it becomes a Vec3.
+                pub fn with_z(self, z: T) -> Vec3<T> {
+                    Vec3::new(self.x, self.y, z)
+                }
             }
 
             impl<T> From<Vec3<T>> for Vec2<T> {
@@ -2835,6 +2839,10 @@ macro_rules! vec_impl_all_vecs {
                 /// Same as Vec2::from(self), but shorter.
                 pub fn xy(self) -> Vec2<T> {
                     self.into()
+                }
+                /// Add a W component to this vector such that it becomes a Vec4.
+                pub fn with_w(self, w: T) -> Vec4<T> {
+                    Vec4::new(self.x, self.y, self.z, w)
                 }
             }
 
