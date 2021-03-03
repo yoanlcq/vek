@@ -2747,9 +2747,18 @@ macro_rules! vec_impl_mat2_via_vec4 {
     };
 }
 
+macro_rules! vec_impl_from_smaller_vec_and_scalar {
+    ($Vec:ident, $SmallerVec:ident, ($($smaller_vec_get:ident)+)) => {
+        impl<T> From<($SmallerVec<T>, T)> for $Vec<T> {
+            fn from(t: ($SmallerVec<T>, T)) -> Self {
+                Self::new($(t.0.$smaller_vec_get),+, t.1)
+            }
+        }
+    };
+}
 
 macro_rules! vec_impl_mint {
-    ($Vec:ident, $mintVec: ident, ($($namedget:ident)+)) => {
+    ($Vec:ident, $mintVec:ident, ($($namedget:ident)+)) => {
         #[cfg(feature = "mint")]
         impl<T> From<mint::$mintVec<T>> for $Vec<T> {
             fn from(v: mint::$mintVec<T>) -> Self {
@@ -2839,6 +2848,7 @@ macro_rules! vec_impl_all_vecs {
             #[$repr_for_non_power_of_two_length]
             pub struct Vec3<T> { pub x:T, pub y:T, pub z:T }
             vec_impl_vec!($c_or_simd struct Vec3     vec3     (3) ("({...}, {...}, {...})") ("") (x y z) (x y z) (0 1 2) (T,T,T));
+            vec_impl_from_smaller_vec_and_scalar!(Vec3, Vec2, (x y));
             vec_impl_mint!(Vec3, Vector3, (x y z));
             vec_impl_mint!(Vec3, Point3, (x y z));
             vec_impl_spatial!(Vec3);
@@ -2924,6 +2934,7 @@ macro_rules! vec_impl_all_vecs {
                 pub w: T
             }
             vec_impl_vec!($c_or_simd struct Vec4   vec4    (4) ("({...}, {...}, {...}, {...})") ("") (x y z w) (x y z w) (0 1 2 3) (T,T,T,T));
+            vec_impl_from_smaller_vec_and_scalar!(Vec4, Vec3, (x y z));
             vec_impl_mint!(Vec4, Vector4, (x y z w));
             vec_impl_spatial!(Vec4);
             vec_impl_spatial_4d!(Vec4);
@@ -3103,6 +3114,7 @@ macro_rules! vec_impl_all_vecs {
             #[$repr_for_non_power_of_two_length]
             pub struct Extent3<T> { pub w:T, pub h:T, pub d:T }
             vec_impl_vec!($c_or_simd struct Extent3 extent3 (3) ("({...}, {...}, {...})") ("") (w h d) (w h d) (0 1 2) (T,T,T));
+            vec_impl_from_smaller_vec_and_scalar!(Extent3, Extent2, (w h));
             vec_impl_spatial!(Extent3);
 
             impl<T> From<Vec3<T>> for Extent3<T> {
@@ -3156,6 +3168,9 @@ macro_rules! vec_impl_all_vecs {
             vec_impl_vec!($c_or_simd struct Rgba   rgba    (4) ("rgba({...}, {...}, {...}, {...})") ("rgba") (r g b a) (r g b a) (0 1 2 3) (T,T,T,T));
             vec_impl_color_rgba!{Rgba}
             vec_impl_shuffle_4d!(Rgba (r g b a));
+
+            #[cfg(feature="rgb")]
+            vec_impl_from_smaller_vec_and_scalar!(Rgba, Rgb, (r g b));
 
             #[cfg(feature="rgb")]
             impl<T> Rgba<T> {
@@ -3221,6 +3236,9 @@ macro_rules! vec_impl_all_vecs {
             #[$repr_for_non_power_of_two_length]
             pub struct Uvw<T> { pub u:T, pub v:T, pub w:T }
             vec_impl_vec!($c_or_simd struct Uvw     uvw     (3) ("({...}, {...}, {...})") ("") (u v w) (u v w) (0 1 2) (T,T,T));
+
+            #[cfg(feature="uv")]
+            vec_impl_from_smaller_vec_and_scalar!(Uvw, Uv, (u v));
 
             impl<T> From<Vec3<T>> for Uvw<T> {
                 fn from(v: Vec3<T>) -> Self {
