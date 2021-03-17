@@ -5,6 +5,8 @@ use std::ops::*;
 use std::cmp;
 use num_traits::{Zero, One, FloatConst};
 
+pub use num_traits::ops::mul_add::MulAdd;
+
 // On no_std targets, we have to import the Real trait, but on std targets it will use the built-in primitive methods instead and warn that Real is unused.
 #[allow(unused_imports)]
 use num_traits::real::Real;
@@ -162,64 +164,10 @@ impl_clamp_integer!{
 }
 
 
-
-
-/// The fused multiply-add operation.
-pub trait MulAdd<MulRhs=Self, AddRhs=Self>/*: Mul<MulRhs, Output=Self> + Add<AddRhs, Output=Self> */ {
-    /// The resulting type after applying the fused multiply-add operation.
-    type Output;
-    /// Returns `(self * mul) + add` as a possibly faster and more precise single operation.
-    fn mul_add(self, mul: MulRhs, add: AddRhs) -> Self::Output;
-}
-
 /// Returns `(val * mul) + add`.
+#[deprecated(since = "0.15.0", note = "This is redundant with num-trait's MulAdd trait and std's mul_add operation")]
 pub fn mul_add<Output,V,M,A>(val: V, mul: M, add: A) -> Output where V: MulAdd<M,A,Output=Output> {
     val.mul_add(mul, add)
-}
-
-macro_rules! impl_muladd_content {
-    (float, $Out:ty, $MulRhs:ty, $AddRhs:ty) => {
-        type Output = $Out;
-        fn mul_add(self, mul: $MulRhs, add: $AddRhs) -> Self::Output {
-            // PERF: Find some way to write `self.mul_add(&mul, &add)` here instead
-            self * mul + add
-        }
-    };
-    (integer, $Out:ty, $MulRhs:ty, $AddRhs:ty) => {
-        type Output = $Out;
-        fn mul_add(self, mul: $MulRhs, add: $AddRhs) -> Self::Output {
-            self * mul + add
-        }
-    };
-}
-macro_rules! impl_muladd {
-    ($kind:ident $($ty:ty)+) => {
-    $(
-        impl             MulAdd<    $ty,     $ty> for     $ty { impl_muladd_content!{$kind, $ty,     $ty,     $ty} }
-        impl<        'c> MulAdd<    $ty, &'c $ty> for     $ty { impl_muladd_content!{$kind, $ty,     $ty, &'c $ty} }
-        impl<    'b    > MulAdd<&'b $ty,     $ty> for     $ty { impl_muladd_content!{$kind, $ty, &'b $ty,     $ty} }
-        impl<    'b, 'c> MulAdd<&'b $ty, &'c $ty> for     $ty { impl_muladd_content!{$kind, $ty, &'b $ty, &'c $ty} }
-        impl<'a,       > MulAdd<    $ty,     $ty> for &'a $ty { impl_muladd_content!{$kind, $ty,     $ty,     $ty} }
-        impl<'a,     'c> MulAdd<    $ty, &'c $ty> for &'a $ty { impl_muladd_content!{$kind, $ty,     $ty, &'c $ty} }
-        impl<'a, 'b,   > MulAdd<&'b $ty,     $ty> for &'a $ty { impl_muladd_content!{$kind, $ty, &'b $ty,     $ty} }
-        impl<'a, 'b, 'c> MulAdd<&'b $ty, &'c $ty> for &'a $ty { impl_muladd_content!{$kind, $ty, &'b $ty, &'c $ty} }
-    )+
-    }
-}
-
-impl_muladd!{float f32 f64}
-impl_muladd!{integer
-    i8 i16 i32 i64 isize u8 u16 u32 u64 usize
-    Wrapping<i8>
-    Wrapping<i16>
-    Wrapping<i32>
-    Wrapping<i64>
-    Wrapping<isize>
-    Wrapping<u8>
-    Wrapping<u16>
-    Wrapping<u32>
-    Wrapping<u64>
-    Wrapping<usize>
 }
 
 
