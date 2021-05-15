@@ -49,17 +49,19 @@ mod vtest;
 
 #[cfg(feature = "serde")]
 #[macro_use]
-extern crate serde;
+pub extern crate serde;
 
 #[cfg(feature = "mint")]
-extern crate mint;
+pub extern crate mint;
 
-extern crate num_integer;
-extern crate num_traits;
+pub extern crate num_integer;
+pub extern crate num_traits;
+
 // NOTE: Allow unused imports here, because usage depends on which features are enabled.
 #[allow(unused_imports)]
 #[macro_use]
-extern crate approx;
+pub extern crate approx;
+
 #[allow(unused_imports)]
 #[macro_use]
 extern crate static_assertions;
