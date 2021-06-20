@@ -26,9 +26,6 @@ pub trait IsBetween<Bound=Self>: Sized {
     type Output;
     /// Returns whether this value is between `lower` and `upper` (inclusive).
     ///
-    /// This would rather make use of inclusive ranges, but it's an unstable
-    /// feature.
-    ///
     /// # Panics
     /// Panics if `lower` is greater than `upper`. Swap the values yourself if necessary.
     ///
@@ -46,6 +43,12 @@ pub trait IsBetween<Bound=Self>: Sized {
     fn is_between01(self) -> Self::Output where Bound: Zero + One {
         self.is_between(Bound::zero(), Bound::one())
     }
+    /// Returns whether this value is between the lower and upper bounds of this inclusive range.
+    /// This is redundant with `RangeInclusive::contains()`, but is still useful for generics that use the `IsBetween` trait.
+    fn is_between_inclusive_range_bounds(self, range: RangeInclusive<Bound>) -> Self::Output {
+        let (start, end) = range.into_inner();
+        self.is_between(start, end)
+    }
 }
 
 /// A value that can tell whether or not it is between 0 and 1 (inclusive).
@@ -56,9 +59,6 @@ impl<T: IsBetween + Zero + One> IsBetween01 for T {}
 /// A scalar or vector that can be constrained to be between two values (inclusive).
 pub trait Clamp<Bound=Self>: Sized {
     /// Constrains this value to be between `lower` and `upper` (inclusive).
-    ///
-    /// This would rather make use of inclusive ranges, but it's an unstable
-    /// feature.
     ///
     /// # Panics
     /// Panics if `lower` is greater than `upper`. Swap the values yourself if necessary.
@@ -73,13 +73,22 @@ pub trait Clamp<Bound=Self>: Sized {
     /// assert_eq!(11.clamped(5, 10), 10);
     /// ```
     fn clamped(self, lower: Bound, upper: Bound) -> Self;
-
+    /// Alias to `clamped`, which accepts a `RangeInclusive` parameter instead of two values.
+    fn clamped_to_inclusive_range(self, range: RangeInclusive<Bound>) -> Self {
+        let (start, end) = range.into_inner();
+        self.clamped(start, end)
+    }
     /// Alias to `clamped`, which doesn't take `self`.
     ///
     /// # Panics
     /// Panics if `lower` is greater than `upper`. Swap the values yourself if necessary.
     fn clamp(val: Self, lower: Bound, upper: Bound) -> Self {
         val.clamped(lower, upper)
+    }
+    /// Alias to `clamp`, which accepts a `RangeInclusive` parameter instead of two values.
+    fn clamp_to_inclusive_range(val: Self, range: RangeInclusive<Bound>) -> Self {
+        let (start, end) = range.into_inner();
+        Self::clamp(val, start, end)
     }
     /// Constrains this value to be between 0 and 1 (inclusive).
     fn clamped01(self) -> Self where Bound: Zero + One {
@@ -225,8 +234,6 @@ pub trait Lerp<Factor=f32>: Sized
     /// Returns the linear interpolation of `from` to `to` with `factor` unconstrained,
     /// using the supposedly fastest but less precise implementation.
     ///
-    /// This would make use of inclusive ranges, but they aren't stable yet.
-    ///
     /// A possible implementation is `from + factor * (to - from)`, a.k.a
     /// `factor.mul_add(to - from, from)`.
     ///
@@ -242,10 +249,14 @@ pub trait Lerp<Factor=f32>: Sized
     /// ```
     fn lerp_unclamped(from: Self, to: Self, factor: Factor) -> Self::Output;
 
+    /// Version of `lerp_unclamped()` that used a single `RangeInclusive` parameter instead of two values.
+    fn lerp_unclamped_inclusive_range(range: RangeInclusive<Self>, factor: Factor) -> Self::Output {
+        let (from, to) = range.into_inner();
+        Self::lerp_unclamped(from, to, factor)
+    }
+
     /// Returns the linear interpolation of `from` to `to` with `factor` unconstrained,
     /// using a possibly slower but more precise operation.
-    ///
-    /// This would make use of inclusive ranges, but they aren't stable yet.
     ///
     /// A possible implementation is `from*(1-factor) + to*factor`, a.k.a
     /// `from.mul_add(1-factor, to*factor)`.
@@ -264,6 +275,12 @@ pub trait Lerp<Factor=f32>: Sized
         Self::lerp_unclamped(from, to, factor)
     }
 
+    /// Version of `lerp_unclamped_precise()` that used a single `RangeInclusive` parameter instead of two values.
+    fn lerp_unclamped_precise_inclusive_range(range: RangeInclusive<Self>, factor: Factor) -> Self::Output {
+        let (from, to) = range.into_inner();
+        Self::lerp_unclamped_precise(from, to, factor)
+    }
+
     /// Alias to `lerp_unclamped` which constrains `factor` to be between 0 and 1
     /// (inclusive).
     ///
@@ -277,9 +294,14 @@ pub trait Lerp<Factor=f32>: Sized
     /// assert_eq!(Lerp::lerp(10, 20,  1.0_f32), 20);
     /// assert_eq!(Lerp::lerp(10, 20,  1.5_f32), 20);
     /// ```
-    fn lerp(from: Self, to: Self, factor: Factor) -> Self::Output where Factor: Clamp + Zero + One
-    {
+    fn lerp(from: Self, to: Self, factor: Factor) -> Self::Output where Factor: Clamp + Zero + One {
         Self::lerp_unclamped(from, to, factor.clamped01())
+    }
+
+    /// Version of `lerp()` that used a single `RangeInclusive` parameter instead of two values.
+    fn lerp_inclusive_range(range: RangeInclusive<Self>, factor: Factor) -> Self::Output where Factor: Clamp + Zero + One {
+        let (from, to) = range.into_inner();
+        Self::lerp(from, to, factor)
     }
 
     /// Alias to `lerp_unclamped_precise` which constrains `factor` to be between 0 and 1
@@ -295,9 +317,14 @@ pub trait Lerp<Factor=f32>: Sized
     /// assert_eq!(Lerp::lerp_precise(10, 20,  1.0_f32), 20);
     /// assert_eq!(Lerp::lerp_precise(10, 20,  1.5_f32), 20);
     /// ```
-    fn lerp_precise(from: Self, to: Self, factor: Factor) -> Self::Output where Factor: Clamp + Zero + One
-    {
+    fn lerp_precise(from: Self, to: Self, factor: Factor) -> Self::Output where Factor: Clamp + Zero + One {
         Self::lerp_unclamped_precise(from, to, factor.clamped01())
+    }
+
+    /// Version of `lerp_precise()` that used a single `RangeInclusive` parameter instead of two values.
+    fn lerp_precise_inclusive_range(range: RangeInclusive<Self>, factor: Factor) -> Self::Output where Factor: Clamp + Zero + One {
+        let (from, to) = range.into_inner();
+        Self::lerp_precise(from, to, factor)
     }
 }
 
