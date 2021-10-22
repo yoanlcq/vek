@@ -417,6 +417,13 @@ macro_rules! quaternion_complete_mod {
             pub fn into_vec3(self) -> Vec3<T> {
                 self.into()
             }
+
+            /// Shortcut for `self * Vec4::from_point(rhs)`.
+            pub fn mul_direction<V: Into<Vec3<T>> + From<Vec4<T>>>(self, rhs: V) -> V
+                where T: Real + MulAdd<T,T,Output=T>
+            {
+                (self * Vec4::from_direction(rhs.into())).into()
+            }
         }
 
         #[cfg(feature = "mint")]
