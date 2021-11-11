@@ -2134,20 +2134,26 @@ macro_rules! vec_impl_pixel_rgb {
             where T: ColorComponent + Copy + Clone + Primitive
         {
             type Subpixel = T;
-            fn channel_count() -> u8 {
-                3
-            }
+
+            const CHANNEL_COUNT: u8 = 3;
+            const COLOR_MODEL: &'static str = "RGB";
+
+            // When I first introduced the optional dependency to the `image` crate, ColorType allowed specifying the bit depth procedurally.
+            // Now the bit depths are fixed; the only "really" supported T are now u8 and u16...
+            // For now, I choose to still "implement" this trait for other T (such as f32), for convenience and backwards compatibility, but you shouldn't use the COLOR_TYPE in that case.
+            // Feel free to open an issue about that.
+            // NOTE: this comment is duplicated in vec_impl_pixel_rgba!(), please update both instances if you change one
+            const COLOR_TYPE: ColorType = match mem::size_of::<T>() {
+                1 => ColorType::Rgb8,  // This is wrong if T is a signed type, but the closest we can get
+                2 => ColorType::Rgb16, // This is wrong if T is a signed type, but the closest we can get
+                _ => ColorType::Rgb8,  // This is wrong for literally any T
+            };
+
             fn channels(&self) -> &[Self::Subpixel] {
                 self.as_slice()
             }
             fn channels_mut(&mut self) -> &mut [Self::Subpixel] {
                 self.as_mut_slice()
-            }
-            fn color_model() -> &'static str {
-                "RGB"
-            }
-            fn color_type() -> ColorType {
-                ColorType::RGB(Self::channel_count() * mem::size_of::<T>() as u8 * 8_u8)
             }
             fn channels4(&self) -> (Self::Subpixel, Self::Subpixel, Self::Subpixel, Self::Subpixel) {
                 (self.r, self.g, self.b, T::full())
@@ -2156,26 +2162,32 @@ macro_rules! vec_impl_pixel_rgb {
                 Self::new(a, b, c)
             }
             fn from_slice(slice: &[Self::Subpixel]) -> &Self {
-                assert!(slice.len() >= Self::channel_count() as _);
+                assert!(slice.len() >= Self::CHANNEL_COUNT as _);
                 unsafe { &*(slice.as_ptr() as *const _ as *const Self) }
             }
             fn from_slice_mut(slice: &mut [Self::Subpixel]) -> &mut Self {
-                assert!(slice.len() >= Self::channel_count() as _);
+                assert!(slice.len() >= Self::CHANNEL_COUNT as _);
                 unsafe { &mut *(slice.as_mut_ptr() as *mut _ as *mut Self) }
             }
             fn to_rgb(&self) -> image::Rgb<Self::Subpixel> {
-                image::Rgb { data: [self.r, self.g, self.b] }
+                image::Rgb([self.r, self.g, self.b])
             }
             fn to_rgba(&self) -> image::Rgba<Self::Subpixel> {
-                image::Rgba { data: [self.r, self.g, self.b, T::full()] }
+                image::Rgba([self.r, self.g, self.b, T::full()])
+            }
+            fn to_bgr(&self) -> image::Bgr<Self::Subpixel> {
+                image::Bgr([self.b, self.g, self.r])
+            }
+            fn to_bgra(&self) -> image::Bgra<Self::Subpixel> {
+                image::Bgra([self.b, self.g, self.r, T::full()])
             }
             fn to_luma(&self) -> Luma<Self::Subpixel> {
                 let three = T::one() + T::one() + T::one();
                 let c = (self.r + self.g + self.b) / three;
-                Luma { data: [c] }
+                Luma([c])
             }
             fn to_luma_alpha(&self) -> LumaA<Self::Subpixel> {
-                LumaA { data: [self.to_luma().data[0], T::full()] }
+                LumaA([self.to_luma().0[0], T::full()])
             }
             fn map<F>(&self, mut f: F) -> Self where F: FnMut(Self::Subpixel) -> Self::Subpixel {
                 Self { r: f(self.r), g: f(self.g), b: f(self.b) }
@@ -2236,20 +2248,26 @@ macro_rules! vec_impl_pixel_rgba {
             where T: ColorComponent + Copy + Clone + Primitive
         {
             type Subpixel = T;
-            fn channel_count() -> u8 {
-                4
-            }
+
+            const CHANNEL_COUNT: u8 = 4;
+            const COLOR_MODEL: &'static str = "RGBA";
+
+            // When I first introduced the optional dependency to the `image` crate, ColorType allowed specifying the bit depth procedurally.
+            // Now the bit depths are fixed; the only "really" supported T are now u8 and u16...
+            // For now, I choose to still "implement" this trait for other T (such as f32), for convenience and backwards compatibility, but you shouldn't use the COLOR_TYPE in that case.
+            // Feel free to open an issue about that.
+            // NOTE: this comment is duplicated in vec_impl_pixel_rgb!(), please update both instances if you change one
+            const COLOR_TYPE: ColorType = match mem::size_of::<T>() {
+                1 => ColorType::Rgba8,  // This is wrong if T is a signed type, but the closest we can get
+                2 => ColorType::Rgba16, // This is wrong if T is a signed type, but the closest we can get
+                _ => ColorType::Rgba8,  // This is wrong for literally any T
+            };
+
             fn channels(&self) -> &[Self::Subpixel] {
                 self.as_slice()
             }
             fn channels_mut(&mut self) -> &mut [Self::Subpixel] {
                 self.as_mut_slice()
-            }
-            fn color_model() -> &'static str {
-                "RGBA"
-            }
-            fn color_type() -> ColorType {
-                ColorType::RGBA(Self::channel_count() * mem::size_of::<T>() as u8 * 8_u8)
             }
             fn channels4(&self) -> (Self::Subpixel, Self::Subpixel, Self::Subpixel, Self::Subpixel) {
                 (self.r, self.g, self.b, self.a)
@@ -2258,26 +2276,32 @@ macro_rules! vec_impl_pixel_rgba {
                 Self::new(a, b, c, d)
             }
             fn from_slice(slice: &[Self::Subpixel]) -> &Self {
-                assert!(slice.len() >= Self::channel_count() as _);
+                assert!(slice.len() >= Self::CHANNEL_COUNT as _);
                 unsafe { &*(slice.as_ptr() as *const _ as *const Self) }
             }
             fn from_slice_mut(slice: &mut [Self::Subpixel]) -> &mut Self {
-                assert!(slice.len() >= Self::channel_count() as _);
+                assert!(slice.len() >= Self::CHANNEL_COUNT as _);
                 unsafe { &mut *(slice.as_mut_ptr() as *mut _ as *mut Self) }
             }
             fn to_rgb(&self) -> image::Rgb<Self::Subpixel> {
-                image::Rgb { data: [self.r, self.g, self.b] }
+                image::Rgb([self.r, self.g, self.b])
             }
             fn to_rgba(&self) -> image::Rgba<Self::Subpixel> {
-                image::Rgba { data: [self.r, self.g, self.b, self.a] }
+                image::Rgba([self.r, self.g, self.b, self.a])
+            }
+            fn to_bgr(&self) -> image::Bgr<Self::Subpixel> {
+                image::Bgr([self.b, self.g, self.r])
+            }
+            fn to_bgra(&self) -> image::Bgra<Self::Subpixel> {
+                image::Bgra([self.b, self.g, self.r, self.a])
             }
             fn to_luma(&self) -> Luma<Self::Subpixel> {
                 let three = T::one() + T::one() + T::one();
                 let c = (self.r + self.g + self.b) / three;
-                Luma { data: [c] }
+                Luma([c])
             }
             fn to_luma_alpha(&self) -> LumaA<Self::Subpixel> {
-                LumaA { data: [self.to_luma().data[0], self.a] }
+                LumaA([self.to_luma().0[0], self.a])
             }
             fn map<F>(&self, mut f: F) -> Self where F: FnMut(Self::Subpixel) -> Self::Subpixel {
                 Self { r: f(self.r), g: f(self.g), b: f(self.b), a: f(self.a) }
