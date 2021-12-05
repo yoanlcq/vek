@@ -54,6 +54,9 @@ pub extern crate serde;
 #[cfg(feature = "mint")]
 pub extern crate mint;
 
+#[cfg(feature = "bytemuck")]
+pub extern crate bytemuck;
+
 pub extern crate num_integer;
 pub extern crate num_traits;
 

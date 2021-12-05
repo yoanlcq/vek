@@ -20,6 +20,9 @@ use crate::ops::*;
 #[cfg(feature = "platform_intrinsics")]
 use crate::simd_llvm;
 
+#[cfg(feature = "bytemuck")]
+use crate::bytemuck;
+
 // Macro for selecting separate implementations for repr(C) vs repr(simd), at compile time.
 macro_rules! choose {
     (c { c => $c_impl:expr, simd_llvm => $s_impl:expr, }) => {
@@ -1617,6 +1620,18 @@ macro_rules! vec_impl_vec {
             }
         }
         */
+
+        #[cfg(feature = "bytemuck")]
+        unsafe impl<T> bytemuck::Zeroable for $Vec<T> where T: bytemuck::Zeroable {
+            fn zeroed() -> Self {
+                Self::new($({ let $namedget = T::zeroed(); $namedget }),+)
+            }
+        }
+
+        #[cfg(feature = "bytemuck")]
+        unsafe impl<T> bytemuck::Pod for $Vec<T> where T: bytemuck::Pod {
+            // Nothing here
+        }
     };
 }
 

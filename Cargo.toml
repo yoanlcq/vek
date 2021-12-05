@@ -60,4 +60,5 @@ static_assertions = "1.1.0"
 image = { version = "0.23", optional = true, default-features = false }
 serde = { version = "1.0.105", optional = true, default-features = false, features = ["derive"] }
 mint = { version = "0.5.4", optional = true }
+bytemuck = { version = "1.7.2", optional = true }
 # clippy = { version = "0.0.166", optional = true }
