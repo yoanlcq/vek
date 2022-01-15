@@ -1688,6 +1688,19 @@ macro_rules! vec_impl_spatial {
             pub fn normalize(&mut self) where T: Add<T, Output=T> + Real {
                 *self = self.normalized();
             }
+            /// Divide this vector's components such that its length equals 1, and also returns the previous length.
+            #[inline]
+            pub fn normalize_and_get_magnitude(&mut self) -> T where T: Add<T, Output=T> + Real {
+                let (normalized, magnitude) = self.normalized_and_get_magnitude();
+                *self = normalized;
+                magnitude
+            }
+            /// Get a copy of this direction vector such that its length equals 1, and also returns the length of the original vector.
+            #[inline]
+            pub fn normalized_and_get_magnitude(self) -> (Self, T) where T: Add<T, Output=T> + Real {
+                let magnitude = self.magnitude();
+                (self / magnitude, magnitude)
+            }
             /// Is this vector normalized ? (Uses `RelativeEq`)
             #[inline]
             pub fn is_normalized<E>(self) -> bool
