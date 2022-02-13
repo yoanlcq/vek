@@ -1,14 +1,11 @@
 //! Low-order (quadratic and cubic) Bézier curves.
 // NOTE: Most info from https://pomax.github.io/bezierinfo
 
-use num_traits::{Zero, real::Real};
 use crate::ops::*;
-use std::ops::*;
+use crate::vec::repr_c::{Vec3 as CVec3, Vec4 as CVec4};
+use num_traits::{real::Real, Zero};
 use std::ops::Add;
-use crate::vec::repr_c::{
-    Vec3 as CVec3,
-    Vec4 as CVec4,
-};
+use std::ops::*;
 
 // WISH: OOBBs from beziers
 // WISH: "Tracing a curve at fixed distance intervals"
@@ -153,9 +150,9 @@ macro_rules! bezier_impl_any {
             /// sooner the algorithm will finish, but the result would be less satisfactory.
             ///
             /// # Panics
-            /// Panics if `epsilon` is less than or equal to `T::epsilon()`.  
+            /// Panics if `epsilon` is less than or equal to `T::epsilon()`.
             /// `epsilon` must be positive and not approximately equal to zero.
-            pub fn binary_search_point_by_steps(self, p: Point<T>, steps: u16, epsilon: T) -> (T, Point<T>) 
+            pub fn binary_search_point_by_steps(self, p: Point<T>, steps: u16, epsilon: T) -> (T, Point<T>)
                 where T: Add<T, Output=T> + From<u16>
             {
                 let steps_f = <T as From<u16>>::from(steps);
@@ -174,11 +171,11 @@ macro_rules! bezier_impl_any {
             /// For an example usage, see the source code of `binary_search_point_by_steps()`.
             ///
             /// `coarse` is an iterator over pairs of `(interpolation_value, point)` that are
-            /// assumed to, together, represent a discretization of the curve.  
+            /// assumed to, together, represent a discretization of the curve.
             /// This parameter is used for a "broad phase" - the point yielded by `coarse` that is
-            /// closest to `p` is the starting point for the binary search.  
+            /// closest to `p` is the starting point for the binary search.
             /// `coarse` may very well yield a single pair; Also, it was designed so that,
-            /// if you already have the values handy, there is no need to recompute them.  
+            /// if you already have the values handy, there is no need to recompute them.
             /// This function doesn't panic if `coarse` yields no element, but then it would be
             /// very unlikely for the result to be satisfactory.
             ///
@@ -188,7 +185,7 @@ macro_rules! bezier_impl_any {
             /// sooner the algorithm will finish, but the result would be less satisfactory.
             ///
             /// # Panics
-            /// Panics if `epsilon` is less than or equal to `T::epsilon()`.  
+            /// Panics if `epsilon` is less than or equal to `T::epsilon()`.
             /// `epsilon` must be positive and not approximately equal to zero.
             pub fn binary_search_point<I>(self, p: Point<T>, coarse: I, half_interval: T, epsilon: T) -> (T, Point<T>)
                 where T: Add<T, Output=T>, I: IntoIterator<Item=(T, Point<T>)>
@@ -252,7 +249,11 @@ macro_rules! bezier_impl_quadratic_axis {
                         return t;
                     }
                 }
-                if self.start.$x < self.end.$x { T::zero() } else { T::one() }
+                if self.start.$x < self.end.$x {
+                    T::zero()
+                } else {
+                    T::one()
+                }
             }
             /// Returns the evaluation factor that gives the point on the curve which
             #[doc=$x_s]
@@ -264,7 +265,11 @@ macro_rules! bezier_impl_quadratic_axis {
                         return t;
                     }
                 }
-                if self.start.$x > self.end.$x { T::zero() } else { T::one() }
+                if self.start.$x > self.end.$x {
+                    T::zero()
+                } else {
+                    T::one()
+                }
             }
             /// Returns the evaluation factors that give the points on the curve which
             #[doc=$x_s]
@@ -293,7 +298,8 @@ macro_rules! bezier_impl_cubic_axis {
                 let three = two + T::one();
                 let four = three + T::one();
                 let six = three + three;
-                let a = three * (self.end.$x - three * self.ctrl1.$x + three * self.ctrl0.$x - self.start.$x);
+                let a = three
+                    * (self.end.$x - three * self.ctrl1.$x + three * self.ctrl0.$x - self.start.$x);
                 let b = six * (self.ctrl1.$x - two * self.ctrl0.$x + self.start.$x);
                 let c = three * (self.ctrl0.$x - self.start.$x);
 
@@ -312,7 +318,7 @@ macro_rules! bezier_impl_cubic_axis {
                 }
 
                 // Wants to use IsBetween01, but that would annoyingly propagate the trait bound.
-                let is_between01 = |t| { T::zero() < t && t < T::one() };
+                let is_between01 = |t| T::zero() < t && t < T::one();
 
                 let discriminant = b * b - four * a * c;
 
@@ -360,7 +366,7 @@ macro_rules! bezier_impl_cubic_axis {
                     if let Some(t2) = t2 {
                         let p2 = self.evaluate(t2);
                         if (p1.$x < self.start.$x && p1.$x < self.end.$x)
-                        || (p2.$x < self.start.$x && p2.$x < self.end.$x)
+                            || (p2.$x < self.start.$x && p2.$x < self.end.$x)
                         {
                             return if p1.$x < p2.$x { t1 } else { t2 };
                         }
@@ -370,7 +376,11 @@ macro_rules! bezier_impl_cubic_axis {
                         }
                     }
                 }
-                if self.start.$x < self.end.$x { T::zero() } else { T::one() }
+                if self.start.$x < self.end.$x {
+                    T::zero()
+                } else {
+                    T::one()
+                }
             }
             /// Returns the evaluation factor that gives the point on the curve which
             #[doc=$x_s]
@@ -381,7 +391,7 @@ macro_rules! bezier_impl_cubic_axis {
                     if let Some(t2) = t2 {
                         let p2 = self.evaluate(t2);
                         if (p1.$x > self.start.$x && p1.$x > self.end.$x)
-                        || (p2.$x > self.start.$x && p2.$x > self.end.$x)
+                            || (p2.$x > self.start.$x && p2.$x > self.end.$x)
                         {
                             return if p1.$x > p2.$x { t1 } else { t2 };
                         }
@@ -391,7 +401,11 @@ macro_rules! bezier_impl_cubic_axis {
                         }
                     }
                 }
-                if self.start.$x > self.end.$x { T::zero() } else { T::one() }
+                if self.start.$x > self.end.$x {
+                    T::zero()
+                } else {
+                    T::one()
+                }
             }
 
             /// Returns the evaluation factors that give the points on the curve which
@@ -417,7 +431,7 @@ macro_rules! bezier_impl_quadratic {
     ($(#[$attrs:meta])* $QuadraticBezier:ident $CubicBezier:ident $Point:ident $LineSegment:ident) => {
 
         type Point<T> = $Point<T>;
-        
+
         $(#[$attrs])*
         #[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, /*PartialOrd, Ord*/)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
@@ -429,11 +443,11 @@ macro_rules! bezier_impl_quadratic {
             /// Starting point of the curve.
             pub start: Point<T>,
             /// Control point of the curve.
-            pub ctrl: Point<T>, 
+            pub ctrl: Point<T>,
             /// End point of the curve.
             pub end: Point<T>,
         }
-        
+
         impl<T: Real> $QuadraticBezier<T> {
             /// Evaluates the position of the point lying on the curve at interpolation factor `t`.
             ///
@@ -524,12 +538,12 @@ macro_rules! bezier_impl_quadratic {
                 self.into_vec3().into_array()
             }
         }
-        
+
         impl<T> From<Vec3<Point<T>>> for $QuadraticBezier<T> {
             fn from(v: Vec3<Point<T>>) -> Self {
                 $QuadraticBezier {
-                    start: v.x, 
-                    ctrl: v.y, 
+                    start: v.x,
+                    ctrl: v.y,
                     end: v.z
                 }
             }
@@ -544,8 +558,8 @@ macro_rules! bezier_impl_quadratic {
             fn from(line_segment: $LineSegment<T>) -> Self {
                 let ctrl = (line_segment.start + line_segment.end) / (T::one() + T::one());
                 Self {
-                    start: line_segment.start, 
-                    ctrl, 
+                    start: line_segment.start,
+                    ctrl,
                     end:   line_segment.end
                 }
             }
@@ -555,7 +569,7 @@ macro_rules! bezier_impl_quadratic {
                 Self::from($LineSegment::from(range))
             }
         }
-        
+
         bezier_impl_quadratic_axis!{$QuadraticBezier $Point ("X") x x_inflection min_x max_x x_bounds}
         bezier_impl_quadratic_axis!{$QuadraticBezier $Point ("Y") y y_inflection min_y max_y y_bounds}
     }
@@ -582,8 +596,8 @@ macro_rules! bezier_impl_3d_into_2d {
     ($Bezier3:ident $Bezier2:ident) => {
         impl<T> $Bezier3<T> {
             /// Converts this 3D curve to a 2D one, dropping the `z` elements.
-            pub fn into_2d(self) -> $Bezier2<T> { 
-                self.into() 
+            pub fn into_2d(self) -> $Bezier2<T> {
+                self.into()
             }
         }
         impl<T> From<$Bezier3<T>> for $Bezier2<T> {
@@ -607,15 +621,15 @@ macro_rules! bezier_impl_cubic {
     ($(#[$attrs:meta])* $QuadraticBezier:ident $CubicBezier:ident $Point:ident $LineSegment:ident) => {
 
         type Point<T> = $Point<T>;
-        
+
         $(#[$attrs])*
         #[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq, /*PartialOrd, Ord*/)]
         #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
         pub struct $CubicBezier<T> {
             /// Starting point of the curve.
-            pub start: Point<T>, 
+            pub start: Point<T>,
             /// First control point of the curve, associated with `start`.
-            pub ctrl0: Point<T>, 
+            pub ctrl0: Point<T>,
             /// Second control point of the curve, associated with `end`.
             pub ctrl1: Point<T>,
             /// End point of the curve.
@@ -739,13 +753,13 @@ macro_rules! bezier_impl_cubic {
                 self.into_vec4().into_array()
             }
         }
-        
+
         impl<T> From<Vec4<Point<T>>> for $CubicBezier<T> {
             fn from(v: Vec4<Point<T>>) -> Self {
                 $CubicBezier {
-                    start: v.x, 
+                    start: v.x,
                     ctrl0: v.y,
-                    ctrl1: v.z, 
+                    ctrl1: v.z,
                     end: v.w
                 }
             }
@@ -755,7 +769,7 @@ macro_rules! bezier_impl_cubic {
                 Vec4::new(v.start, v.ctrl0, v.ctrl1, v.end)
             }
         }
-        impl<T: Real + Lerp<T,Output=T>> From<$LineSegment<T>> for $CubicBezier<T> 
+        impl<T: Real + Lerp<T,Output=T>> From<$LineSegment<T>> for $CubicBezier<T>
         {
             fn from(line_segment: $LineSegment<T>) -> Self {
                 let three = T::one() + T::one() + T::one();
@@ -763,9 +777,9 @@ macro_rules! bezier_impl_cubic {
                 let ctrl0 = Lerp::lerp_unclamped(line_segment.start, line_segment.end, t);
                 let ctrl1 = Lerp::lerp_unclamped(line_segment.start, line_segment.end, t+t);
                 Self {
-                    start: line_segment.start, 
-                    ctrl0, 
-                    ctrl1, 
+                    start: line_segment.start,
+                    ctrl0,
+                    ctrl1,
                     end:   line_segment.end
                 }
             }
@@ -786,7 +800,7 @@ macro_rules! bezier_impl_cubic {
                 }
             }
         }
-        
+
         bezier_impl_cubic_axis!{$CubicBezier $Point ("X") x x_inflections min_x max_x x_bounds}
         bezier_impl_cubic_axis!{$CubicBezier $Point ("Y") y y_inflections min_y max_y y_bounds}
     }
@@ -794,76 +808,74 @@ macro_rules! bezier_impl_cubic {
 
 macro_rules! impl_all_beziers {
     ($mod:ident) => {
-        use  crate::vec::$mod::{Vec3, Vec4, Vec2};
-        use  crate::mat::$mod::row_major::{Mat2 as Rows2, Mat3 as Rows3, Mat4 as Rows4};
-        use  crate::mat::$mod::column_major::{Mat2 as Cols2, Mat3 as Cols3, Mat4 as Cols4};
-        use crate::geom::$mod::{LineSegment2, LineSegment3, Aabr, Aabb};
-        use self::Rows4 as Mat4;
         use self::Rows3 as Mat3;
+        use self::Rows4 as Mat4;
+        use crate::geom::$mod::{Aabb, Aabr, LineSegment2, LineSegment3};
+        use crate::mat::$mod::column_major::{Mat2 as Cols2, Mat3 as Cols3, Mat4 as Cols4};
+        use crate::mat::$mod::row_major::{Mat2 as Rows2, Mat3 as Rows3, Mat4 as Rows4};
+        use crate::vec::$mod::{Vec2, Vec3, Vec4};
 
         mod quadratic_bezier2 {
             use super::*;
-            bezier_impl_quadratic!{
+            bezier_impl_quadratic! {
                 /// A 2D Bézier curve with one control point.
                 ///
                 /// 2x2 and 3x3 matrices can be multiplied by a Bézier curve to transform all of its points.
                 2 QuadraticBezier2 CubicBezier2 Vec2 LineSegment2
             }
-            bezier_impl_2d_into_3d!{QuadraticBezier2 QuadraticBezier3}
+            bezier_impl_2d_into_3d! {QuadraticBezier2 QuadraticBezier3}
         }
 
         mod quadratic_bezier3 {
             use super::*;
-            bezier_impl_quadratic!{
+            bezier_impl_quadratic! {
                 /// A 3D Bézier curve with one control point.
                 ///
                 /// 3x3 and 4x4 matrices can be multiplied by a Bézier curve to transform all of its points.
                 3 QuadraticBezier3 CubicBezier3 Vec3 LineSegment3
             }
-            bezier_impl_3d_into_2d!{QuadraticBezier3 QuadraticBezier2}
+            bezier_impl_3d_into_2d! {QuadraticBezier3 QuadraticBezier2}
         }
-
 
         mod cubic_bezier2 {
             use super::*;
-            bezier_impl_cubic!{
+            bezier_impl_cubic! {
                 /// A 2D Bézier curve with two control points.
                 ///
                 /// 2x2 and 3x3 matrices can be multiplied by a Bézier curve to transform all of its points.
                 2 QuadraticBezier2 CubicBezier2 Vec2 LineSegment2
             }
-            bezier_impl_2d_into_3d!{CubicBezier2 CubicBezier3}
+            bezier_impl_2d_into_3d! {CubicBezier2 CubicBezier3}
         }
-
 
         mod cubic_bezier3 {
             use super::*;
-            bezier_impl_cubic!{
+            bezier_impl_cubic! {
                 /// A 3D Bézier curve with two control points.
                 ///
                 /// 3x3 and 4x4 matrices can be multiplied by a Bézier curve to transform all of its points.
                 3 QuadraticBezier3 CubicBezier3 Vec3 LineSegment3
             }
-            bezier_impl_3d_into_2d!{CubicBezier3 CubicBezier2}
+            bezier_impl_3d_into_2d! {CubicBezier3 CubicBezier2}
         }
 
-        pub use quadratic_bezier2::*;
-        pub use quadratic_bezier3::*;
         pub use cubic_bezier2::*;
         pub use cubic_bezier3::*;
+        pub use quadratic_bezier2::*;
+        pub use quadratic_bezier3::*;
     };
 }
 
-#[cfg(all(nightly, feature="repr_simd"))]
+#[cfg(all(nightly, feature = "repr_simd"))]
 pub mod repr_simd {
     //! Bézier curve structs that use `#[repr(simd)]` vectors.
     use super::*;
-    impl_all_beziers!{repr_simd}
+    impl_all_beziers! {repr_simd}
 }
 pub mod repr_c {
     //! Bézier curve structs that use `#[repr(C)]` vectors.
     use super::*;
-    impl_all_beziers!{repr_c}
+    impl_all_beziers! {repr_c}
 }
 
 pub use self::repr_c::*;
@@ -877,20 +889,26 @@ mod tests {
         ($Bezier:ident $bezier:ident $Vec:ident) => {
             mod $bezier {
                 use super::*;
-                #[test] fn lerp_from_line_segment() {
+                #[test]
+                fn lerp_from_line_segment() {
                     let count = 32;
-                    let t_iter = (0..(count+1)).into_iter().map(|i| i as f32 / (count as f32));
-                    let l = || $Vec::<f32>::unit_x() .. $Vec::<f32>::unit_y();
+                    let t_iter = (0..(count + 1))
+                        .into_iter()
+                        .map(|i| i as f32 / (count as f32));
+                    let l = || $Vec::<f32>::unit_x()..$Vec::<f32>::unit_y();
                     let c = $Bezier::from(l());
                     for t in t_iter {
-                        assert_relative_eq!(c.evaluate(t), Lerp::lerp_unclamped_precise(l().start, l().end, t))
+                        assert_relative_eq!(
+                            c.evaluate(t),
+                            Lerp::lerp_unclamped_precise(l().start, l().end, t)
+                        )
                     }
                 }
             }
         };
     }
-    test!{QuadraticBezier2 quadratic2 Vec2}
-    test!{QuadraticBezier3 quadratic3 Vec3}
-    test!{CubicBezier2 cubic2 Vec2}
-    test!{CubicBezier3 cubic3 Vec3}
+    test! {QuadraticBezier2 quadratic2 Vec2}
+    test! {QuadraticBezier3 quadratic3 Vec3}
+    test! {CubicBezier2 cubic2 Vec2}
+    test! {CubicBezier3 cubic3 Vec3}
 }

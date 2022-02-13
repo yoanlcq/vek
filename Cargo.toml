@@ -57,7 +57,7 @@ approx = { version = "0.4.0", default-features = false }
 num-traits = { version = "0.2.14", default-features = false }
 num-integer = { version = "0.1.44", default-features = false }
 static_assertions = "1.1.0"
-image = { version = "0.23", optional = true, default-features = false }
+image = { version = "0.24.0", optional = true, default-features = false }
 serde = { version = "1.0.105", optional = true, default-features = false, features = ["derive"] }
 mint = { version = "0.5.4", optional = true }
 bytemuck = { version = "1.7.2", optional = true }

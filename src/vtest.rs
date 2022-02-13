@@ -14,7 +14,10 @@ impl<T> Drop for Rc<T> {
 
 impl<T> Rc<T> {
     pub fn new(val: T) -> Self {
-        Self { val, refcount_minus_one: 0 }
+        Self {
+            val,
+            refcount_minus_one: 0,
+        }
     }
     pub fn strong_count(s: &Self) -> usize {
         (s.refcount_minus_one + 1) as usize

@@ -1,9 +1,9 @@
 //! Operations defined by this crate, such as `MulAdd`, `Lerp`, `Clamp`, and `Wrap`.
 
+use num_traits::{FloatConst, One, Zero};
+use std::cmp;
 use std::num::Wrapping;
 use std::ops::*;
-use std::cmp;
-use num_traits::{Zero, One, FloatConst};
 
 pub use num_traits::ops::mul_add::MulAdd;
 
@@ -13,15 +13,23 @@ use num_traits::real::Real;
 
 /// Compares and returns the minimum of two values, using partial ordering.
 pub fn partial_min<T: PartialOrd + Sized>(a: T, b: T) -> T {
-    if a <= b { a } else { b }
+    if a <= b {
+        a
+    } else {
+        b
+    }
 }
 /// Compares and returns the maximum of two values, using partial ordering.
 pub fn partial_max<T: PartialOrd + Sized>(a: T, b: T) -> T {
-    if a >= b { a } else { b }
+    if a >= b {
+        a
+    } else {
+        b
+    }
 }
 
 /// A value that can tell whether or not it is between two bounds (inclusive).
-pub trait IsBetween<Bound=Self>: Sized {
+pub trait IsBetween<Bound = Self>: Sized {
     /// `bool` for scalars, or vector of `bool`s for vectors.
     type Output;
     /// Returns whether this value is between `lower` and `upper` (inclusive).
@@ -40,7 +48,10 @@ pub trait IsBetween<Bound=Self>: Sized {
     /// ```
     fn is_between(self, lower: Bound, upper: Bound) -> Self::Output;
     /// Returns whether this value is between 0 and 1 (inclusive).
-    fn is_between01(self) -> Self::Output where Bound: Zero + One {
+    fn is_between01(self) -> Self::Output
+    where
+        Bound: Zero + One,
+    {
         self.is_between(Bound::zero(), Bound::one())
     }
     /// Returns whether this value is between the lower and upper bounds of this inclusive range.
@@ -55,9 +66,8 @@ pub trait IsBetween<Bound=Self>: Sized {
 pub trait IsBetween01: IsBetween + Zero + One {}
 impl<T: IsBetween + Zero + One> IsBetween01 for T {}
 
-
 /// A scalar or vector that can be constrained to be between two values (inclusive).
-pub trait Clamp<Bound=Self>: Sized {
+pub trait Clamp<Bound = Self>: Sized {
     /// Constrains this value to be between `lower` and `upper` (inclusive).
     ///
     /// # Panics
@@ -91,19 +101,31 @@ pub trait Clamp<Bound=Self>: Sized {
         Self::clamp(val, start, end)
     }
     /// Constrains this value to be between 0 and 1 (inclusive).
-    fn clamped01(self) -> Self where Bound: Zero + One {
+    fn clamped01(self) -> Self
+    where
+        Bound: Zero + One,
+    {
         self.clamped(Bound::zero(), Bound::one())
     }
     /// Alias to `clamped01`, which doesn't take `self`.
-    fn clamp01(val: Self) -> Self where Bound: Zero + One {
+    fn clamp01(val: Self) -> Self
+    where
+        Bound: Zero + One,
+    {
         Self::clamp(val, Bound::zero(), Bound::one())
     }
     /// Constrains this value to be between -1 and 1 (inclusive).
-    fn clamped_minus1_1(self) -> Self where Bound: One + Neg<Output=Bound> {
+    fn clamped_minus1_1(self) -> Self
+    where
+        Bound: One + Neg<Output = Bound>,
+    {
         self.clamped(-Bound::one(), Bound::one())
     }
     /// Alias to `clamped_minus1_1`, which doesn't take `self`.
-    fn clamp_minus1_1(val: Self) -> Self where Bound: One + Neg<Output=Bound> {
+    fn clamp_minus1_1(val: Self) -> Self
+    where
+        Bound: One + Neg<Output = Bound>,
+    {
         Self::clamp(val, -Bound::one(), Bound::one())
     }
 }
@@ -113,8 +135,8 @@ pub trait Clamp01: Clamp + Zero + One {}
 impl<T: Clamp + Zero + One> Clamp01 for T {}
 
 /// A scalar or vector that can be constrained to be between -1 and 1 (inclusive).
-pub trait ClampMinus1: Clamp + One + Neg<Output=Self> {}
-impl<T: Clamp + One + Neg<Output=T>> ClampMinus1 for T {}
+pub trait ClampMinus1: Clamp + One + Neg<Output = Self> {}
+impl<T: Clamp + One + Neg<Output = T>> ClampMinus1 for T {}
 
 macro_rules! impl_clamp_float {
     ($($T:ty)+) => {
@@ -155,10 +177,10 @@ macro_rules! impl_clamp_integer {
     }
 }
 
-impl_clamp_float!{
+impl_clamp_float! {
     f32 f64
 }
-impl_clamp_integer!{
+impl_clamp_integer! {
     i8 i16 i32 i64 isize u8 u16 u32 u64 usize
     Wrapping<i8>
     Wrapping<i16>
@@ -172,13 +194,17 @@ impl_clamp_integer!{
     Wrapping<usize>
 }
 
-
 /// Returns `(val * mul) + add`.
-#[deprecated(since = "0.15.0", note = "This is redundant with num-trait's MulAdd trait and std's mul_add operation")]
-pub fn mul_add<Output,V,M,A>(val: V, mul: M, add: A) -> Output where V: MulAdd<M,A,Output=Output> {
+#[deprecated(
+    since = "0.15.0",
+    note = "This is redundant with num-trait's MulAdd trait and std's mul_add operation"
+)]
+pub fn mul_add<Output, V, M, A>(val: V, mul: M, add: A) -> Output
+where
+    V: MulAdd<M, A, Output = Output>,
+{
     val.mul_add(mul, add)
 }
-
 
 /// A value that can be linearly interpolated.
 ///
@@ -227,8 +253,7 @@ pub fn mul_add<Output,V,M,A>(val: V, mul: M, add: A) -> Output where V: MulAdd<M
 /// // Hurray! We've got an interpolated state without consuming the two previous ones.
 /// # let _ = c;
 /// ```
-pub trait Lerp<Factor=f32>: Sized
-{
+pub trait Lerp<Factor = f32>: Sized {
     /// The resulting type after performing the LERP operation.
     type Output;
     /// Returns the linear interpolation of `from` to `to` with `factor` unconstrained,
@@ -276,7 +301,10 @@ pub trait Lerp<Factor=f32>: Sized
     }
 
     /// Version of `lerp_unclamped_precise()` that used a single `RangeInclusive` parameter instead of two values.
-    fn lerp_unclamped_precise_inclusive_range(range: RangeInclusive<Self>, factor: Factor) -> Self::Output {
+    fn lerp_unclamped_precise_inclusive_range(
+        range: RangeInclusive<Self>,
+        factor: Factor,
+    ) -> Self::Output {
         let (from, to) = range.into_inner();
         Self::lerp_unclamped_precise(from, to, factor)
     }
@@ -294,12 +322,18 @@ pub trait Lerp<Factor=f32>: Sized
     /// assert_eq!(Lerp::lerp(10, 20,  1.0_f32), 20);
     /// assert_eq!(Lerp::lerp(10, 20,  1.5_f32), 20);
     /// ```
-    fn lerp(from: Self, to: Self, factor: Factor) -> Self::Output where Factor: Clamp + Zero + One {
+    fn lerp(from: Self, to: Self, factor: Factor) -> Self::Output
+    where
+        Factor: Clamp + Zero + One,
+    {
         Self::lerp_unclamped(from, to, factor.clamped01())
     }
 
     /// Version of `lerp()` that used a single `RangeInclusive` parameter instead of two values.
-    fn lerp_inclusive_range(range: RangeInclusive<Self>, factor: Factor) -> Self::Output where Factor: Clamp + Zero + One {
+    fn lerp_inclusive_range(range: RangeInclusive<Self>, factor: Factor) -> Self::Output
+    where
+        Factor: Clamp + Zero + One,
+    {
         let (from, to) = range.into_inner();
         Self::lerp(from, to, factor)
     }
@@ -317,12 +351,18 @@ pub trait Lerp<Factor=f32>: Sized
     /// assert_eq!(Lerp::lerp_precise(10, 20,  1.0_f32), 20);
     /// assert_eq!(Lerp::lerp_precise(10, 20,  1.5_f32), 20);
     /// ```
-    fn lerp_precise(from: Self, to: Self, factor: Factor) -> Self::Output where Factor: Clamp + Zero + One {
+    fn lerp_precise(from: Self, to: Self, factor: Factor) -> Self::Output
+    where
+        Factor: Clamp + Zero + One,
+    {
         Self::lerp_unclamped_precise(from, to, factor.clamped01())
     }
 
     /// Version of `lerp_precise()` that used a single `RangeInclusive` parameter instead of two values.
-    fn lerp_precise_inclusive_range(range: RangeInclusive<Self>, factor: Factor) -> Self::Output where Factor: Clamp + Zero + One {
+    fn lerp_precise_inclusive_range(range: RangeInclusive<Self>, factor: Factor) -> Self::Output
+    where
+        Factor: Clamp + Zero + One,
+    {
         let (from, to) = range.into_inner();
         Self::lerp_precise(from, to, factor)
     }
@@ -395,8 +435,8 @@ macro_rules! lerp_impl_integer {
     }
 }
 
-lerp_impl_float!{f32 f64}
-lerp_impl_integer!{
+lerp_impl_float! {f32 f64}
+lerp_impl_integer! {
     i8 i16 i32 i64 isize u8 u16 u32 u64 usize
     /*
     Wrapping<i8>
@@ -415,7 +455,7 @@ lerp_impl_integer!{
 /// A value that can be Spherically Linearly interpolated.
 ///
 /// The `Output` type allows this trait to be meaningfully implemented for `&T` as well as `T`.
-pub trait Slerp<Factor=f32>: Sized {
+pub trait Slerp<Factor = f32>: Sized {
     /// The resulting type after performing the SLERP operation.
     type Output;
     /// Performs spherical linear interpolation without implictly constraining `factor` to
@@ -423,13 +463,16 @@ pub trait Slerp<Factor=f32>: Sized {
     fn slerp_unclamped(from: Self, to: Self, factor: Factor) -> Self::Output;
     /// Performs spherical linear interpolation, constraining `factor` to
     /// be between 0 and 1.
-    fn slerp(from: Self, to: Self, factor: Factor) -> Self::Output where Factor: Clamp + Zero + One {
+    fn slerp(from: Self, to: Self, factor: Factor) -> Self::Output
+    where
+        Factor: Clamp + Zero + One,
+    {
         Self::slerp_unclamped(from, to, factor.clamped01())
     }
 }
 
 /// A value that can wrap itself around given bounds.
-pub trait Wrap<Bound=Self>: Sized {
+pub trait Wrap<Bound = Self>: Sized {
     /// Returns this value, wrapped between zero and some `upper` bound (both inclusive).
     ///
     /// The computation is `self - (self/upper).floor() * upper`.
@@ -476,14 +519,20 @@ pub trait Wrap<Bound=Self>: Sized {
     ///
     /// This ought to be named `wrapped_tau`, but I assume people are
     /// more familiar with 𝛑, and `2pi` is therefore more evocative.
-    fn wrapped_2pi(self) -> Self where Bound: FloatConst + Add<Output=Bound> {
+    fn wrapped_2pi(self) -> Self
+    where
+        Bound: FloatConst + Add<Output = Bound>,
+    {
         self.wrapped(Bound::PI() + Bound::PI())
     }
     /// Alias to `wrapped_2pi` which doesn't take `self`.
     ///
     /// This ought to be named `wrap_tau`, but I assume people are
     /// more familiar with 𝛑, and `2pi` is therefore more evocative.
-    fn wrap_2pi(val: Self) -> Self where Bound: FloatConst + Add<Output=Bound> {
+    fn wrap_2pi(val: Self) -> Self
+    where
+        Bound: FloatConst + Add<Output = Bound>,
+    {
         val.wrapped_2pi()
     }
 
@@ -516,8 +565,9 @@ pub trait Wrap<Bound=Self>: Sized {
     /// # Panics
     /// Panics if `lower` is greater than `upper`. Swap the values yourself if necessary.
     fn wrap_between(val: Self, lower: Bound, upper: Bound) -> Self
-        where Self: Sub<Output=Self> + Add<Output=Self> + From<Bound>,
-              Bound: Copy + Sub<Output=Bound> + PartialOrd
+    where
+        Self: Sub<Output = Self> + Add<Output = Self> + From<Bound>,
+        Bound: Copy + Sub<Output = Bound> + PartialOrd,
     {
         val.wrapped_between(lower, upper)
     }
@@ -546,8 +596,9 @@ pub trait Wrap<Bound=Self>: Sized {
 
     /// Calculates the shortest difference between two given angles, in radians.
     fn delta_angle(self, target: Self) -> Self
-        where Self: From<Bound> + Sub<Output=Self> + PartialOrd,
-            Bound: FloatConst + Add<Output=Bound>
+    where
+        Self: From<Bound> + Sub<Output = Self> + PartialOrd,
+        Bound: FloatConst + Add<Output = Bound>,
     {
         let num = Self::wrap(target - self, Bound::PI() + Bound::PI());
         if num > Self::from(Bound::PI()) {
@@ -559,8 +610,9 @@ pub trait Wrap<Bound=Self>: Sized {
     ///
     /// This exists because it's enough for `Bound` to implement `From<u16>`.
     fn delta_angle_degrees(self, target: Self) -> Self
-        where Self: From<Bound> + Sub<Output=Self> + PartialOrd,
-            Bound: From<u16>
+    where
+        Self: From<Bound> + Sub<Output = Self> + PartialOrd,
+        Bound: From<u16>,
     {
         let num = Self::wrap(target - self, Bound::from(360));
         if num > Self::from(Bound::from(180)) {
@@ -568,7 +620,6 @@ pub trait Wrap<Bound=Self>: Sized {
         }
         num
     }
-
 }
 
 macro_rules! wrap_impl_float {
@@ -664,8 +715,8 @@ macro_rules! wrap_impl_sint {
     }
 }
 
-wrap_impl_float!{f32 f64}
-wrap_impl_uint!{
+wrap_impl_float! {f32 f64}
+wrap_impl_uint! {
     u8 u16 u32 u64 usize
     Wrapping<u8>
     Wrapping<u16>
@@ -673,7 +724,7 @@ wrap_impl_uint!{
     Wrapping<u64>
     Wrapping<usize>
 }
-wrap_impl_sint!{
+wrap_impl_sint! {
     i8 i16 i32 i64 isize
     Wrapping<i8>
     Wrapping<i16>
@@ -683,36 +734,107 @@ wrap_impl_sint!{
 }
 
 /// Trait for types that are suitable for representing a color component value.
-pub trait ColorComponent : Zero {
+pub trait ColorComponent: Zero {
     /// The minimum value such that the color is at its maximum.
     ///
     /// In pratice, it yields `T::MAX` for integers and `1` for real number types.
     fn full() -> Self;
 }
 
-impl ColorComponent for f32 { fn full() -> Self { 1f32 } }
-impl ColorComponent for f64 { fn full() -> Self { 1f64 } }
-impl ColorComponent for u8  { fn full() -> Self { std::u8  ::MAX } }
-impl ColorComponent for u16 { fn full() -> Self { std::u16 ::MAX } }
-impl ColorComponent for u32 { fn full() -> Self { std::u32 ::MAX } }
-impl ColorComponent for u64 { fn full() -> Self { std::u64 ::MAX } }
+impl ColorComponent for f32 {
+    fn full() -> Self {
+        1f32
+    }
+}
+impl ColorComponent for f64 {
+    fn full() -> Self {
+        1f64
+    }
+}
+impl ColorComponent for u8 {
+    fn full() -> Self {
+        std::u8::MAX
+    }
+}
+impl ColorComponent for u16 {
+    fn full() -> Self {
+        std::u16::MAX
+    }
+}
+impl ColorComponent for u32 {
+    fn full() -> Self {
+        std::u32::MAX
+    }
+}
+impl ColorComponent for u64 {
+    fn full() -> Self {
+        std::u64::MAX
+    }
+}
 //impl ColorComponent for u128{ fn full() -> Self { ::std::u128::MAX } }
-impl ColorComponent for i8  { fn full() -> Self { std::i8  ::MAX } }
-impl ColorComponent for i16 { fn full() -> Self { std::i16 ::MAX } }
-impl ColorComponent for i32 { fn full() -> Self { std::i32 ::MAX } }
-impl ColorComponent for i64 { fn full() -> Self { std::i64 ::MAX } }
+impl ColorComponent for i8 {
+    fn full() -> Self {
+        std::i8::MAX
+    }
+}
+impl ColorComponent for i16 {
+    fn full() -> Self {
+        std::i16::MAX
+    }
+}
+impl ColorComponent for i32 {
+    fn full() -> Self {
+        std::i32::MAX
+    }
+}
+impl ColorComponent for i64 {
+    fn full() -> Self {
+        std::i64::MAX
+    }
+}
 //impl ColorComponent for i128{ fn full() -> Self { ::std::i128::MAX } }
-impl ColorComponent for Wrapping<u8 >  { fn full() -> Self { Wrapping(ColorComponent::full()) } }
-impl ColorComponent for Wrapping<u16>  { fn full() -> Self { Wrapping(ColorComponent::full()) } }
-impl ColorComponent for Wrapping<u32>  { fn full() -> Self { Wrapping(ColorComponent::full()) } }
-impl ColorComponent for Wrapping<u64>  { fn full() -> Self { Wrapping(ColorComponent::full()) } }
+impl ColorComponent for Wrapping<u8> {
+    fn full() -> Self {
+        Wrapping(ColorComponent::full())
+    }
+}
+impl ColorComponent for Wrapping<u16> {
+    fn full() -> Self {
+        Wrapping(ColorComponent::full())
+    }
+}
+impl ColorComponent for Wrapping<u32> {
+    fn full() -> Self {
+        Wrapping(ColorComponent::full())
+    }
+}
+impl ColorComponent for Wrapping<u64> {
+    fn full() -> Self {
+        Wrapping(ColorComponent::full())
+    }
+}
 //impl ColorComponent for Wrapping<u128> { fn full() -> Self { Wrapping(ColorComponent::full()) } }
-impl ColorComponent for Wrapping<i8 >  { fn full() -> Self { Wrapping(ColorComponent::full()) } }
-impl ColorComponent for Wrapping<i16>  { fn full() -> Self { Wrapping(ColorComponent::full()) } }
-impl ColorComponent for Wrapping<i32>  { fn full() -> Self { Wrapping(ColorComponent::full()) } }
-impl ColorComponent for Wrapping<i64>  { fn full() -> Self { Wrapping(ColorComponent::full()) } }
+impl ColorComponent for Wrapping<i8> {
+    fn full() -> Self {
+        Wrapping(ColorComponent::full())
+    }
+}
+impl ColorComponent for Wrapping<i16> {
+    fn full() -> Self {
+        Wrapping(ColorComponent::full())
+    }
+}
+impl ColorComponent for Wrapping<i32> {
+    fn full() -> Self {
+        Wrapping(ColorComponent::full())
+    }
+}
+impl ColorComponent for Wrapping<i64> {
+    fn full() -> Self {
+        Wrapping(ColorComponent::full())
+    }
+}
 //impl ColorComponent for Wrapping<i128> { fn full() -> Self { Wrapping(ColorComponent::full()) } }
-
 
 #[cfg(test)]
 mod tests {
@@ -858,7 +980,7 @@ mod tests {
         };
     }
 
-    for_each_float_type!{f32 f64}
-    for_each_signed_type!{i8 i16 i32 i64 isize}
-    for_each_unsigned_type!{u8 u16 u32 u64 usize}
+    for_each_float_type! {f32 f64}
+    for_each_signed_type! {i8 i16 i32 i64 isize}
+    for_each_unsigned_type! {u8 u16 u32 u64 usize}
 }

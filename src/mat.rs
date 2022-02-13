@@ -1,18 +1,18 @@
 //! Matrix types.
 
-use std::mem;
-use std::ptr;
-use std::slice;
-use std::ops::Add;
-use std::fmt::{self, Display, Formatter, Debug};
-use std::ops::*;
-use num_traits::{Zero, One, real::Real, FloatConst, NumCast, AsPrimitive};
-use approx::{AbsDiffEq, RelativeEq, UlpsEq};
+use crate::geom::{FrustumPlanes, Rect}; // NOTE: Rect is therefore always repr_c here
 use crate::ops::MulAdd;
-use crate::vec;
-use crate::geom::{Rect, FrustumPlanes}; // NOTE: Rect is therefore always repr_c here
 use crate::quaternion;
 use crate::transform;
+use crate::vec;
+use approx::{AbsDiffEq, RelativeEq, UlpsEq};
+use num_traits::{real::Real, AsPrimitive, FloatConst, NumCast, One, Zero};
+use std::fmt::{self, Debug, Display, Formatter};
+use std::mem;
+use std::ops::Add;
+use std::ops::*;
+use std::ptr;
+use std::slice;
 
 // Needed because mem::transmute() isn't clever enough to figure out that e.g [T; 16] and [[T; 4]; 4]
 // always have the exact same size and layout, regardless of T. The opposite is impossible.
@@ -1435,7 +1435,6 @@ macro_rules! mat_impl_mat {
 
     };
 }
-
 
 macro_rules! mat_impl_mat4 {
     (rows) => {
@@ -3201,8 +3200,7 @@ macro_rules! mat_impl_mat4 {
 #[allow(unused_macros)]
 macro_rules! mat_impl_mat3 {
     (rows) => {
-
-        mat_impl_mat3!{common rows}
+        mat_impl_mat3! {common rows}
 
         impl<T> Mat3<T> {
             /// Creates a new 3x3 matrix from elements in a layout-agnostic way.
@@ -3211,23 +3209,28 @@ macro_rules! mat_impl_mat3 {
             /// `j` the column index. Their order is always the same regardless
             /// of the matrix's layout.
             pub fn new(
-                m00: T, m01: T, m02: T,
-                m10: T, m11: T, m12: T,
-                m20: T, m21: T, m22: T,
+                m00: T,
+                m01: T,
+                m02: T,
+                m10: T,
+                m11: T,
+                m12: T,
+                m20: T,
+                m21: T,
+                m22: T,
             ) -> Self {
                 Self {
                     rows: CVec3::new(
                         Vec3::new(m00, m01, m02),
                         Vec3::new(m10, m11, m12),
-                        Vec3::new(m20, m21, m22)
-                    )
+                        Vec3::new(m20, m21, m22),
+                    ),
                 }
             }
         }
     };
     (cols) => {
-
-        mat_impl_mat3!{common cols}
+        mat_impl_mat3! {common cols}
 
         impl<T> Mat3<T> {
             /// Creates a new 3x3 matrix from elements in a layout-agnostic way.
@@ -3236,16 +3239,22 @@ macro_rules! mat_impl_mat3 {
             /// `j` the column index. Their order is always the same regardless
             /// of the matrix's layout.
             pub fn new(
-                m00: T, m01: T, m02: T,
-                m10: T, m11: T, m12: T,
-                m20: T, m21: T, m22: T
+                m00: T,
+                m01: T,
+                m02: T,
+                m10: T,
+                m11: T,
+                m12: T,
+                m20: T,
+                m21: T,
+                m22: T,
             ) -> Self {
                 Self {
                     cols: CVec3::new(
                         Vec3::new(m00, m10, m20),
                         Vec3::new(m01, m11, m21),
-                        Vec3::new(m02, m12, m22)
-                    )
+                        Vec3::new(m02, m12, m22),
+                    ),
                 }
             }
         }
@@ -3272,14 +3281,17 @@ macro_rules! mat_impl_mat3 {
             ///     6, 7, 5, 5
             /// ));
             /// ```
-            pub fn map<D,F>(self, mut f: F) -> Mat3<D> where F: FnMut(T) -> D {
+            pub fn map<D, F>(self, mut f: F) -> Mat3<D>
+            where
+                F: FnMut(T) -> D,
+            {
                 let m = self.$lines;
                 Mat3 {
                     $lines: CVec3::new(
                         Vec3::new(f(m.x.x), f(m.x.y), f(m.x.z)),
                         Vec3::new(f(m.y.x), f(m.y.y), f(m.y.z)),
                         Vec3::new(f(m.z.x), f(m.z.y), f(m.z.z)),
-                    )
+                    ),
                 }
             }
 
@@ -3305,14 +3317,18 @@ macro_rules! mat_impl_mat3 {
             /// # use num_traits::AsPrimitive;
             /// let x: u8 = (1.04E+17).as_(); // UB
             /// ```
-            pub fn as_<D>(self) -> Mat3<D> where T: AsPrimitive<D>, D: 'static + Copy {
+            pub fn as_<D>(self) -> Mat3<D>
+            where
+                T: AsPrimitive<D>,
+                D: 'static + Copy,
+            {
                 let m = self.$lines;
                 Mat3 {
                     $lines: CVec3::new(
                         Vec3::new(m.x.x.as_(), m.x.y.as_(), m.x.z.as_()),
                         Vec3::new(m.y.x.as_(), m.y.y.as_(), m.y.z.as_()),
                         Vec3::new(m.z.x.as_(), m.z.y.as_(), m.z.z.as_()),
-                    )
+                    ),
                 }
             }
 
@@ -3341,15 +3357,18 @@ macro_rules! mat_impl_mat3 {
             ///     0, 1, 3, 4
             /// ));
             /// ```
-            pub fn map2<D,F,S>(self, other: Mat3<S>, mut f: F) -> Mat3<D> where F: FnMut(T, S) -> D {
+            pub fn map2<D, F, S>(self, other: Mat3<S>, mut f: F) -> Mat3<D>
+            where
+                F: FnMut(T, S) -> D,
+            {
                 let m = self.$lines;
                 let o = other.$lines;
                 Mat3 {
                     $lines: CVec3::new(
                         Vec3::new(f(m.x.x, o.x.x), f(m.x.y, o.x.y), f(m.x.z, o.x.z)),
                         Vec3::new(f(m.y.x, o.y.x), f(m.y.y, o.y.y), f(m.y.z, o.y.z)),
-                        Vec3::new(f(m.z.x, o.z.x), f(m.z.y, o.z.y), f(m.z.z, o.z.z))
-                    )
+                        Vec3::new(f(m.z.x, o.z.x), f(m.z.y, o.z.y), f(m.z.z, o.z.z)),
+                    ),
                 }
             }
 
@@ -3391,8 +3410,8 @@ macro_rules! mat_impl_mat3 {
                     $lines: CVec3::new(
                         Vec3::new(s.x.x, s.y.x, s.z.x),
                         Vec3::new(s.x.y, s.y.y, s.z.y),
-                        Vec3::new(s.x.z, s.y.z, s.z.z)
-                    )
+                        Vec3::new(s.x.z, s.y.z, s.z.z),
+                    ),
                 }
             }
             /// Transpose this matrix.
@@ -3423,7 +3442,10 @@ macro_rules! mat_impl_mat3 {
             /// Get this matrix's determinant.
             ///
             /// A matrix is invertible if its determinant is non-zero.
-            pub fn determinant(self) -> T where T: Copy + Mul<T,Output=T> + Sub<T,Output=T> + Add<T, Output=T> {
+            pub fn determinant(self) -> T
+            where
+                T: Copy + Mul<T, Output = T> + Sub<T, Output = T> + Add<T, Output = T>,
+            {
                 // https://www.mathsisfun.com/algebra/matrix-determinant.html
                 use super::row_major::Mat3 as Rows3;
                 let CVec3 {
@@ -3431,9 +3453,8 @@ macro_rules! mat_impl_mat3 {
                     y: Vec3 { x: d, y: e, z: f },
                     z: Vec3 { x: g, y: h, z: i },
                 } = Rows3::from(self).rows;
-                a*(e*i - f*h) - b*(d*i - f*g) + c*(d*h - e*g)
+                a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g)
             }
-
 
             //
             // MULTIPLY BY
@@ -3441,138 +3462,196 @@ macro_rules! mat_impl_mat3 {
 
             /// Shortcut for `self * Vec3::from_point_2d(rhs)`.
             pub fn mul_point_2d<V: Into<Vec2<T>> + From<Vec3<T>>>(self, rhs: V) -> V
-                where T: Real + MulAdd<T,T,Output=T>
+            where
+                T: Real + MulAdd<T, T, Output = T>,
             {
                 V::from(self * Vec3::from_point_2d(rhs))
             }
             /// Shortcut for `self * Vec3::from_direction_2d(rhs)`.
             pub fn mul_direction_2d<V: Into<Vec2<T>> + From<Vec3<T>>>(self, rhs: V) -> V
-                where T: Real + MulAdd<T,T,Output=T>
+            where
+                T: Real + MulAdd<T, T, Output = T>,
             {
                 V::from(self * Vec3::from_direction_2d(rhs))
             }
 
-
             /// Translates this matrix in 2D.
             pub fn translate_2d<V: Into<Vec2<T>>>(&mut self, v: V)
-                where T: Real + MulAdd<T,T,Output=T>
+            where
+                T: Real + MulAdd<T, T, Output = T>,
             {
                 *self = self.translated_2d(v);
             }
             /// Returns this matrix translated in 2D.
             pub fn translated_2d<V: Into<Vec2<T>>>(self, v: V) -> Self
-                where T: Real + MulAdd<T,T,Output=T>
+            where
+                T: Real + MulAdd<T, T, Output = T>,
             {
                 Self::translation_2d(v) * self
             }
             /// Creates a 2D translation matrix.
-            pub fn translation_2d<V: Into<Vec2<T>>>(v: V) -> Self where T: Zero + One {
+            pub fn translation_2d<V: Into<Vec2<T>>>(v: V) -> Self
+            where
+                T: Zero + One,
+            {
                 let v = v.into();
                 Self::new(
-                    T::one() , T::zero(), v.x,
-                    T::zero(), T::one() , v.y,
-                    T::zero(), T::zero(), T::one()
+                    T::one(),
+                    T::zero(),
+                    v.x,
+                    T::zero(),
+                    T::one(),
+                    v.y,
+                    T::zero(),
+                    T::zero(),
+                    T::one(),
                 )
             }
             /// Scales this matrix in 3D.
             pub fn scale_3d<V: Into<Vec3<T>>>(&mut self, v: V)
-                where T: Real + MulAdd<T,T,Output=T>
+            where
+                T: Real + MulAdd<T, T, Output = T>,
             {
                 *self = self.scaled_3d(v);
             }
             /// Returns this matrix scaled in 3D.
             pub fn scaled_3d<V: Into<Vec3<T>>>(self, v: V) -> Self
-                where T: Real + MulAdd<T,T,Output=T>
+            where
+                T: Real + MulAdd<T, T, Output = T>,
             {
                 Self::scaling_3d(v) * self
             }
             /// Creates a 3D scaling matrix.
-            pub fn scaling_3d<V: Into<Vec3<T>>>(v: V) -> Self where T: Zero {
+            pub fn scaling_3d<V: Into<Vec3<T>>>(v: V) -> Self
+            where
+                T: Zero,
+            {
                 let Vec3 { x, y, z } = v.into();
                 Self::new(
-                    x, T::zero(), T::zero(),
-                    T::zero(), y, T::zero(),
-                    T::zero(), T::zero(), z
+                    x,
+                    T::zero(),
+                    T::zero(),
+                    T::zero(),
+                    y,
+                    T::zero(),
+                    T::zero(),
+                    T::zero(),
+                    z,
                 )
             }
             /// Rotates this matrix around the X axis.
             pub fn rotate_x(&mut self, angle_radians: T)
-                where T: Real + MulAdd<T,T,Output=T>
+            where
+                T: Real + MulAdd<T, T, Output = T>,
             {
                 *self = self.rotated_x(angle_radians);
             }
             /// Returns this matrix rotated around the X axis.
             pub fn rotated_x(self, angle_radians: T) -> Self
-                where T: Real + MulAdd<T,T,Output=T>
+            where
+                T: Real + MulAdd<T, T, Output = T>,
             {
                 Self::rotation_x(angle_radians) * self
             }
             /// Creates a matrix that rotates around the X axis.
-            pub fn rotation_x(angle_radians: T) -> Self where T: Real {
+            pub fn rotation_x(angle_radians: T) -> Self
+            where
+                T: Real,
+            {
                 let c = angle_radians.cos();
                 let s = angle_radians.sin();
                 Self::new(
-                    T::one(), T::zero(), T::zero(),
-                    T::zero(), c, -s,
-                    T::zero(), s, c
+                    T::one(),
+                    T::zero(),
+                    T::zero(),
+                    T::zero(),
+                    c,
+                    -s,
+                    T::zero(),
+                    s,
+                    c,
                 )
             }
             /// Rotates this matrix around the Y axis.
             pub fn rotate_y(&mut self, angle_radians: T)
-                where T: Real + MulAdd<T,T,Output=T>
+            where
+                T: Real + MulAdd<T, T, Output = T>,
             {
                 *self = self.rotated_y(angle_radians);
             }
             /// Returns this matrix rotated around the Y axis.
             pub fn rotated_y(self, angle_radians: T) -> Self
-                where T: Real + MulAdd<T,T,Output=T>
+            where
+                T: Real + MulAdd<T, T, Output = T>,
             {
                 Self::rotation_y(angle_radians) * self
             }
             /// Creates a matrix that rotates around the Y axis.
-            pub fn rotation_y(angle_radians: T) -> Self where T: Real {
+            pub fn rotation_y(angle_radians: T) -> Self
+            where
+                T: Real,
+            {
                 let c = angle_radians.cos();
                 let s = angle_radians.sin();
                 Self::new(
-                    c, T::zero(), s,
-                    T::zero(), T::one(), T::zero(),
-                    -s, T::zero(), c
+                    c,
+                    T::zero(),
+                    s,
+                    T::zero(),
+                    T::one(),
+                    T::zero(),
+                    -s,
+                    T::zero(),
+                    c,
                 )
             }
             /// Rotates this matrix around the Z axis.
             pub fn rotate_z(&mut self, angle_radians: T)
-                where T: Real + MulAdd<T,T,Output=T>
+            where
+                T: Real + MulAdd<T, T, Output = T>,
             {
                 *self = self.rotated_z(angle_radians);
             }
             /// Returns this matrix rotated around the Z axis.
             pub fn rotated_z(self, angle_radians: T) -> Self
-                where T: Real + MulAdd<T,T,Output=T>
+            where
+                T: Real + MulAdd<T, T, Output = T>,
             {
                 Self::rotation_z(angle_radians) * self
             }
             /// Creates a matrix that rotates around the Z axis.
-            pub fn rotation_z(angle_radians: T) -> Self where T: Real {
+            pub fn rotation_z(angle_radians: T) -> Self
+            where
+                T: Real,
+            {
                 let c = angle_radians.cos();
                 let s = angle_radians.sin();
                 Self::new(
-                    c, -s, T::zero(),
-                    s,  c, T::zero(),
-                    T::zero(), T::zero(), T::one()
+                    c,
+                    -s,
+                    T::zero(),
+                    s,
+                    c,
+                    T::zero(),
+                    T::zero(),
+                    T::zero(),
+                    T::one(),
                 )
             }
 
             /// Rotates this matrix around a 3D axis.
             /// The axis is not required to be normalized.
             pub fn rotate_3d<V: Into<Vec3<T>>>(&mut self, angle_radians: T, axis: V)
-                where T: Real + MulAdd<T,T,Output=T> + Add<T, Output=T>
+            where
+                T: Real + MulAdd<T, T, Output = T> + Add<T, Output = T>,
             {
                 *self = self.rotated_3d(angle_radians, axis);
             }
             /// Returns this matrix rotated around a 3D axis.
             /// The axis is not required to be normalized.
             pub fn rotated_3d<V: Into<Vec3<T>>>(self, angle_radians: T, axis: V) -> Self
-                where T: Real + MulAdd<T,T,Output=T> + Add<T, Output=T>
+            where
+                T: Real + MulAdd<T, T, Output = T> + Add<T, Output = T>,
             {
                 Self::rotation_3d(angle_radians, axis) * self
             }
@@ -3623,15 +3702,24 @@ macro_rules! mat_impl_mat3 {
             /// }
             /// # }
             /// ```
-            pub fn rotation_3d<V: Into<Vec3<T>>>(angle_radians: T, axis: V) -> Self where T: Real + Add<T, Output=T> {
+            pub fn rotation_3d<V: Into<Vec3<T>>>(angle_radians: T, axis: V) -> Self
+            where
+                T: Real + Add<T, Output = T>,
+            {
                 let Vec3 { x, y, z } = axis.into().normalized();
                 let s = angle_radians.sin();
                 let c = angle_radians.cos();
                 let oc = T::one() - c;
                 Self::new(
-                    oc*x*x + c  , oc*x*y - z*s, oc*z*x + y*s,
-                    oc*x*y + z*s, oc*y*y + c  , oc*y*z - x*s,
-                    oc*z*x - y*s, oc*y*z + x*s, oc*z*z + c
+                    oc * x * x + c,
+                    oc * x * y - z * s,
+                    oc * z * x + y * s,
+                    oc * x * y + z * s,
+                    oc * y * y + c,
+                    oc * y * z - x * s,
+                    oc * z * x - y * s,
+                    oc * y * z + x * s,
+                    oc * z * z + c,
                 )
             }
             /// Creates a matrix that would rotate a `from` direction to `to`.
@@ -3652,7 +3740,8 @@ macro_rules! mat_impl_mat3 {
             /// # }
             /// ```
             pub fn rotation_from_to_3d<V: Into<Vec3<T>>>(from: V, to: V) -> Self
-                where T: Real + Add<T, Output=T>
+            where
+                T: Real + Add<T, Output = T>,
             {
                 Self::from(Quaternion::rotation_from_to_3d(from, to))
             }
@@ -3663,29 +3752,29 @@ macro_rules! mat_impl_mat3 {
             fn from(m: Mat4<T>) -> Self {
                 let m = m.$lines;
                 Self {
-                    $lines: CVec3::new(
-                        m.x.into(),
-                        m.y.into(),
-                        m.z.into()
-                    )
+                    $lines: CVec3::new(m.x.into(), m.y.into(), m.z.into()),
                 }
             }
         }
         use super::mat2::Mat2;
-        impl<T> From<Mat2<T>> for Mat3<T> where T: Zero + One {
+        impl<T> From<Mat2<T>> for Mat3<T>
+        where
+            T: Zero + One,
+        {
             fn from(m: Mat2<T>) -> Self {
                 let m = m.$lines;
                 Self {
                     $lines: CVec3::new(
                         m.x.into(),
                         m.y.into(),
-                        Vec3::new(T::zero(), T::zero(), T::one())
-                    )
+                        Vec3::new(T::zero(), T::zero(), T::one()),
+                    ),
                 }
             }
         }
         impl<T> From<Quaternion<T>> for Mat3<T>
-            where T: Copy + Zero + One + Mul<Output=T> + Add<Output=T> + Sub<Output=T>
+        where
+            T: Copy + Zero + One + Mul<Output = T> + Add<Output = T> + Sub<Output = T>,
         {
             fn from(q: Quaternion<T>) -> Self {
                 Mat4::from(q).into()
@@ -3713,15 +3802,13 @@ macro_rules! mat_impl_mat3 {
             }
         }
         */
-
     };
 }
 
 #[allow(unused_macros)]
 macro_rules! mat_impl_mat2 {
     (rows) => {
-
-        mat_impl_mat2!{common rows}
+        mat_impl_mat2! {common rows}
 
         impl<T> Mat2<T> {
             /// Creates a new 2x2 matrix from elements in a layout-agnostic way.
@@ -3729,22 +3816,15 @@ macro_rules! mat_impl_mat2 {
             /// The parameters are named `mij` where `i` is the row index and
             /// `j` the column index. Their order is always the same regardless
             /// of the matrix's layout.
-            pub fn new(
-                m00: T, m01: T,
-                m10: T, m11: T
-            ) -> Self {
+            pub fn new(m00: T, m01: T, m10: T, m11: T) -> Self {
                 Self {
-                    rows: CVec2::new(
-                        Vec2::new(m00, m01),
-                        Vec2::new(m10, m11)
-                    )
+                    rows: CVec2::new(Vec2::new(m00, m01), Vec2::new(m10, m11)),
                 }
             }
         }
     };
     (cols) => {
-
-        mat_impl_mat2!{common cols}
+        mat_impl_mat2! {common cols}
 
         impl<T> Mat2<T> {
             /// Creates a new 2x2 matrix from elements in a layout-agnostic way.
@@ -3752,15 +3832,9 @@ macro_rules! mat_impl_mat2 {
             /// The parameters are named `mij` where `i` is the row index and
             /// `j` the column index. Their order is always the same regardless
             /// of the matrix's layout.
-            pub fn new(
-                m00: T, m01: T,
-                m10: T, m11: T
-            ) -> Self {
+            pub fn new(m00: T, m01: T, m10: T, m11: T) -> Self {
                 Self {
-                    cols: CVec2::new(
-                        Vec2::new(m00, m10),
-                        Vec2::new(m01, m11),
-                    )
+                    cols: CVec2::new(Vec2::new(m00, m10), Vec2::new(m01, m11)),
                 }
             }
         }
@@ -3787,13 +3861,16 @@ macro_rules! mat_impl_mat2 {
             ///     6, 7, 5, 5
             /// ));
             /// ```
-            pub fn map<D,F>(self, mut f: F) -> Mat2<D> where F: FnMut(T) -> D {
+            pub fn map<D, F>(self, mut f: F) -> Mat2<D>
+            where
+                F: FnMut(T) -> D,
+            {
                 let m = self.$lines;
                 Mat2 {
                     $lines: CVec2::new(
                         Vec2::new(f(m.x.x), f(m.x.y)),
                         Vec2::new(f(m.y.x), f(m.y.y)),
-                    )
+                    ),
                 }
             }
 
@@ -3819,13 +3896,17 @@ macro_rules! mat_impl_mat2 {
             /// # use num_traits::AsPrimitive;
             /// let x: u8 = (1.04E+17).as_(); // UB
             /// ```
-            pub fn as_<D>(self) -> Mat2<D> where T: AsPrimitive<D>, D: 'static + Copy {
+            pub fn as_<D>(self) -> Mat2<D>
+            where
+                T: AsPrimitive<D>,
+                D: 'static + Copy,
+            {
                 let m = self.$lines;
                 Mat2 {
                     $lines: CVec2::new(
                         Vec2::new(m.x.x.as_(), m.x.y.as_()),
                         Vec2::new(m.y.x.as_(), m.y.y.as_()),
-                    )
+                    ),
                 }
             }
 
@@ -3854,14 +3935,17 @@ macro_rules! mat_impl_mat2 {
             ///     0, 1, 3, 4
             /// ));
             /// ```
-            pub fn map2<D,F,S>(self, other: Mat2<S>, mut f: F) -> Mat2<D> where F: FnMut(T, S) -> D {
+            pub fn map2<D, F, S>(self, other: Mat2<S>, mut f: F) -> Mat2<D>
+            where
+                F: FnMut(T, S) -> D,
+            {
                 let m = self.$lines;
                 let o = other.$lines;
                 Mat2 {
                     $lines: CVec2::new(
                         Vec2::new(f(m.x.x, o.x.x), f(m.x.y, o.x.y)),
-                        Vec2::new(f(m.y.x, o.y.x), f(m.y.y, o.y.y))
-                    )
+                        Vec2::new(f(m.y.x, o.y.x), f(m.y.y, o.y.y)),
+                    ),
                 }
             }
 
@@ -3888,10 +3972,7 @@ macro_rules! mat_impl_mat2 {
             pub fn transposed(self) -> Self {
                 let s = self.$lines;
                 Self {
-                    $lines: CVec2::new(
-                        Vec2::new(s.x.x, s.y.x),
-                        Vec2::new(s.x.y, s.y.y)
-                    )
+                    $lines: CVec2::new(Vec2::new(s.x.x, s.y.x), Vec2::new(s.x.y, s.y.y)),
                 }
             }
             /// Transpose this matrix.
@@ -3925,93 +4006,104 @@ macro_rules! mat_impl_mat2 {
             /// let m = Mat2::new(a,b,c,d);
             /// assert_eq!(m.determinant(), a*d - c*b);
             /// ```
-            pub fn determinant(self) -> T where T: Mul<T,Output=T> + Sub<T,Output=T> {
+            pub fn determinant(self) -> T
+            where
+                T: Mul<T, Output = T> + Sub<T, Output = T>,
+            {
                 // NOTE: This works on row-major as well as column-major.
                 let CVec2 {
                     x: Vec2 { x: a, y: b },
                     y: Vec2 { x: c, y: d },
                 } = self.$lines;
-                a*d - c*b
+                a * d - c * b
             }
 
             /// Rotates this matrix around the Z axis (counter-clockwise rotation in 2D).
             pub fn rotate_z(&mut self, angle_radians: T)
-                where T: Real + MulAdd<T,T,Output=T>
+            where
+                T: Real + MulAdd<T, T, Output = T>,
             {
                 *self = self.rotated_z(angle_radians);
             }
             /// Rotates this matrix around the Z axis (counter-clockwise rotation in 2D).
             pub fn rotated_z(self, angle_radians: T) -> Self
-                where T: Real + MulAdd<T,T,Output=T>
+            where
+                T: Real + MulAdd<T, T, Output = T>,
             {
                 Self::rotation_z(angle_radians) * self
             }
             /// Creates a matrix that rotates around the Z axis (counter-clockwise rotation in 2D).
-            pub fn rotation_z(angle_radians: T) -> Self where T: Real {
+            pub fn rotation_z(angle_radians: T) -> Self
+            where
+                T: Real,
+            {
                 let c = angle_radians.cos();
                 let s = angle_radians.sin();
-                Self::new(
-                    c, -s,
-                    s,  c
-                )
+                Self::new(c, -s, s, c)
             }
             /// Scales this matrix in 2D.
             pub fn scale_2d<V: Into<Vec2<T>>>(&mut self, v: V)
-                where T: Real + MulAdd<T,T,Output=T>
+            where
+                T: Real + MulAdd<T, T, Output = T>,
             {
                 *self = self.scaled_2d(v);
             }
             /// Returns this matrix scaled in 2D.
             pub fn scaled_2d<V: Into<Vec2<T>>>(self, v: V) -> Self
-                where T: Real + MulAdd<T,T,Output=T>
+            where
+                T: Real + MulAdd<T, T, Output = T>,
             {
                 Self::scaling_2d(v) * self
             }
             /// Creates a 2D scaling matrix.
-            pub fn scaling_2d<V: Into<Vec2<T>>>(v: V) -> Self where T: Zero {
+            pub fn scaling_2d<V: Into<Vec2<T>>>(v: V) -> Self
+            where
+                T: Zero,
+            {
                 let Vec2 { x, y } = v.into();
-                Self::new(
-                    x, T::zero(),
-                    T::zero(), y
-                )
+                Self::new(x, T::zero(), T::zero(), y)
             }
             /// Shears this matrix along the X axis.
             pub fn shear_x(&mut self, k: T)
-                where T: Real + MulAdd<T,T,Output=T>
+            where
+                T: Real + MulAdd<T, T, Output = T>,
             {
                 *self = self.sheared_x(k);
             }
             /// Returns this matrix sheared along the X axis.
             pub fn sheared_x(self, k: T) -> Self
-                where T: Real + MulAdd<T,T,Output=T>
+            where
+                T: Real + MulAdd<T, T, Output = T>,
             {
                 Self::shearing_x(k) * self
             }
             /// Creates a 2D shearing matrix along the X axis.
-            pub fn shearing_x(k: T) -> Self where T: Zero + One {
-                Self::new(
-                    T::one(), k,
-                    T::zero(), T::one()
-                )
+            pub fn shearing_x(k: T) -> Self
+            where
+                T: Zero + One,
+            {
+                Self::new(T::one(), k, T::zero(), T::one())
             }
             /// Shears this matrix along the Y axis.
             pub fn shear_y(&mut self, k: T)
-                where T: Real + MulAdd<T,T,Output=T>
+            where
+                T: Real + MulAdd<T, T, Output = T>,
             {
                 *self = self.sheared_y(k);
             }
             /// Returns this matrix sheared along the Y axis.
             pub fn sheared_y(self, k: T) -> Self
-                where T: Real + MulAdd<T,T,Output=T>
+            where
+                T: Real + MulAdd<T, T, Output = T>,
             {
                 Self::shearing_y(k) * self
             }
             /// Creates a 2D shearing matrix along the Y axis.
-            pub fn shearing_y(k: T) -> Self where T: Zero + One {
-                Self::new(
-                    T::one(), T::zero(),
-                    k, T::one()
-                )
+            pub fn shearing_y(k: T) -> Self
+            where
+                T: Zero + One,
+            {
+                Self::new(T::one(), T::zero(), k, T::one())
             }
         }
         use super::mat3::Mat3;
@@ -4019,10 +4111,7 @@ macro_rules! mat_impl_mat2 {
             fn from(m: Mat3<T>) -> Self {
                 let m = m.$lines;
                 Self {
-                    $lines: CVec2::new(
-                        m.x.into(),
-                        m.y.into(),
-                    )
+                    $lines: CVec2::new(m.x.into(), m.y.into()),
                 }
             }
         }
@@ -4031,19 +4120,12 @@ macro_rules! mat_impl_mat2 {
             fn from(m: Mat4<T>) -> Self {
                 let m = m.$lines;
                 Self {
-                    $lines: CVec2::new(
-                        m.x.into(),
-                        m.y.into(),
-                    )
+                    $lines: CVec2::new(m.x.into(), m.y.into()),
                 }
             }
         }
-
     };
 }
-
-
-
 
 macro_rules! mat_impl_all_mats {
     ($lines:ident) => {
@@ -4051,15 +4133,15 @@ macro_rules! mat_impl_all_mats {
         pub mod mat4 {
             use super::*;
             /// 4x4 matrix.
-            #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq/* , Ord, PartialOrd */)]
-            #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+            #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq /* , Ord, PartialOrd */)]
+            #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
             #[repr(C)]
             pub struct Mat4<T> {
                 #[allow(missing_docs)]
                 pub $lines: CVec4<Vec4<T>>,
             }
-            mat_impl_mat!{$lines Mat4 RowMatrix4 ColumnMatrix4 CVec4 Vec4 (4 x 4) (x y z w)}
-            mat_impl_mat4!{$lines}
+            mat_impl_mat! {$lines Mat4 RowMatrix4 ColumnMatrix4 CVec4 Vec4 (4 x 4) (x y z w)}
+            mat_impl_mat4! {$lines}
         }
         pub use self::mat4::Mat4;
 
@@ -4067,15 +4149,15 @@ macro_rules! mat_impl_all_mats {
         pub mod mat3 {
             use super::*;
             /// 3x3 matrix.
-            #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq/* , Ord, PartialOrd */)]
-            #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+            #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq /* , Ord, PartialOrd */)]
+            #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
             #[repr(C)]
             pub struct Mat3<T> {
                 #[allow(missing_docs)]
                 pub $lines: CVec3<Vec3<T>>,
             }
-            mat_impl_mat!{$lines Mat3 RowMatrix3 ColumnMatrix3 CVec3 Vec3 (3 x 3) (x y z)}
-            mat_impl_mat3!{$lines}
+            mat_impl_mat! {$lines Mat3 RowMatrix3 ColumnMatrix3 CVec3 Vec3 (3 x 3) (x y z)}
+            mat_impl_mat3! {$lines}
         }
         pub use self::mat3::Mat3;
 
@@ -4083,19 +4165,18 @@ macro_rules! mat_impl_all_mats {
         pub mod mat2 {
             use super::*;
             /// 2x2 matrix.
-            #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq/* , Ord, PartialOrd */)]
-            #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+            #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq /* , Ord, PartialOrd */)]
+            #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
             #[repr(C)]
             pub struct Mat2<T> {
                 #[allow(missing_docs)]
                 pub $lines: CVec2<Vec2<T>>,
             }
-            mat_impl_mat!{$lines Mat2 RowMatrix2 ColumnMatrix2 CVec2 Vec2 (2 x 2) (x y)}
-            mat_impl_mat2!{$lines}
+            mat_impl_mat! {$lines Mat2 RowMatrix2 ColumnMatrix2 CVec2 Vec2 (2 x 2) (x y)}
+            mat_impl_mat2! {$lines}
         }
         pub use self::mat2::Mat2;
-
-    }
+    };
 }
 
 macro_rules! mat_declare_modules {
@@ -4111,7 +4192,7 @@ macro_rules! mat_declare_modules {
             //! it's the preferred one for most computer graphics libraries and application.
 
             use super::*;
-            mat_impl_all_mats!{cols}
+            mat_impl_all_mats! {cols}
         }
         pub mod row_major {
             //! Matrices stored in row-major layout.
@@ -4122,7 +4203,7 @@ macro_rules! mat_declare_modules {
             //! Also, their natural indexing order matches the existing mathematical conventions.
 
             use super::*;
-            mat_impl_all_mats!{rows}
+            mat_impl_all_mats! {rows}
         }
         /// Column-major layout is the default.
         ///
@@ -4130,7 +4211,7 @@ macro_rules! mat_declare_modules {
         /// - (Matrix * Vector) multiplications are more efficient;
         /// - This is the layout expected by OpenGL;
         pub use self::column_major::*;
-    }
+    };
 }
 
 pub mod repr_c {
@@ -4139,43 +4220,42 @@ pub mod repr_c {
     //! See also the `repr_simd` neighbour module, which is available on Nightly
     //! with the `repr_simd` feature enabled.
 
-    use super::*;
     #[allow(unused_imports)]
     use super::vec::repr_c::{Vec2, Vec2 as CVec2};
     #[allow(unused_imports)]
     use super::vec::repr_c::{Vec3, Vec3 as CVec3};
     use super::vec::repr_c::{Vec4, Vec4 as CVec4};
+    use super::*;
 
     use super::quaternion::repr_c::Quaternion;
     use super::transform::repr_c::Transform;
 
-    mat_declare_modules!{}
+    mat_declare_modules! {}
 }
 
-#[cfg(all(nightly, feature="repr_simd"))]
+#[cfg(all(nightly, feature = "repr_simd"))]
 pub mod repr_simd {
     //! Matrix types which use a `#[repr(C)]` vector of `#[repr(simd)]` vectors.
 
+    #[allow(unused_imports)]
+    use super::vec::repr_c::Vec2 as CVec2;
+    #[allow(unused_imports)]
+    use super::vec::repr_c::Vec3 as CVec3;
+    use super::vec::repr_c::Vec4 as CVec4;
+    #[allow(unused_imports)]
+    use super::vec::repr_simd::Vec2;
+    #[allow(unused_imports)]
+    use super::vec::repr_simd::Vec3;
+    use super::vec::repr_simd::Vec4;
     use super::*;
-    #[allow(unused_imports)]
-    use super::vec::repr_simd::{Vec2};
-    #[allow(unused_imports)]
-    use super::vec::repr_c::{Vec2 as CVec2};
-    #[allow(unused_imports)]
-    use super::vec::repr_simd::{Vec3};
-    #[allow(unused_imports)]
-    use super::vec::repr_c::{Vec3 as CVec3};
-    use super::vec::repr_simd::{Vec4};
-    use super::vec::repr_c::{Vec4 as CVec4};
 
     use super::quaternion::repr_simd::Quaternion;
     use super::transform::repr_simd::Transform;
 
-    mat_declare_modules!{}
+    mat_declare_modules! {}
 }
 
 pub use self::repr_c::*;
-
 
 #[cfg(test)]
 mod tests {
@@ -4246,31 +4326,25 @@ mod tests {
         };
     }
     // Vertical editing helps here :)
-    for_each_type!{mat2 Mat2 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    for_each_type!{mat3 Mat3 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    for_each_type!{mat4 Mat4 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    for_each_type! {mat2 Mat2 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    for_each_type! {mat3 Mat3 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    for_each_type! {mat4 Mat4 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
 
-    use super::Mat4;
     use super::super::vec::Vec4;
+    use super::Mat4;
 
-
-    #[test] fn simple_mat2() {
-        use crate::vec::Vec2;
-        use crate::mat::row_major::Mat2 as Rows2;
+    #[test]
+    fn simple_mat2() {
         use crate::mat::column_major::Mat2 as Cols2;
-        let a = Rows2::new(
-            1, 2,
-            3, 4
-        );
-        let b = Cols2::new(
-            1, 2,
-            3, 4
-        );
+        use crate::mat::row_major::Mat2 as Rows2;
+        use crate::vec::Vec2;
+        let a = Rows2::new(1, 2, 3, 4);
+        let b = Cols2::new(1, 2, 3, 4);
         let v = Vec2::new(2, 3);
 
         // Not available on no_std, but don't worry, it's been long proven.
         // assert_eq!(format!("{}", a), format!("{}", b));
-        
+
         assert_eq!(v * a, v * b);
         assert_eq!(a * v, b * v);
     }
@@ -4281,7 +4355,10 @@ mod tests {
         let target = Vec4::new(2_f32, 0., 2., 1.);
         let model = Mat4::<f32>::model_look_at_rh(eye, target, Vec4::unit_y());
         assert_relative_eq!(model * Vec4::unit_w(), Vec4::new(1_f32, 0., 1., 1.));
-        assert_relative_eq!(model * Vec4::new(0_f32, 0., -2_f32.sqrt(), 1.), Vec4::new(2_f32, 0., 2., 1.));
+        assert_relative_eq!(
+            model * Vec4::new(0_f32, 0., -2_f32.sqrt(), 1.),
+            Vec4::new(2_f32, 0., 2., 1.)
+        );
 
         // A "model" look-at essentially undoes a "view" look-at
         let view = Mat4::<f32>::look_at_rh(eye, target, Vec4::unit_y());
@@ -4321,5 +4398,4 @@ mod tests {
         assert_relative_eq!(view * eye, Vec4::unit_w());
         assert_relative_eq!(view * target, Vec4::new(0_f32, 0., 2_f32.sqrt(), 1.));
     }
-
 }

@@ -5,17 +5,17 @@
 //! because of this.
 //! They do have element-wise comparison functions though.
 
+use crate::ops::*;
+use approx::{AbsDiffEq, RelativeEq, UlpsEq};
+use num_traits::{real::Real, AsPrimitive, NumCast, One, Signed, Zero};
 use std::borrow::{Borrow, BorrowMut};
+use std::cmp;
 use std::fmt::{self, Display, Formatter};
 use std::iter::{FromIterator, Product, Sum};
 use std::mem;
-use std::ptr;
-use std::cmp;
 use std::ops::*;
-use std::slice::{self, /*SliceIndex*/}; // NOTE: Will want to use SliceIndex once it's stabilized
-use num_traits::{Zero, One, NumCast, AsPrimitive, Signed, real::Real};
-use approx::{AbsDiffEq, RelativeEq, UlpsEq};
-use crate::ops::*;
+use std::ptr;
+use std::slice::{self /*SliceIndex*/}; // NOTE: Will want to use SliceIndex once it's stabilized
 
 #[cfg(feature = "platform_intrinsics")]
 use crate::simd_llvm;
@@ -25,21 +25,29 @@ use crate::bytemuck;
 
 // Macro for selecting separate implementations for repr(C) vs repr(simd), at compile time.
 macro_rules! choose {
-    (c { c => $c_impl:expr, simd_llvm => $s_impl:expr, }) => {
-        { $c_impl }
-    };
+    (c { c => $c_impl:expr, simd_llvm => $s_impl:expr, }) => {{
+        $c_impl
+    }};
     (simd { c => $c_impl:expr, simd_llvm => $s_impl:expr, }) => {
         #[cfg(not(feature = "platform_intrinsics"))]
-        { $c_impl }
+        {
+            $c_impl
+        }
 
         #[cfg(feature = "platform_intrinsics")]
-        { $s_impl }
+        {
+            $s_impl
+        }
     };
 }
 
 macro_rules! cond_borrow {
-    (ref, $a:expr) => { &$a };
-    (move, $a:expr) => { $a };
+    (ref, $a:expr) => {
+        &$a
+    };
+    (move, $a:expr) => {
+        $a
+    };
 }
 
 macro_rules! reduce_fn {
@@ -69,7 +77,6 @@ macro_rules! horizontal_binop {
     ($op:tt, $out:expr => $a:expr, $b:expr) => { $out = $a $op $b; };
     ($op:tt, $out:expr, $($vout:expr),+ => $a:expr, $b:expr, $($v:expr),+) => { horizontal_binop!($op, $out => $a, $b); horizontal_binop!($op, $($vout),+ => $($v),+); };
 }
-
 
 macro_rules! vec_impl_cmp {
     ($(#[$attrs:meta])*, $c_or_simd:ident, $Vec:ident, $cmp:ident, $simd_cmp:ident, $op:tt, $Bounds:tt, ($($get:tt)+)) => {
@@ -1640,41 +1647,59 @@ macro_rules! vec_impl_spatial {
         impl<T> $Vec<T> {
             /// Dot product between this vector and another.
             #[inline]
-            pub fn dot(self, v: Self) -> T where T: Add<T, Output=T> + Mul<Output=T> {
+            pub fn dot(self, v: Self) -> T
+            where
+                T: Add<T, Output = T> + Mul<Output = T>,
+            {
                 (self * v).sum()
             }
             /// The squared magnitude of a vector is its spatial length, squared.
             /// It is slightly cheaper to compute than `magnitude` because it avoids a square root.
             #[inline]
-            pub fn magnitude_squared(self) -> T where T: Copy + Add<T, Output=T> + Mul<Output=T> {
+            pub fn magnitude_squared(self) -> T
+            where
+                T: Copy + Add<T, Output = T> + Mul<Output = T>,
+            {
                 self.dot(self)
             }
             /// The magnitude of a vector is its spatial length.
             #[inline]
-            pub fn magnitude(self) -> T where T: Add<T, Output=T> + Real {
+            pub fn magnitude(self) -> T
+            where
+                T: Add<T, Output = T> + Real,
+            {
                 self.magnitude_squared().sqrt()
             }
             /// Squared distance between two point vectors.
             /// It is slightly cheaper to compute than `distance` because it avoids a square root.
             #[inline]
-            pub fn distance_squared(self, v: Self) -> T where T: Copy + Add<T, Output=T> + Sub<Output=T> + Mul<Output=T> {
+            pub fn distance_squared(self, v: Self) -> T
+            where
+                T: Copy + Add<T, Output = T> + Sub<Output = T> + Mul<Output = T>,
+            {
                 (self - v).magnitude_squared()
             }
             /// Distance between two point vectors.
             #[inline]
-            pub fn distance(self, v: Self) -> T where T: Add<T, Output=T> + Real {
+            pub fn distance(self, v: Self) -> T
+            where
+                T: Add<T, Output = T> + Real,
+            {
                 (self - v).magnitude()
             }
             /// Get a copy of this direction vector such that its length equals 1.
             #[inline]
-            pub fn normalized(self) -> Self where T: Add<T, Output=T> + Real {
+            pub fn normalized(self) -> Self
+            where
+                T: Add<T, Output = T> + Real,
+            {
                 self / self.magnitude()
             }
             /// Get a copy of this direction vector such that its length equals 1.
             /// If all components approximately zero, None is returned (uses RelativeEq).
             pub fn try_normalized<E>(self) -> Option<Self>
             where
-                T: RelativeEq<Epsilon = E> + Add<T, Output=T> + Real,
+                T: RelativeEq<Epsilon = E> + Add<T, Output = T> + Real,
                 E: Add<Output = E> + Real,
             {
                 if self.is_approx_zero() {
@@ -1685,19 +1710,28 @@ macro_rules! vec_impl_spatial {
             }
             /// Divide this vector's components such that its length equals 1.
             #[inline]
-            pub fn normalize(&mut self) where T: Add<T, Output=T> + Real {
+            pub fn normalize(&mut self)
+            where
+                T: Add<T, Output = T> + Real,
+            {
                 *self = self.normalized();
             }
             /// Divide this vector's components such that its length equals 1, and also returns the previous length.
             #[inline]
-            pub fn normalize_and_get_magnitude(&mut self) -> T where T: Add<T, Output=T> + Real {
+            pub fn normalize_and_get_magnitude(&mut self) -> T
+            where
+                T: Add<T, Output = T> + Real,
+            {
                 let (normalized, magnitude) = self.normalized_and_get_magnitude();
                 *self = normalized;
                 magnitude
             }
             /// Get a copy of this direction vector such that its length equals 1, and also returns the length of the original vector.
             #[inline]
-            pub fn normalized_and_get_magnitude(self) -> (Self, T) where T: Add<T, Output=T> + Real {
+            pub fn normalized_and_get_magnitude(self) -> (Self, T)
+            where
+                T: Add<T, Output = T> + Real,
+            {
                 let magnitude = self.magnitude();
                 (self / magnitude, magnitude)
             }
@@ -1705,7 +1739,7 @@ macro_rules! vec_impl_spatial {
             #[inline]
             pub fn is_normalized<E>(self) -> bool
             where
-                T: RelativeEq<Epsilon = E> + Add<T, Output=T> + Real,
+                T: RelativeEq<Epsilon = E> + Add<T, Output = T> + Real,
                 E: Real,
             {
                 self.is_magnitude_close_to(T::one())
@@ -1714,7 +1748,7 @@ macro_rules! vec_impl_spatial {
             #[inline]
             pub fn is_approx_zero<E>(self) -> bool
             where
-                T: RelativeEq<Epsilon = E> + Add<T, Output=T> + Real,
+                T: RelativeEq<Epsilon = E> + Add<T, Output = T> + Real,
                 E: Real,
             {
                 self.is_magnitude_close_to(T::zero())
@@ -1722,7 +1756,7 @@ macro_rules! vec_impl_spatial {
             /// Is the magnitude of the vector close to `x` ? (Uses `RelativeEq`)
             pub fn is_magnitude_close_to<E>(self, x: T) -> bool
             where
-                T: RelativeEq<Epsilon = E> + Add<T, Output=T> + Real,
+                T: RelativeEq<Epsilon = E> + Add<T, Output = T> + Real,
                 E: Real,
             {
                 let epsilon = T::default_epsilon();
@@ -1737,19 +1771,29 @@ macro_rules! vec_impl_spatial {
                     .relative_eq(&(x_squared), four_epsilon, four_max_rel)
             }
             /// Get the smallest angle, in radians, between two direction vectors.
-            pub fn angle_between(self, v: Self) -> T where T: Add<T, Output=T> + Real + Clamp {
-                self.normalized().dot(v.normalized()).clamped_minus1_1().acos()
+            pub fn angle_between(self, v: Self) -> T
+            where
+                T: Add<T, Output = T> + Real + Clamp,
+            {
+                self.normalized()
+                    .dot(v.normalized())
+                    .clamped_minus1_1()
+                    .acos()
             }
-            #[deprecated(note="Use `to_degrees()` on the value returned by `angle_between()` instead")]
+            #[deprecated(
+                note = "Use `to_degrees()` on the value returned by `angle_between()` instead"
+            )]
             /// Get the smallest angle, in degrees, between two direction vectors.
             pub fn angle_between_degrees(self, v: Self) -> T
-                where T: Add<T, Output=T> + Real + Clamp
+            where
+                T: Add<T, Output = T> + Real + Clamp,
             {
                 self.angle_between(v).to_degrees()
             }
             /// The reflection direction for this vector on a surface which normal is given.
             pub fn reflected(self, surface_normal: Self) -> Self
-                where T: Copy + Add<T, Output=T> + Mul<Output=T> + Sub<Output=T> + Add<Output=T>
+            where
+                T: Copy + Add<T, Output = T> + Mul<Output = T> + Sub<Output = T> + Add<Output = T>,
             {
                 let dot = self.dot(surface_normal);
                 self - surface_normal * (dot + dot)
@@ -1757,7 +1801,8 @@ macro_rules! vec_impl_spatial {
             /// The refraction vector for this incident vector, a surface normal and a ratio of
             /// indices of refraction (`eta`).
             pub fn refracted(self, surface_normal: Self, eta: T) -> Self
-                where T: Real + Add<T, Output=T> + Mul<Output=T>
+            where
+                T: Real + Add<T, Output = T> + Mul<Output = T>,
             {
                 let n = surface_normal;
                 let i = self;
@@ -1771,7 +1816,8 @@ macro_rules! vec_impl_spatial {
             }
             /// Orients a vector to point away from a surface as defined by its normal.
             pub fn face_forward(self, incident: Self, reference: Self) -> Self
-                where T: Add<T, Output=T> + Mul<Output=T> + Zero + PartialOrd + Neg<Output=T>
+            where
+                T: Add<T, Output = T> + Mul<Output = T> + Zero + PartialOrd + Neg<Output = T>,
             {
                 if reference.dot(incident) <= T::zero() {
                     self
@@ -1782,7 +1828,6 @@ macro_rules! vec_impl_spatial {
         }
     };
 }
-
 
 #[allow(unused_macros)]
 macro_rules! vec_impl_spatial_2d {
@@ -1870,7 +1915,6 @@ macro_rules! vec_impl_spatial_2d {
         }
     };
 }
-
 
 #[allow(unused_macros)]
 macro_rules! vec_impl_spatial_3d {
@@ -2151,31 +2195,21 @@ macro_rules! vec_impl_spatial_4d {
     }
 }
 
-#[cfg(feature="image")]
+#[cfg(feature = "image")]
 macro_rules! vec_impl_pixel_rgb {
     ($Vec:ident) => {
         extern crate image;
 
-        use self::image::{Primitive, Pixel, ColorType, Luma, LumaA};
+        use self::image::{Luma, LumaA, Pixel, Primitive};
 
         impl<T> Pixel for $Vec<T>
-            where T: ColorComponent + Copy + Clone + Primitive
+        where
+            T: ColorComponent + Copy + Clone + Primitive,
         {
             type Subpixel = T;
 
             const CHANNEL_COUNT: u8 = 3;
             const COLOR_MODEL: &'static str = "RGB";
-
-            // When I first introduced the optional dependency to the `image` crate, ColorType allowed specifying the bit depth procedurally.
-            // Now the bit depths are fixed; the only "really" supported T are now u8 and u16...
-            // For now, I choose to still "implement" this trait for other T (such as f32), for convenience and backwards compatibility, but you shouldn't use the COLOR_TYPE in that case.
-            // Feel free to open an issue about that.
-            // NOTE: this comment is duplicated in vec_impl_pixel_rgba!(), please update both instances if you change one
-            const COLOR_TYPE: ColorType = match mem::size_of::<T>() {
-                1 => ColorType::Rgb8,  // This is wrong if T is a signed type, but the closest we can get
-                2 => ColorType::Rgb16, // This is wrong if T is a signed type, but the closest we can get
-                _ => ColorType::Rgb8,  // This is wrong for literally any T
-            };
 
             fn channels(&self) -> &[Self::Subpixel] {
                 self.as_slice()
@@ -2183,10 +2217,22 @@ macro_rules! vec_impl_pixel_rgb {
             fn channels_mut(&mut self) -> &mut [Self::Subpixel] {
                 self.as_mut_slice()
             }
-            fn channels4(&self) -> (Self::Subpixel, Self::Subpixel, Self::Subpixel, Self::Subpixel) {
+            fn channels4(
+                &self,
+            ) -> (
+                Self::Subpixel,
+                Self::Subpixel,
+                Self::Subpixel,
+                Self::Subpixel,
+            ) {
                 (self.r, self.g, self.b, T::full())
             }
-            fn from_channels(a: Self::Subpixel, b: Self::Subpixel, c: Self::Subpixel, _d: Self::Subpixel) -> Self {
+            fn from_channels(
+                a: Self::Subpixel,
+                b: Self::Subpixel,
+                c: Self::Subpixel,
+                _d: Self::Subpixel,
+            ) -> Self {
                 Self::new(a, b, c)
             }
             fn from_slice(slice: &[Self::Subpixel]) -> &Self {
@@ -2203,12 +2249,6 @@ macro_rules! vec_impl_pixel_rgb {
             fn to_rgba(&self) -> image::Rgba<Self::Subpixel> {
                 image::Rgba([self.r, self.g, self.b, T::full()])
             }
-            fn to_bgr(&self) -> image::Bgr<Self::Subpixel> {
-                image::Bgr([self.b, self.g, self.r])
-            }
-            fn to_bgra(&self) -> image::Bgra<Self::Subpixel> {
-                image::Bgra([self.b, self.g, self.r, T::full()])
-            }
             fn to_luma(&self) -> Luma<Self::Subpixel> {
                 let three = T::one() + T::one() + T::one();
                 let c = (self.r + self.g + self.b) / three;
@@ -2217,34 +2257,54 @@ macro_rules! vec_impl_pixel_rgb {
             fn to_luma_alpha(&self) -> LumaA<Self::Subpixel> {
                 LumaA([self.to_luma().0[0], T::full()])
             }
-            fn map<F>(&self, mut f: F) -> Self where F: FnMut(Self::Subpixel) -> Self::Subpixel {
-                Self { r: f(self.r), g: f(self.g), b: f(self.b) }
+            fn map<F>(&self, mut f: F) -> Self
+            where
+                F: FnMut(Self::Subpixel) -> Self::Subpixel,
+            {
+                Self {
+                    r: f(self.r),
+                    g: f(self.g),
+                    b: f(self.b),
+                }
             }
-            fn apply<F>(&mut self, f: F) where F: FnMut(Self::Subpixel) -> Self::Subpixel {
+            fn apply<F>(&mut self, f: F)
+            where
+                F: FnMut(Self::Subpixel) -> Self::Subpixel,
+            {
                 *self = Pixel::map(self, f);
             }
             fn map_with_alpha<F, G>(&self, mut f: F, mut _g: G) -> Self
-                where F: FnMut(Self::Subpixel) -> Self::Subpixel, G: FnMut(Self::Subpixel) -> Self::Subpixel
+            where
+                F: FnMut(Self::Subpixel) -> Self::Subpixel,
+                G: FnMut(Self::Subpixel) -> Self::Subpixel,
             {
-                Self { r: f(self.r), g: f(self.g), b: f(self.b) }
+                Self {
+                    r: f(self.r),
+                    g: f(self.g),
+                    b: f(self.b),
+                }
             }
             fn apply_with_alpha<F, G>(&mut self, f: F, g: G)
-                where F: FnMut(Self::Subpixel) -> Self::Subpixel, G: FnMut(Self::Subpixel) -> Self::Subpixel
+            where
+                F: FnMut(Self::Subpixel) -> Self::Subpixel,
+                G: FnMut(Self::Subpixel) -> Self::Subpixel,
             {
                 *self = self.map_with_alpha(f, g);
             }
 
             fn map2<F>(&self, other: &Self, mut f: F) -> Self
-                where F: FnMut(Self::Subpixel, Self::Subpixel) -> Self::Subpixel
+            where
+                F: FnMut(Self::Subpixel, Self::Subpixel) -> Self::Subpixel,
             {
                 Self {
                     r: f(self.r, other.r),
                     g: f(self.g, other.g),
-                    b: f(self.b, other.b)
+                    b: f(self.b, other.b),
                 }
             }
             fn apply2<F>(&mut self, other: &Self, f: F)
-                where F: FnMut(Self::Subpixel, Self::Subpixel) -> Self::Subpixel
+            where
+                F: FnMut(Self::Subpixel, Self::Subpixel) -> Self::Subpixel,
             {
                 *self = self.map2(*other, f);
             }
@@ -2256,40 +2316,29 @@ macro_rules! vec_impl_pixel_rgb {
                 self.apply2(*other, |a, b| {
                     let a = <f64 as NumCast>::from(a).unwrap();
                     let b = <f64 as NumCast>::from(b).unwrap();
-                    let m = (a+b)/2f64;
+                    let m = (a + b) / 2f64;
                     <T as NumCast>::from(m.round()).unwrap()
                 });
             }
         }
-    }
+    };
 }
 
-
-#[cfg(feature="image")]
+#[cfg(feature = "image")]
 macro_rules! vec_impl_pixel_rgba {
     ($Vec:ident) => {
         extern crate image;
 
-        use self::image::{Primitive, Pixel, ColorType, Luma, LumaA};
+        use self::image::{Luma, LumaA, Pixel, Primitive};
 
         impl<T> Pixel for $Vec<T>
-            where T: ColorComponent + Copy + Clone + Primitive
+        where
+            T: ColorComponent + Copy + Clone + Primitive,
         {
             type Subpixel = T;
 
             const CHANNEL_COUNT: u8 = 4;
             const COLOR_MODEL: &'static str = "RGBA";
-
-            // When I first introduced the optional dependency to the `image` crate, ColorType allowed specifying the bit depth procedurally.
-            // Now the bit depths are fixed; the only "really" supported T are now u8 and u16...
-            // For now, I choose to still "implement" this trait for other T (such as f32), for convenience and backwards compatibility, but you shouldn't use the COLOR_TYPE in that case.
-            // Feel free to open an issue about that.
-            // NOTE: this comment is duplicated in vec_impl_pixel_rgb!(), please update both instances if you change one
-            const COLOR_TYPE: ColorType = match mem::size_of::<T>() {
-                1 => ColorType::Rgba8,  // This is wrong if T is a signed type, but the closest we can get
-                2 => ColorType::Rgba16, // This is wrong if T is a signed type, but the closest we can get
-                _ => ColorType::Rgba8,  // This is wrong for literally any T
-            };
 
             fn channels(&self) -> &[Self::Subpixel] {
                 self.as_slice()
@@ -2297,10 +2346,22 @@ macro_rules! vec_impl_pixel_rgba {
             fn channels_mut(&mut self) -> &mut [Self::Subpixel] {
                 self.as_mut_slice()
             }
-            fn channels4(&self) -> (Self::Subpixel, Self::Subpixel, Self::Subpixel, Self::Subpixel) {
+            fn channels4(
+                &self,
+            ) -> (
+                Self::Subpixel,
+                Self::Subpixel,
+                Self::Subpixel,
+                Self::Subpixel,
+            ) {
                 (self.r, self.g, self.b, self.a)
             }
-            fn from_channels(a: Self::Subpixel, b: Self::Subpixel, c: Self::Subpixel, d: Self::Subpixel) -> Self {
+            fn from_channels(
+                a: Self::Subpixel,
+                b: Self::Subpixel,
+                c: Self::Subpixel,
+                d: Self::Subpixel,
+            ) -> Self {
                 Self::new(a, b, c, d)
             }
             fn from_slice(slice: &[Self::Subpixel]) -> &Self {
@@ -2317,12 +2378,6 @@ macro_rules! vec_impl_pixel_rgba {
             fn to_rgba(&self) -> image::Rgba<Self::Subpixel> {
                 image::Rgba([self.r, self.g, self.b, self.a])
             }
-            fn to_bgr(&self) -> image::Bgr<Self::Subpixel> {
-                image::Bgr([self.b, self.g, self.r])
-            }
-            fn to_bgra(&self) -> image::Bgra<Self::Subpixel> {
-                image::Bgra([self.b, self.g, self.r, self.a])
-            }
             fn to_luma(&self) -> Luma<Self::Subpixel> {
                 let three = T::one() + T::one() + T::one();
                 let c = (self.r + self.g + self.b) / three;
@@ -2331,35 +2386,57 @@ macro_rules! vec_impl_pixel_rgba {
             fn to_luma_alpha(&self) -> LumaA<Self::Subpixel> {
                 LumaA([self.to_luma().0[0], self.a])
             }
-            fn map<F>(&self, mut f: F) -> Self where F: FnMut(Self::Subpixel) -> Self::Subpixel {
-                Self { r: f(self.r), g: f(self.g), b: f(self.b), a: f(self.a) }
+            fn map<F>(&self, mut f: F) -> Self
+            where
+                F: FnMut(Self::Subpixel) -> Self::Subpixel,
+            {
+                Self {
+                    r: f(self.r),
+                    g: f(self.g),
+                    b: f(self.b),
+                    a: f(self.a),
+                }
             }
-            fn apply<F>(&mut self, f: F) where F: FnMut(Self::Subpixel) -> Self::Subpixel {
+            fn apply<F>(&mut self, f: F)
+            where
+                F: FnMut(Self::Subpixel) -> Self::Subpixel,
+            {
                 *self = Pixel::map(self, f);
             }
             fn map_with_alpha<F, G>(&self, mut f: F, mut g: G) -> Self
-                where F: FnMut(Self::Subpixel) -> Self::Subpixel, G: FnMut(Self::Subpixel) -> Self::Subpixel
+            where
+                F: FnMut(Self::Subpixel) -> Self::Subpixel,
+                G: FnMut(Self::Subpixel) -> Self::Subpixel,
             {
-                Self { r: f(self.r), g: f(self.g), b: f(self.b), a: g(self.a) }
+                Self {
+                    r: f(self.r),
+                    g: f(self.g),
+                    b: f(self.b),
+                    a: g(self.a),
+                }
             }
             fn apply_with_alpha<F, G>(&mut self, f: F, g: G)
-                where F: FnMut(Self::Subpixel) -> Self::Subpixel, G: FnMut(Self::Subpixel) -> Self::Subpixel
+            where
+                F: FnMut(Self::Subpixel) -> Self::Subpixel,
+                G: FnMut(Self::Subpixel) -> Self::Subpixel,
             {
                 *self = self.map_with_alpha(f, g);
             }
 
             fn map2<F>(&self, other: &Self, mut f: F) -> Self
-                where F: FnMut(Self::Subpixel, Self::Subpixel) -> Self::Subpixel
+            where
+                F: FnMut(Self::Subpixel, Self::Subpixel) -> Self::Subpixel,
             {
                 Self {
                     r: f(self.r, other.r),
                     g: f(self.g, other.g),
                     b: f(self.b, other.b),
-                    a: f(self.a, other.a)
+                    a: f(self.a, other.a),
                 }
             }
             fn apply2<F>(&mut self, other: &Self, f: F)
-                where F: FnMut(Self::Subpixel, Self::Subpixel) -> Self::Subpixel
+            where
+                F: FnMut(Self::Subpixel, Self::Subpixel) -> Self::Subpixel,
             {
                 *self = self.map2(*other, f);
             }
@@ -2371,20 +2448,19 @@ macro_rules! vec_impl_pixel_rgba {
                 self.apply2(*other, |a, b| {
                     let a = <f64 as NumCast>::from(a).unwrap();
                     let b = <f64 as NumCast>::from(b).unwrap();
-                    let m = (a+b)/2f64;
+                    let m = (a + b) / 2f64;
                     <T as NumCast>::from(m.round()).unwrap()
                 });
             }
         }
-    }
+    };
 }
 
-#[cfg(feature="rgba")]
+#[cfg(feature = "rgba")]
 macro_rules! vec_impl_color_rgba {
     ($Vec:ident) => {
-
-        #[cfg(feature="image")]
-        vec_impl_pixel_rgba!{$Vec}
+        #[cfg(feature = "image")]
+        vec_impl_pixel_rgba! {$Vec}
 
         impl<T: ColorComponent> Rgba<T> {
             /// Creates an RGBA color from RGB elements and full alpha.
@@ -2396,13 +2472,13 @@ macro_rules! vec_impl_color_rgba {
                 Self::new(r, g, b, T::zero())
             }
             /// Creates an RGBA color from an RGB vector and full alpha.
-            #[cfg(feature="rgb")]
+            #[cfg(feature = "rgb")]
             pub fn from_opaque<V: Into<Rgb<T>>>(color: V) -> Self {
                 let Rgb { r, g, b } = color.into();
                 Self::new_opaque(r, g, b)
             }
             /// Creates an RGBA color from an RGB vector and zero alpha.
-            #[cfg(feature="rgb")]
+            #[cfg(feature = "rgb")]
             pub fn from_transparent<V: Into<Rgb<T>>>(color: V) -> Self {
                 let Rgb { r, g, b } = color.into();
                 Self::new_transparent(r, g, b)
@@ -2410,7 +2486,7 @@ macro_rules! vec_impl_color_rgba {
         }
         impl<T> Rgba<T> {
             /// Creates an RGBA color from an RGB vector and variable alpha.
-            #[cfg(feature="rgb")]
+            #[cfg(feature = "rgb")]
             pub fn from_translucent<V: Into<Rgb<T>>>(color: V, opacity: T) -> Self {
                 let Rgb { r, g, b } = color.into();
                 Self::new(r, g, b, opacity)
@@ -2418,16 +2494,42 @@ macro_rules! vec_impl_color_rgba {
         }
         #[allow(missing_docs)]
         impl<T: ColorComponent> $Vec<T> {
-            pub fn black   () -> Self { Self::new_opaque(T::zero(), T::zero(), T::zero()) }
-            pub fn white   () -> Self { Self::new_opaque(T::full(), T::full(), T::full()) }
-            pub fn red     () -> Self { Self::new_opaque(T::full(), T::zero(), T::zero()) }
-            pub fn green   () -> Self { Self::new_opaque(T::zero(), T::full(), T::zero()) }
-            pub fn blue    () -> Self { Self::new_opaque(T::zero(), T::zero(), T::full()) }
-            pub fn cyan    () -> Self { Self::new_opaque(T::zero(), T::full(), T::full()) }
-            pub fn magenta () -> Self { Self::new_opaque(T::full(), T::zero(), T::full()) }
-            pub fn yellow  () -> Self { Self::new_opaque(T::full(), T::full(), T::zero()) }
-            pub fn gray(value: T) -> Self where T: Copy { Self::new_opaque(value, value, value) }
-            pub fn grey(value: T) -> Self where T: Copy { Self::gray(value) }
+            pub fn black() -> Self {
+                Self::new_opaque(T::zero(), T::zero(), T::zero())
+            }
+            pub fn white() -> Self {
+                Self::new_opaque(T::full(), T::full(), T::full())
+            }
+            pub fn red() -> Self {
+                Self::new_opaque(T::full(), T::zero(), T::zero())
+            }
+            pub fn green() -> Self {
+                Self::new_opaque(T::zero(), T::full(), T::zero())
+            }
+            pub fn blue() -> Self {
+                Self::new_opaque(T::zero(), T::zero(), T::full())
+            }
+            pub fn cyan() -> Self {
+                Self::new_opaque(T::zero(), T::full(), T::full())
+            }
+            pub fn magenta() -> Self {
+                Self::new_opaque(T::full(), T::zero(), T::full())
+            }
+            pub fn yellow() -> Self {
+                Self::new_opaque(T::full(), T::full(), T::zero())
+            }
+            pub fn gray(value: T) -> Self
+            where
+                T: Copy,
+            {
+                Self::new_opaque(value, value, value)
+            }
+            pub fn grey(value: T) -> Self
+            where
+                T: Copy,
+            {
+                Self::gray(value)
+            }
 
             /// Returns this color with RGB elements inverted. Alpha is preserved.
             ///
@@ -2439,7 +2541,10 @@ macro_rules! vec_impl_color_rgba {
             /// assert_eq!(Rgba::<u8>::white().inverted_rgb(), Rgba::black());
             /// assert_eq!(Rgba::<u8>::red().inverted_rgb(), Rgba::cyan());
             /// ```
-            pub fn inverted_rgb(mut self) -> Self where T: Sub<Output=T> {
+            pub fn inverted_rgb(mut self) -> Self
+            where
+                T: Sub<Output = T>,
+            {
                 self.r = T::full() - self.r;
                 self.g = T::full() - self.g;
                 self.b = T::full() - self.b;
@@ -2451,9 +2556,12 @@ macro_rules! vec_impl_color_rgba {
             /// account, which includes alpha.
             /// Be careful when calling this on integer vectors. See the `average()` method
             /// of vectors for a discussion and example.
-            pub fn average_rgb(self) -> T where T: Add<T, Output=T> + Div<T, Output=T> + From<u8> {
+            pub fn average_rgb(self) -> T
+            where
+                T: Add<T, Output = T> + Div<T, Output = T> + From<u8>,
+            {
                 let Self { r, g, b, .. } = self;
-                (r+g+b) / T::from(3)
+                (r + g + b) / T::from(3)
             }
         }
 
@@ -2491,25 +2599,50 @@ macro_rules! vec_impl_color_rgba {
     };
 }
 
-#[cfg(feature="rgb")]
+#[cfg(feature = "rgb")]
 macro_rules! vec_impl_color_rgb {
     ($Vec:ident) => {
-
-        #[cfg(feature="image")]
-        vec_impl_pixel_rgb!{$Vec}
+        #[cfg(feature = "image")]
+        vec_impl_pixel_rgb! {$Vec}
 
         #[allow(missing_docs)]
         impl<T: ColorComponent> $Vec<T> {
-            pub fn black   () -> Self { Self::new(T::zero(), T::zero(), T::zero()) }
-            pub fn white   () -> Self { Self::new(T::full(), T::full(), T::full()) }
-            pub fn red     () -> Self { Self::new(T::full(), T::zero(), T::zero()) }
-            pub fn green   () -> Self { Self::new(T::zero(), T::full(), T::zero()) }
-            pub fn blue    () -> Self { Self::new(T::zero(), T::zero(), T::full()) }
-            pub fn cyan    () -> Self { Self::new(T::zero(), T::full(), T::full()) }
-            pub fn magenta () -> Self { Self::new(T::full(), T::zero(), T::full()) }
-            pub fn yellow  () -> Self { Self::new(T::full(), T::full(), T::zero()) }
-            pub fn gray(value: T) -> Self where T: Copy { Self::new(value, value, value) }
-            pub fn grey(value: T) -> Self where T: Copy { Self::new(value, value, value) }
+            pub fn black() -> Self {
+                Self::new(T::zero(), T::zero(), T::zero())
+            }
+            pub fn white() -> Self {
+                Self::new(T::full(), T::full(), T::full())
+            }
+            pub fn red() -> Self {
+                Self::new(T::full(), T::zero(), T::zero())
+            }
+            pub fn green() -> Self {
+                Self::new(T::zero(), T::full(), T::zero())
+            }
+            pub fn blue() -> Self {
+                Self::new(T::zero(), T::zero(), T::full())
+            }
+            pub fn cyan() -> Self {
+                Self::new(T::zero(), T::full(), T::full())
+            }
+            pub fn magenta() -> Self {
+                Self::new(T::full(), T::zero(), T::full())
+            }
+            pub fn yellow() -> Self {
+                Self::new(T::full(), T::full(), T::zero())
+            }
+            pub fn gray(value: T) -> Self
+            where
+                T: Copy,
+            {
+                Self::new(value, value, value)
+            }
+            pub fn grey(value: T) -> Self
+            where
+                T: Copy,
+            {
+                Self::new(value, value, value)
+            }
             /// Returns this color with RGB elements inverted.
             ///
             /// ```
@@ -2520,7 +2653,10 @@ macro_rules! vec_impl_color_rgb {
             /// assert_eq!(Rgb::<u8>::white().inverted_rgb(), Rgb::black());
             /// assert_eq!(Rgb::<u8>::red().inverted_rgb(), Rgb::cyan());
             /// ```
-            pub fn inverted_rgb(mut self) -> Self where T: Sub<Output=T> {
+            pub fn inverted_rgb(mut self) -> Self
+            where
+                T: Sub<Output = T>,
+            {
                 self.r = T::full() - self.r;
                 self.g = T::full() - self.g;
                 self.b = T::full() - self.b;
@@ -2532,9 +2668,12 @@ macro_rules! vec_impl_color_rgb {
             /// with `Rgba`.
             /// Be careful when calling this on integer vectors. See the `average()` method
             /// of vectors for a discussion and example.
-            pub fn average_rgb(self) -> T where T: Add<T, Output=T> + Div<T, Output=T> + From<u8> {
+            pub fn average_rgb(self) -> T
+            where
+                T: Add<T, Output = T> + Div<T, Output = T> + From<u8>,
+            {
                 let Self { r, g, b, .. } = self;
-                (r+g+b) / T::from(3)
+                (r + g + b) / T::from(3)
             }
         }
 
@@ -2545,9 +2684,8 @@ macro_rules! vec_impl_color_rgb {
                 Self::new(b, g, r)
             }
         }
-    }
+    };
 }
-
 
 /// Opaque type wrapping a hardware-preferred shuffle mask format for 4D vectors.
 // NOTE: I know that _mm_shuffle_ps() needs an immediate value for the mask,
@@ -2561,13 +2699,13 @@ pub struct ShuffleMask4(u8);
 /// A `ShuffleMask4` can be obtained by using the same index for all elements of the result.
 impl From<usize> for ShuffleMask4 {
     fn from(m: usize) -> Self {
-        Self::new(m,m,m,m)
+        Self::new(m, m, m, m)
     }
 }
 impl From<(usize, usize, usize, usize)> for ShuffleMask4 {
     fn from(tuple: (usize, usize, usize, usize)) -> Self {
-        let (a,b,c,d) = tuple;
-        Self::new(a,b,c,d)
+        let (a, b, c, d) = tuple;
+        Self::new(a, b, c, d)
     }
 }
 impl From<[usize; 4]> for ShuffleMask4 {
@@ -2579,18 +2717,17 @@ impl ShuffleMask4 {
     /// Creates a new shuffle mask from indices.
     #[inline]
     pub fn new(m0: usize, m1: usize, m2: usize, m3: usize) -> Self {
-        ShuffleMask4(((m0&3) | ((m1&3)<<2) | ((m2&3)<<4) | ((m3&3)<<6)) as _)
+        ShuffleMask4(((m0 & 3) | ((m1 & 3) << 2) | ((m2 & 3) << 4) | ((m3 & 3) << 6)) as _)
     }
     /// Extracts indices from this shuffle mask.
     pub fn to_indices(&self) -> (usize, usize, usize, usize) {
         let m = self.0 as usize;
-        (m&3, (m>>2)&3, (m>>4)&3, (m>>6)&3)
+        (m & 3, (m >> 2) & 3, (m >> 4) & 3, (m >> 6) & 3)
     }
 }
 
 macro_rules! vec_impl_shuffle_4d {
     ($Vec:ident ($x:tt $y:tt $z:tt $w:tt)) => {
-
         use super::super::ShuffleMask4;
 
         // NOTE: Inspired by
@@ -2609,7 +2746,10 @@ macro_rules! vec_impl_shuffle_4d {
             /// assert_eq!(a.shuffled(1), Vec4::new(1,1,1,1));
             /// assert_eq!(a.shuffled(1), Vec4::broadcast(1));
             /// ```
-            pub fn shuffled<M: Into<ShuffleMask4>>(self, mask: M) -> Self where T: Copy {
+            pub fn shuffled<M: Into<ShuffleMask4>>(self, mask: M) -> Self
+            where
+                T: Copy,
+            {
                 Self::shuffle_lo_hi(self, self, mask)
             }
             /// Moves the lower two elements of this vector to the upper two elements of the result.
@@ -2623,7 +2763,10 @@ macro_rules! vec_impl_shuffle_4d {
             /// let b = Vec4::<u32>::new(0,1,0,1);
             /// assert_eq!(a.shuffled_0101(), b);
             /// ```
-            pub fn shuffled_0101(self) -> Self where T: Copy {
+            pub fn shuffled_0101(self) -> Self
+            where
+                T: Copy,
+            {
                 Self::shuffle_lo_hi_0101(self, self)
             }
             /// Moves the upper two elements of this vector to the lower two elements of the result.
@@ -2637,7 +2780,10 @@ macro_rules! vec_impl_shuffle_4d {
             /// let b = Vec4::<u32>::new(2,3,2,3);
             /// assert_eq!(a.shuffled_2323(), b);
             /// ```
-            pub fn shuffled_2323(self) -> Self where T: Copy {
+            pub fn shuffled_2323(self) -> Self
+            where
+                T: Copy,
+            {
                 Self::shuffle_hi_lo_2323(self, self)
             }
             /// Shuffle elements from `lo`'s low part and `hi`'s high part using `mask`.
@@ -2654,7 +2800,10 @@ macro_rules! vec_impl_shuffle_4d {
             /// assert_eq!(Vec4::shuffle_lo_hi(a, b, (0,1,2,3)), Vec4::new(0,1,6,7));
             /// assert_eq!(Vec4::shuffle_lo_hi(a, b, (3,2,1,0)), Vec4::new(3,2,5,4));
             /// ```
-            pub fn shuffle_lo_hi<M: Into<ShuffleMask4>>(lo: Self, hi: Self, mask: M) -> Self where T: Copy {
+            pub fn shuffle_lo_hi<M: Into<ShuffleMask4>>(lo: Self, hi: Self, mask: M) -> Self
+            where
+                T: Copy,
+            {
                 let (lo0, lo1, hi2, hi3) = mask.into().to_indices();
                 Self::new(lo[lo0], lo[lo1], hi[hi2], hi[hi3])
             }
@@ -2726,7 +2875,10 @@ macro_rules! vec_impl_shuffle_4d {
             /// let b = Vec4::<u32>::new(0,0,2,2);
             /// assert_eq!(a.shuffled_0022(), b);
             /// ```
-            pub fn shuffled_0022(self) -> Self where T: Copy {
+            pub fn shuffled_0022(self) -> Self
+            where
+                T: Copy,
+            {
                 Self::new(self.$x, self.$x, self.$z, self.$z)
             }
             /// Returns a copy of this vector with `v[0]` set to `v[1]` and `v[2]` set to `v[3]`.
@@ -2739,7 +2891,10 @@ macro_rules! vec_impl_shuffle_4d {
             /// let b = Vec4::<u32>::new(1,1,3,3);
             /// assert_eq!(a.shuffled_1133(), b);
             /// ```
-            pub fn shuffled_1133(self) -> Self where T: Copy {
+            pub fn shuffled_1133(self) -> Self
+            where
+                T: Copy,
+            {
                 Self::new(self.$y, self.$y, self.$w, self.$w)
             }
         }
@@ -2750,7 +2905,7 @@ macro_rules! vec_impl_mat2_via_vec4 {
     ($Vec:ident) => {
         // NOTE: Stolen from
         // https://lxjk.github.io/2017/09/03/Fast-4x4-Matrix-Inverse-with-SSE-SIMD-Explained.html#_appendix
-        impl<T: Copy + Add<T,Output=T> + Mul<T,Output=T> + Sub<T,Output=T>> $Vec<T> {
+        impl<T: Copy + Add<T, Output = T> + Mul<T, Output = T> + Sub<T, Output = T>> $Vec<T> {
             /// Performs 2x2 matrix multiplication, treating each `Vec4` as a row-major 2x2 matrix.
             ///
             /// ```
@@ -2766,15 +2921,18 @@ macro_rules! vec_impl_mat2_via_vec4 {
             /// assert_eq!(a.mat2_rows_mul(a), b)
             /// ```
             pub fn mat2_rows_mul(self, rhs: Self) -> Self {
-                self * rhs.shuffled((0,3,0,3)) + self.shuffled((1,0,3,2)) * rhs.shuffled((2,1,2,1))
+                self * rhs.shuffled((0, 3, 0, 3))
+                    + self.shuffled((1, 0, 3, 2)) * rhs.shuffled((2, 1, 2, 1))
             }
             /// 2x2 row-major Matrix adjugate multiply (A#)*B
             pub fn mat2_rows_adj_mul(self, rhs: Self) -> Self {
-                self.shuffled((3,3,0,0)) * rhs - self.shuffled((1,1,2,2)) * rhs.shuffled((2,3,0,1))
+                self.shuffled((3, 3, 0, 0)) * rhs
+                    - self.shuffled((1, 1, 2, 2)) * rhs.shuffled((2, 3, 0, 1))
             }
             /// 2x2 row-major Matrix multiply adjugate A*(B#)
             pub fn mat2_rows_mul_adj(self, rhs: Self) -> Self {
-                self * rhs.shuffled((3,0,3,0)) - self.shuffled((1,0,3,2)) * rhs.shuffled((2,1,2,1))
+                self * rhs.shuffled((3, 0, 3, 0))
+                    - self.shuffled((1, 0, 3, 2)) * rhs.shuffled((2, 1, 2, 1))
             }
             /// Performs 2x2 matrix multiplication, treating each `Vec4` as a column-major 2x2 matrix.
             ///
@@ -2791,15 +2949,18 @@ macro_rules! vec_impl_mat2_via_vec4 {
             /// assert_eq!(a.mat2_cols_mul(a), b)
             /// ```
             pub fn mat2_cols_mul(self, rhs: Self) -> Self {
-                self * rhs.shuffled((0,0,3,3)) + self.shuffled((2,3,0,1)) * rhs.shuffled((1,1,2,2))
+                self * rhs.shuffled((0, 0, 3, 3))
+                    + self.shuffled((2, 3, 0, 1)) * rhs.shuffled((1, 1, 2, 2))
             }
             /// 2x2 column-major Matrix adjugate multiply (A#)*B
             pub fn mat2_cols_adj_mul(self, rhs: Self) -> Self {
-                self.shuffled((3,0,3,0)) * rhs - self.shuffled((2,1,2,1)) * rhs.shuffled((1,0,3,2))
+                self.shuffled((3, 0, 3, 0)) * rhs
+                    - self.shuffled((2, 1, 2, 1)) * rhs.shuffled((1, 0, 3, 2))
             }
             /// 2x2 column-major Matrix multiply adjugate A*(B#)
             pub fn mat2_cols_mul_adj(self, rhs: Self) -> Self {
-                self * rhs.shuffled((3,3,0,0)) - self.shuffled((2,3,0,1)) * rhs.shuffled((1,1,2,2))
+                self * rhs.shuffled((3, 3, 0, 0))
+                    - self.shuffled((2, 3, 0, 1)) * rhs.shuffled((1, 1, 2, 2))
             }
         }
     };
@@ -3337,15 +3498,15 @@ pub mod repr_c {
     //! with the `repr_simd` feature enabled.
 
     use super::*;
-    vec_impl_all_vecs!{c #[repr(C)] c #[repr(C)] repr_c}
+    vec_impl_all_vecs! {c #[repr(C)] c #[repr(C)] repr_c}
 }
 
-#[cfg(all(nightly, feature="repr_simd"))]
+#[cfg(all(nightly, feature = "repr_simd"))]
 pub mod repr_simd {
     //! Vector types which are marked `#[repr(simd)]`.
 
     use super::*;
-    vec_impl_all_vecs!{simd #[repr(simd)] c #[repr(C)] repr_simd}
+    vec_impl_all_vecs! {simd #[repr(simd)] c #[repr(C)] repr_simd}
 }
 
 pub use self::repr_c::*;
@@ -3354,8 +3515,7 @@ pub use self::repr_c::*;
 mod tests {
     macro_rules! test_vec_t {
         (repr_c $Vec:ident<$T:ident>) => {
-
-            test_vec_t!{common $Vec<$T>}
+            test_vec_t! {common $Vec<$T>}
 
             use $crate::vtest::Rc;
 
@@ -3378,10 +3538,11 @@ mod tests {
             }
         };
         (repr_simd $Vec:ident<$T:ident>) => {
-            test_vec_t!{common $Vec<$T>}
+            test_vec_t! {common $Vec<$T>}
         };
         (common $Vec:ident<$T:ident>) => {
-            #[test] fn iterator_api() {
+            #[test]
+            fn iterator_api() {
                 let v = $Vec::<i32>::default();
                 let mut v: $Vec<i32> = (0..).into_iter().take(v.elem_count()).collect();
                 for _ in &mut v {}
@@ -3409,26 +3570,30 @@ mod tests {
             }
         };
         (repr_simd_except_bool $Vec:ident<$T:ident>) => {
-            #[test] fn is_actually_packed() {
+            #[test]
+            fn is_actually_packed() {
                 let v = $Vec::<$T>::iota();
                 let a = v.clone().into_array();
                 assert_eq!(v.as_slice(), &a);
             }
         };
         (repr_c_except_bool $Vec:ident<$T:ident>) => {
-            #[test] fn is_actually_packed() {
+            #[test]
+            fn is_actually_packed() {
                 let v = $Vec::<$T>::iota();
                 let a = v.clone().into_array();
                 assert_eq!(v.as_slice(), &a);
             }
 
-            #[test] fn is_actually_packed_refcell() {
+            #[test]
+            fn is_actually_packed_refcell() {
                 let v = $Vec::<$T>::iota().map(::std::cell::RefCell::new);
                 let a = v.clone().into_array();
                 assert_eq!(v.as_slice(), &a);
             }
 
-            #[test] fn commutative() {
+            #[test]
+            fn commutative() {
                 let v = $Vec::from(5 as $T);
                 assert_eq!((2 as $T) * v, v * (2 as $T));
                 assert_eq!((2 as $T) + v, v + (2 as $T));
@@ -3466,18 +3631,30 @@ mod tests {
         };
     }
     // Vertical editing helps here :)
-    /*#[cfg(feature="vec2")]*/   for_each_type!{vec2    Vec2    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    /*#[cfg(feature="vec3")]*/   for_each_type!{vec3    Vec3    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    /*#[cfg(feature="vec4")]*/   for_each_type!{vec4    Vec4    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="vec8")]       for_each_type!{vec8    Vec8    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="vec16")]      for_each_type!{vec16   Vec16   i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="vec32")]      for_each_type!{vec32   Vec32   i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    /*#[cfg(feature="vec2")]*/
+    for_each_type! {vec2    Vec2    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    /*#[cfg(feature="vec3")]*/
+    for_each_type! {vec3    Vec3    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    /*#[cfg(feature="vec4")]*/
+    for_each_type! {vec4    Vec4    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature = "vec8")]
+    for_each_type! {vec8    Vec8    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature = "vec16")]
+    for_each_type! {vec16   Vec16   i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature = "vec32")]
+    for_each_type! {vec32   Vec32   i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
     // NOTE: Don't test these, because [T; 64] implements no traits and it's a pain
     //#[cfg(feature="vec64")]      for_each_type!{vec64   Vec64   i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="rgba")]       for_each_type!{rgba    Rgba    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="rgb")]        for_each_type!{rgb     Rgb     i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    /*#[cfg(feature="extent3")]*/for_each_type!{extent3 Extent3 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    /*#[cfg(feature="extent2")]*/for_each_type!{extent2 Extent2 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="uv")]         for_each_type!{uv      Uv      i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
-    #[cfg(feature="uvw")]        for_each_type!{uvw     Uvw     i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature = "rgba")]
+    for_each_type! {rgba    Rgba    i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature = "rgb")]
+    for_each_type! {rgb     Rgb     i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    /*#[cfg(feature="extent3")]*/
+    for_each_type! {extent3 Extent3 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    /*#[cfg(feature="extent2")]*/
+    for_each_type! {extent2 Extent2 i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature = "uv")]
+    for_each_type! {uv      Uv      i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
+    #[cfg(feature = "uvw")]
+    for_each_type! {uvw     Uvw     i8 u8 i16 u16 i32 u32 i64 u64 f32 f64}
 }

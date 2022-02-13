@@ -2,17 +2,16 @@
 
 macro_rules! transform_complete_mod {
     ($mod:ident) => {
-
         // WISH:
         // forward_rh, forward_lh, etc etc
         // look_at
         // rotate_around
 
-        use std::ops::Add;
-        use $crate::num_traits::{Zero, One, real::Real};
-        use $crate::ops::*;
-        use crate::vec::$mod::*;
         use crate::quaternion::$mod::*;
+        use crate::vec::$mod::*;
+        use std::ops::Add;
+        use $crate::num_traits::{real::Real, One, Zero};
+        use $crate::ops::*;
 
         /// A convenient position + orientation + scale container, backed by two `Vec3` and a `Quaternion.`
         ///
@@ -26,7 +25,7 @@ macro_rules! transform_complete_mod {
         /// let (p, rz, s) = (Vec3::unit_x(), 3.0_f32, 5.0_f32);
         /// let a = Mat4::scaling_3d(s).rotated_z(rz).translated_3d(p);
         /// let b = Mat4::from(Transform {
-        ///     position: p, 
+        ///     position: p,
         ///     orientation: Quaternion::rotation_z(rz),
         ///     scale: Vec3::broadcast(s),
         /// });
@@ -35,9 +34,9 @@ macro_rules! transform_complete_mod {
         /// ```
         // Name decided by looking at this thread:
         // https://www.gamedev.net/forums/topic/611925-is-there-a-name-for-position-orientation/
-        #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        pub struct Transform<P,O,S> {
+        #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq /*Ord, PartialOrd*/)]
+        #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+        pub struct Transform<P, O, S> {
             /// Local position.
             pub position: Vec3<P>,
             /// Local orientation; It is not named `rotation` because `rotation` denotes an
@@ -58,7 +57,7 @@ macro_rules! transform_complete_mod {
         /// };
         /// assert_eq!(a, Transform::default());
         /// ```
-        impl<P: Zero, O: Zero + One, S: One> Default for Transform<P,O,S> {
+        impl<P: Zero, O: Zero + One, S: One> Default for Transform<P, O, S> {
             fn default() -> Self {
                 Self {
                     position: Vec3::zero(),
@@ -68,13 +67,14 @@ macro_rules! transform_complete_mod {
             }
         }
 
-        /// LERP on a `Transform` is defined as LERP-ing between the positions and scales, 
+        /// LERP on a `Transform` is defined as LERP-ing between the positions and scales,
         /// and performing SLERP between the orientations.
-        impl<P,O,S,Factor> Lerp<Factor> for Transform<P,O,S> 
-            where Factor: Copy + Into<O>,
-                  P: Lerp<Factor,Output=P>,
-                  S: Lerp<Factor,Output=S>,
-                  O: Lerp<O,Output=O> + Real + Add<Output=O>,
+        impl<P, O, S, Factor> Lerp<Factor> for Transform<P, O, S>
+        where
+            Factor: Copy + Into<O>,
+            P: Lerp<Factor, Output = P>,
+            S: Lerp<Factor, Output = S>,
+            O: Lerp<O, Output = O> + Real + Add<Output = O>,
         {
             type Output = Self;
             fn lerp_unclamped(a: Self, b: Self, t: Factor) -> Self {
@@ -93,15 +93,16 @@ macro_rules! transform_complete_mod {
             }
         }
 
-        /// LERP on a `Transform` is defined as LERP-ing between the positions and scales, 
+        /// LERP on a `Transform` is defined as LERP-ing between the positions and scales,
         /// and performing SLERP between the orientations.
-        impl<'a,P,O,S,Factor> Lerp<Factor> for &'a Transform<P,O,S> 
-            where Factor: Copy + Into<O>,
-                  &'a P: Lerp<Factor,Output=P>,
-                  &'a S: Lerp<Factor,Output=S>,
-                  O: Lerp<O,Output=O> + Real + Add<Output=O>,
+        impl<'a, P, O, S, Factor> Lerp<Factor> for &'a Transform<P, O, S>
+        where
+            Factor: Copy + Into<O>,
+            &'a P: Lerp<Factor, Output = P>,
+            &'a S: Lerp<Factor, Output = S>,
+            O: Lerp<O, Output = O> + Real + Add<Output = O>,
         {
-            type Output = Transform<P,O,S>;
+            type Output = Transform<P, O, S>;
             fn lerp_unclamped(a: Self, b: Self, t: Factor) -> Self::Output {
                 Transform {
                     position: Lerp::lerp_unclamped(&a.position, &b.position, t),
@@ -117,10 +118,10 @@ macro_rules! transform_complete_mod {
                 }
             }
         }
-    }     
-}         
+    };
+}
 
-#[cfg(all(nightly, feature="repr_simd"))]
+#[cfg(all(nightly, feature = "repr_simd"))]
 pub mod repr_simd {
     //! `Transform` struct that uses `#[repr(simd)]` vectors and quaternions.
     transform_complete_mod!(repr_simd);

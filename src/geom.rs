@@ -2,11 +2,11 @@
 
 // NOTE: in this module, the type parameters <P,E> usually stand for Position and Extent.
 
-use num_traits::{real::Real, FloatConst, Zero, One, AsPrimitive};
-use approx::RelativeEq;
-use std::ops::*;
-use std::ops::Add;
 use crate::ops::Clamp;
+use approx::RelativeEq;
+use num_traits::{real::Real, AsPrimitive, FloatConst, One, Zero};
+use std::ops::Add;
+use std::ops::*;
 
 // WISH: add useful impls to this module (inclusing basic conversions from rect to vec pairs)
 // WISH: lerp for all shapes
@@ -29,10 +29,17 @@ macro_rules! geom_impl_line_segment {
 
             /// Project the given point onto the line segment (equivalent to 'snapping' the point
             /// to the closest point on the line segment).
-            pub fn projected_point(self, p: $Vec<T>) -> $Vec<T> where T: Real + Add<T, Output=T> + RelativeEq {
+            pub fn projected_point(self, p: $Vec<T>) -> $Vec<T>
+            where
+                T: Real + Add<T, Output = T> + RelativeEq,
+            {
                 let len_sq = self.start.distance_squared(self.end);
 
-                if len_sq.relative_eq(&Zero::zero(), T::default_epsilon(), T::default_max_relative()) {
+                if len_sq.relative_eq(
+                    &Zero::zero(),
+                    T::default_epsilon(),
+                    T::default_max_relative(),
+                ) {
                     self.start
                 } else {
                     let t = ((p - self.start).dot(self.end - self.start) / len_sq)
@@ -43,14 +50,24 @@ macro_rules! geom_impl_line_segment {
             }
 
             /// Get the smallest distance between the line segment and a point.
-            pub fn distance_to_point(self, p: $Vec<T>) -> T where T: Real + Add<T, Output=T> + RelativeEq {
+            pub fn distance_to_point(self, p: $Vec<T>) -> T
+            where
+                T: Real + Add<T, Output = T> + RelativeEq,
+            {
                 self.projected_point(p).distance(p)
             }
 
             /// Converts this line to a line of another type, using the `as` conversion.
-            pub fn as_<D>(self) -> $LineSegment<D> where T: AsPrimitive<D>, D: 'static + Copy {
+            pub fn as_<D>(self) -> $LineSegment<D>
+            where
+                T: AsPrimitive<D>,
+                D: 'static + Copy,
+            {
                 let Self { start, end } = self;
-                $LineSegment { start: start.as_(), end: end.as_() }
+                $LineSegment {
+                    start: start.as_(),
+                    end: end.as_(),
+                }
             }
         }
     };
@@ -383,7 +400,7 @@ macro_rules! geom_impl_disk_or_sphere {
         collides_with_other: $collides_with_other:ident
         collision_vector_with_other: $collision_vector_with_other:ident
     ) => {
-        impl<P,E> $Shape<P,E> {
+        impl<P, E> $Shape<P, E> {
             /// Creates a new
             #[doc=$Shape_s]
             /// from `center` and `radius`.
@@ -393,31 +410,51 @@ macro_rules! geom_impl_disk_or_sphere {
             /// Creates a new
             #[doc=$Shape_s]
             /// from `center` and a `radius` equal to one.
-            pub fn unit(center: $Vec<P>) -> Self where E: One {
-                Self { center, radius: One::one() }
+            pub fn unit(center: $Vec<P>) -> Self
+            where
+                E: One,
+            {
+                Self {
+                    center,
+                    radius: One::one(),
+                }
             }
             /// Creates a new
             #[doc=$Shape_s]
             /// from `center` and a `radius` equal to zero.
-            pub fn point(center: $Vec<P>) -> Self where E: Zero {
-                Self { center, radius: Zero::zero() }
+            pub fn point(center: $Vec<P>) -> Self
+            where
+                E: Zero,
+            {
+                Self {
+                    center,
+                    radius: Zero::zero(),
+                }
             }
             /// Gets the value of twice the radius.
-            pub fn diameter(self) -> E where E: Copy + Add<Output=E> {
+            pub fn diameter(self) -> E
+            where
+                E: Copy + Add<Output = E>,
+            {
                 self.radius + self.radius
             }
             /// Gets the bounding rectangle for this shape.
-            pub fn $rect(self) -> $Rect<P,E>
-                where P: Sub<P,Output=P> + From<E> + Copy, E: Copy + Add<E,Output=E>
+            pub fn $rect(self) -> $Rect<P, E>
+            where
+                P: Sub<P, Output = P> + From<E> + Copy,
+                E: Copy + Add<E, Output = E>,
             {
                 $Rect::from((
                     self.center - P::from(self.radius),
-                    $Extent::broadcast(self.diameter())
+                    $Extent::broadcast(self.diameter()),
                 ))
             }
         }
 
-        impl<T> $Shape<T,T> where T: Copy + Add<T,Output=T> + Sub<T,Output=T> {
+        impl<T> $Shape<T, T>
+        where
+            T: Copy + Add<T, Output = T> + Sub<T, Output = T>,
+        {
             /// Gets this shape's bounds.
             pub fn $aab(self) -> $Aab<T> {
                 $Aab {
@@ -426,13 +463,19 @@ macro_rules! geom_impl_disk_or_sphere {
                 }
             }
         }
-        impl<T: Real + Add<T, Output=T>> $Shape<T,T> {
+        impl<T: Real + Add<T, Output = T>> $Shape<T, T> {
             /// Does this shape contain the given point ?
-            pub fn contains_point(self, p: $Vec<T>) -> bool where T: PartialOrd {
+            pub fn contains_point(self, p: $Vec<T>) -> bool
+            where
+                T: PartialOrd,
+            {
                 self.center.distance(p) <= self.radius
             }
             /// Does this shape collide with another ?
-            pub fn $collides_with_other(self, other: Self) -> bool where T: PartialOrd {
+            pub fn $collides_with_other(self, other: Self) -> bool
+            where
+                T: PartialOrd,
+            {
                 self.center.distance(other.center) <= (self.radius + other.radius)
             }
             // XXX: This remains to be tested!
@@ -446,11 +489,10 @@ macro_rules! geom_impl_disk_or_sphere {
     };
 }
 
-
 // NOTE: There's never a sane Default for this, so don't implement or derive it!!
 /// Data that represents distance offsets of frustum planes from an origin.
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-#[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq /*Ord, PartialOrd*/)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[allow(missing_docs)]
 pub struct FrustumPlanes<T> {
     pub left: T,
@@ -461,10 +503,8 @@ pub struct FrustumPlanes<T> {
     pub far: T,
 }
 
-
 macro_rules! geom_complete_mod {
     ($mod:ident) => {
-
         use crate::vec::$mod::*;
 
         // XXX: Beware when using code that assumes that Y points downards.
@@ -484,8 +524,8 @@ macro_rules! geom_complete_mod {
         ///
         /// Keeping the Y axis upwards is a lot more convenient implementation-wise,
         /// and still matches the convention used in 3D spaces.
-        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq /*Ord, PartialOrd*/)]
+        #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
         pub struct Rect<P, E> {
             /// X position of the **bottom-left** corner.
             pub x: P,
@@ -497,7 +537,7 @@ macro_rules! geom_complete_mod {
             pub h: E,
         }
 
-        geom_impl_rect_or_rect3!{
+        geom_impl_rect_or_rect3! {
             Rect Vec2 Extent2 (("x") x split_at_x ("y") y split_at_y) (w h)
             Aabr into_aabr
             contains_rect: contains_rect
@@ -508,15 +548,14 @@ macro_rules! geom_complete_mod {
             collision_vector_with_aab: collision_vector_with_aabr
         }
 
-
         /// Axis-aligned Bounding Rectangle (2D), represented by `min` and `max` points.
         ///
         /// **N.B:** You are responsible for ensuring that all respective elements of
         /// `min` are indeed less than or equal to those of `max`.
         /// The `is_valid()`, `make_valid()` and `made_valid()` methods are designed to help you
         /// with this.
-        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq /*Ord, PartialOrd*/)]
+        #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
         pub struct Aabr<T> {
             /// Minimum coordinates of bounds.
             pub min: Vec2<T>,
@@ -533,7 +572,7 @@ macro_rules! geom_complete_mod {
             }
         }
 
-        geom_impl_aabr_or_aabb!{
+        geom_impl_aabr_or_aabb! {
             Aabr Vec2 Extent2 (("x") x split_at_x ("y") y split_at_y)
             Rect into_rect
             contains_aab: contains_aabr
@@ -541,16 +580,15 @@ macro_rules! geom_complete_mod {
             collision_vector_with_aab: collision_vector_with_aabr
         }
 
-
         /// A `Rect` extended to 3D.
         ///
         /// This would have been named `Box`, but it was "taken" by the standard library already.
         ///
         /// You should probably use `Aabb` because it is less confusing.
         /// See also `Rect` for a short discussion on the topic.
-        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
-        pub struct Rect3<P,E> {
+        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq /*Ord, PartialOrd*/)]
+        #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+        pub struct Rect3<P, E> {
             /// X position of the **bottom-left-near** corner.
             pub x: P,
             /// Y position of the **bottom-left-near** corner.
@@ -565,7 +603,7 @@ macro_rules! geom_complete_mod {
             pub d: E,
         }
 
-        geom_impl_rect_or_rect3!{
+        geom_impl_rect_or_rect3! {
             Rect3 Vec3 Extent3 (("x") x split_at_x ("y") y split_at_y ("z") z split_at_z) (w h d)
             Aabb into_aabb
             contains_rect: contains_rect3
@@ -576,15 +614,14 @@ macro_rules! geom_complete_mod {
             collision_vector_with_aab: collision_vector_with_aabb
         }
 
-
         /// Axis-aligned Bounding Box (3D), represented by `min` and `max` points.
         ///
         /// **N.B:** You are responsible for ensuring that all respective elements of
         /// `min` are indeed less than or equal to those of `max`.
         /// The `is_valid()`, `make_valid()` and `made_valid()` methods are designed to help you
         /// with this.
-        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq /*Ord, PartialOrd*/)]
+        #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
         pub struct Aabb<T> {
             /// Minimum coordinates of bounds.
             pub min: Vec3<T>,
@@ -592,14 +629,13 @@ macro_rules! geom_complete_mod {
             pub max: Vec3<T>,
         }
 
-        geom_impl_aabr_or_aabb!{
+        geom_impl_aabr_or_aabb! {
             Aabb Vec3 Extent3 (("x") x split_at_x ("y") y split_at_y ("z") z split_at_z)
             Rect3 into_rect3
             contains_aab: contains_aabb
             collides_with_aab: collides_with_aabb
             collision_vector_with_aab: collision_vector_with_aabb
         }
-
 
         // NOTE: Only implement axis-aligned primitives (a.k.a don't go on a rampage).
         //
@@ -614,109 +650,117 @@ macro_rules! geom_complete_mod {
         // put on top (see composition over inheritance, etc).
 
         /// Disk (2D), represented by center and radius.
-        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq /*Ord, PartialOrd*/)]
+        #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
         #[allow(missing_docs)]
-        pub struct Disk<P,E> {
+        pub struct Disk<P, E> {
             pub center: Vec2<P>,
             pub radius: E,
         }
 
-        impl<P,E> Disk<P,E> {
+        impl<P, E> Disk<P, E> {
             /// Gets this disk's circumference.
             pub fn circumference(self) -> E
-                where E: Copy + FloatConst + Mul<Output=E> + Add<Output=E>
+            where
+                E: Copy + FloatConst + Mul<Output = E> + Add<Output = E>,
             {
                 let pi = E::PI();
                 (pi + pi) * self.radius
             }
             /// Gets this disk's area.
-            pub fn area(self) -> E where E: Copy + FloatConst + Mul<Output=E> {
+            pub fn area(self) -> E
+            where
+                E: Copy + FloatConst + Mul<Output = E>,
+            {
                 let r = self.radius;
-                E::PI()*r*r
+                E::PI() * r * r
             }
         }
 
-        geom_impl_disk_or_sphere!{
+        geom_impl_disk_or_sphere! {
             Disk ("Disk") Vec2 (x y)
             Extent2 Rect rect Aabr aabr
             collides_with_other: collides_with_disk
             collision_vector_with_other: collision_vector_with_disk
         }
 
-
         /// Sphere (3D), represented by center and radius.
-        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq /*Ord, PartialOrd*/)]
+        #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
         #[allow(missing_docs)]
-        pub struct Sphere<P,E> {
+        pub struct Sphere<P, E> {
             pub center: Vec3<P>,
             pub radius: E,
         }
-        impl<P,E> Sphere<P,E> {
+        impl<P, E> Sphere<P, E> {
             /// Gets this sphere's surface area.
-            pub fn surface_area(self) -> E where E: Copy + One + FloatConst + Add<Output=E> + Mul<Output=E> {
+            pub fn surface_area(self) -> E
+            where
+                E: Copy + One + FloatConst + Add<Output = E> + Mul<Output = E>,
+            {
                 let four = E::one() + E::one() + E::one() + E::one();
                 let r = self.radius;
-                four*E::PI()*r*r
+                four * E::PI() * r * r
             }
             /// Gets this sphere's volume.
-            pub fn volume(self) -> E where E: Copy + One + FloatConst + Add<Output=E> + Mul<Output=E> + Div<Output=E> {
+            pub fn volume(self) -> E
+            where
+                E: Copy + One + FloatConst + Add<Output = E> + Mul<Output = E> + Div<Output = E>,
+            {
                 let four = E::one() + E::one() + E::one() + E::one();
                 let three = E::one() + E::one() + E::one();
                 let r = self.radius;
-                (four*E::PI()*r*r*r)/three
+                (four * E::PI() * r * r * r) / three
             }
         }
 
-        geom_impl_disk_or_sphere!{
+        geom_impl_disk_or_sphere! {
             Sphere ("Sphere") Vec3 (x y z)
             Extent3 Rect3 rect3 Aabb aabb
             collides_with_other: collides_with_sphere
             collision_vector_with_other: collision_vector_with_sphere
         }
 
-
         /// Ellipsis (2D), represented by center and radius in both axii.
-        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq /*Ord, PartialOrd*/)]
+        #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
         #[allow(missing_docs)]
-        pub struct Ellipsis<P,E> {
+        pub struct Ellipsis<P, E> {
             pub center: Vec2<P>,
             pub radius: Extent2<E>,
         }
         /// Nobody can possibly use this ???
-        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq /*Ord, PartialOrd*/)]
+        #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
         #[allow(missing_docs)]
-        pub struct Potato<P,E> {
+        pub struct Potato<P, E> {
             pub center: Vec3<P>,
             pub radius: Extent3<E>,
         }
 
         /// 2D Line segment, represented by two points, `start` and `end`.
-        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq /*Ord, PartialOrd*/)]
+        #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
         #[allow(missing_docs)]
         pub struct LineSegment2<T> {
             pub start: Vec2<T>,
             pub end: Vec2<T>,
         }
         /// 3D Line segment, represented by two points, `start` and `end`.
-        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq /*Ord, PartialOrd*/)]
+        #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
         #[allow(missing_docs)]
         pub struct LineSegment3<T> {
             pub start: Vec3<T>,
             pub end: Vec3<T>,
         }
 
-        geom_impl_line_segment!{LineSegment2 Vec2}
-        geom_impl_line_segment!{LineSegment3 Vec3}
+        geom_impl_line_segment! {LineSegment2 Vec2}
+        geom_impl_line_segment! {LineSegment3 Vec3}
 
         /// 3D ray, represented by a starting point and a normalized direction vector.
-        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq, /*Ord, PartialOrd*/)]
-        #[cfg_attr(feature="serde", derive(Serialize, Deserialize))]
+        #[derive(Debug, Default, Clone, Copy, Hash, Eq, PartialEq /*Ord, PartialOrd*/)]
+        #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
         pub struct Ray<T> {
             /// The ray's starting point.
             pub origin: Vec3<T>,
@@ -724,7 +768,7 @@ macro_rules! geom_complete_mod {
             pub direction: Vec3<T>,
         }
 
-        impl<T: Real + Add<T, Output=T>> Ray<T> {
+        impl<T: Real + Add<T, Output = T>> Ray<T> {
             /// Creates a `Ray` from a starting point and direction.
             ///
             /// This doesn't check if `direction` is normalized, because either you know it is, or
@@ -762,10 +806,10 @@ macro_rules! geom_complete_mod {
                 Some(f * edge2.dot(q))
             }
         }
-    }
+    };
 }
 
-#[cfg(all(nightly, feature="repr_simd"))]
+#[cfg(all(nightly, feature = "repr_simd"))]
 pub mod repr_simd {
     //! Basic geometric primitives that use `#[repr(simd)]` vectors.
     use super::*;
@@ -785,7 +829,8 @@ mod tests {
     use super::*;
     use crate::vec::{Vec2, Vec3};
 
-    #[test] fn rect_center() {
+    #[test]
+    fn rect_center() {
         let min = Vec2::new(-1_f32, -1.);
         let max = -min;
         let aabr = Aabr { min, max };
@@ -793,7 +838,8 @@ mod tests {
         let rect = aabr.into_rect();
         assert_relative_eq!(rect.center(), Vec2::zero());
     }
-    #[test] fn rect3_center() {
+    #[test]
+    fn rect3_center() {
         let min = Vec3::new(-1_f32, -1., -1.);
         let max = -min;
         let aabb = Aabb { min, max };
@@ -801,18 +847,41 @@ mod tests {
         let rect3 = aabb.into_rect3();
         assert_relative_eq!(rect3.center(), Vec3::zero());
     }
-    #[test] fn projected_point() {
-        let segment = LineSegment2 { start: Vec2::new(-5_f32, 5.), end: Vec2::new(5., -5.0) };
+    #[test]
+    fn projected_point() {
+        let segment = LineSegment2 {
+            start: Vec2::new(-5_f32, 5.),
+            end: Vec2::new(5., -5.0),
+        };
         assert_relative_eq!(segment.start, segment.projected_point(Vec2::new(-4., 7.)));
         assert_relative_eq!(segment.end, segment.projected_point(Vec2::new(7., -4.)));
         assert_relative_eq!(Vec2::zero(), segment.projected_point(Vec2::new(1., 1.)));
-        let segment = LineSegment3 { start: Vec3::new(-5_f32, -0., 5.), end: Vec3::new(5., 0., -5.0) };
-        assert_relative_eq!(Vec3::zero(), segment.projected_point(Vec3::new(-0., -1., -0.)));
+        let segment = LineSegment3 {
+            start: Vec3::new(-5_f32, -0., 5.),
+            end: Vec3::new(5., 0., -5.0),
+        };
+        assert_relative_eq!(
+            Vec3::zero(),
+            segment.projected_point(Vec3::new(-0., -1., -0.))
+        );
     }
-    #[test] fn distance_to_point() {
-        let segment = LineSegment2 { start: Vec2::new(-5_f32, 5.), end: Vec2::new(5., -5.0) };
-        assert_relative_eq!(2.0f32.sqrt(), segment.distance_to_point(Vec2::new(-1., -1.)));
-        let segment = LineSegment3 { start: Vec3::new(-5_f32, 0., 5.), end: Vec3::new(5., 0., -5.) };
-        assert_relative_eq!(2.0f32.sqrt(), segment.distance_to_point(Vec3::new(-1., 0., -1.)));
+    #[test]
+    fn distance_to_point() {
+        let segment = LineSegment2 {
+            start: Vec2::new(-5_f32, 5.),
+            end: Vec2::new(5., -5.0),
+        };
+        assert_relative_eq!(
+            2.0f32.sqrt(),
+            segment.distance_to_point(Vec2::new(-1., -1.))
+        );
+        let segment = LineSegment3 {
+            start: Vec3::new(-5_f32, 0., 5.),
+            end: Vec3::new(5., 0., -5.),
+        };
+        assert_relative_eq!(
+            2.0f32.sqrt(),
+            segment.distance_to_point(Vec3::new(-1., 0., -1.))
+        );
     }
 }
