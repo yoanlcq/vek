@@ -41,6 +41,7 @@
 //#![cfg_attr(feature="repr_simd", allow(improper_ctypes)]
 //#![cfg_attr(feature="repr_simd", feature(link_llvm_intrinsics)]
 #![cfg_attr(all(nightly, test), feature(test))]
+#![recursion_limit = "256"]
 
 extern crate core as std;
 

@@ -5,7 +5,7 @@ description = "Generic 2D-3D math swiss army knife for game engines, with SIMD s
 documentation = "https://docs.rs/vek"
 keywords = ["vector", "matrix", "simd", "quaternion", "bezier"]
 categories = [ "algorithms", "data-structures", "no-std", "science" ]
-license = "MIT/Apache-2.0"
+license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/yoanlcq/vek"
 name = "vek"
@@ -53,7 +53,7 @@ libm = ["num-traits/libm"]
 rustc_version = "0.4"
 
 [dependencies]
-approx = { version = "0.4.0", default-features = false }
+approx = { version = "0.5.0", default-features = false }
 num-traits = { version = "0.2.14", default-features = false }
 num-integer = { version = "0.1.44", default-features = false }
 static_assertions = "1.1.0"
