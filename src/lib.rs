@@ -41,6 +41,9 @@
 //#![cfg_attr(feature="repr_simd", allow(improper_ctypes)]
 //#![cfg_attr(feature="repr_simd", feature(link_llvm_intrinsics)]
 #![cfg_attr(all(nightly, test), feature(test))]
+
+// See https://github.com/yoanlcq/vek/pull/84
+// Rust 1.59 was complaining: "error: recursion limit reached while expanding reduce_fn! in src/vec.rs:47:69"
 #![recursion_limit = "256"]
 
 extern crate core as std;
