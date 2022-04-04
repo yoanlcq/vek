@@ -72,7 +72,7 @@ macro_rules! horizontal_binop {
 
 
 macro_rules! vec_impl_cmp {
-    ($(#[$attrs:meta])*, $c_or_simd:ident, $Vec:ident, $cmp:ident, $simd_cmp:ident, $op:tt, $Bounds:tt, ($($get:tt)+)) => {
+    ($(#[$attrs:meta])*, $c_or_simd:ident, $Vec:ident, $cmp:ident, $cmp_owned:ident, $simd_cmp:ident, $op:tt, $Bounds:tt, ($($get:tt)+)) => {
         // NOTE: Rhs is taken as reference: see how std::cmp::PartialEq is implemented.
         $(#[$attrs])*
         #[inline]
@@ -80,6 +80,16 @@ macro_rules! vec_impl_cmp {
             let rhs = rhs.as_ref();
             choose!{$c_or_simd {
                 c => $Vec::new($(self.$get $op rhs.$get),+),
+                simd_llvm => unsafe { simd_llvm::$simd_cmp(self, rhs) },
+            }}
+        }
+
+        // NOTE: In some cases LLVM intrinsics cannot be compiled when Rhs is a reference
+        $(#[$attrs])*
+        #[inline]
+        pub fn $cmp_owned(self, rhs: Self) -> $Vec<u8> where T: $Bounds {
+            choose!{$c_or_simd {
+                c => self.$cmp(&rhs).as_(),
                 simd_llvm => unsafe { simd_llvm::$simd_cmp(self, rhs) },
             }}
         }
@@ -1020,7 +1030,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.partial_cmpeq(&v), Vec4::new(true, false, true, false));
                 /// ```
-                , $c_or_simd, $Vec, partial_cmpeq, simd_eq, ==, PartialEq, ($($get)+)
+                , $c_or_simd, $Vec, partial_cmpeq, partial_cmpeq_pvb, simd_eq, ==, PartialEq, ($($get)+)
             }
             vec_impl_cmp!{
                 /// Compares each element of two vectors with the partial not-equal test, returning a boolean vector.
@@ -1031,7 +1041,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.partial_cmpne(&v), Vec4::new(false, true, false, true));
                 /// ```
-                , $c_or_simd, $Vec, partial_cmpne, simd_ne, !=, PartialEq, ($($get)+)
+                , $c_or_simd, $Vec, partial_cmpne, partial_cmpne_pbv, simd_ne, !=, PartialEq, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -1043,7 +1053,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.partial_cmpge(&v), Vec4::new(true, true, true, false));
                 /// ```
-                , $c_or_simd, $Vec, partial_cmpge, simd_ge, >=, PartialOrd, ($($get)+)
+                , $c_or_simd, $Vec, partial_cmpge, partial_cmpge_pbv, simd_ge, >=, PartialOrd, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -1055,7 +1065,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.partial_cmpgt(&v), Vec4::new(false, true, false, true));
                 /// ```
-                , $c_or_simd, $Vec, partial_cmpgt, simd_gt, >, PartialOrd, ($($get)+)
+                , $c_or_simd, $Vec, partial_cmpgt, partial_cmpgt_pbv, simd_gt, >, PartialOrd, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -1067,7 +1077,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.partial_cmple(&v), Vec4::new(true, false, true, true));
                 /// ```
-                , $c_or_simd, $Vec, partial_cmple, simd_le, <=, PartialOrd, ($($get)+)
+                , $c_or_simd, $Vec, partial_cmple, partial_cmple_pbv, simd_le, <=, PartialOrd, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -1079,7 +1089,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.partial_cmplt(&v), Vec4::new(false, false, false, true));
                 /// ```
-                , $c_or_simd, $Vec, partial_cmplt, simd_lt, <, PartialOrd, ($($get)+)
+                , $c_or_simd, $Vec, partial_cmplt, partial_cmplt_pbv , simd_lt, <, PartialOrd, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -1091,7 +1101,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.cmpeq(&v), Vec4::new(true, false, true, false));
                 /// ```
-                , $c_or_simd, $Vec, cmpeq, simd_eq, ==, Eq, ($($get)+)
+                , $c_or_simd, $Vec, cmpeq, cmpeq_pbv, simd_eq, ==, Eq, ($($get)+)
             }
             vec_impl_cmp!{
                 /// Compares each element of two vectors with the total not-equal test, returning a boolean vector.
@@ -1102,7 +1112,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.cmpne(&v), Vec4::new(false, true, false, true));
                 /// ```
-                , $c_or_simd, $Vec, cmpne, simd_ne, !=, Eq, ($($get)+)
+                , $c_or_simd, $Vec, cmpne, cmpne_pvb, simd_ne, !=, Eq, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -1114,7 +1124,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.cmpge(&v), Vec4::new(true, true, true, false));
                 /// ```
-                , $c_or_simd, $Vec, cmpge, simd_ge, >=, Ord, ($($get)+)
+                , $c_or_simd, $Vec, cmpge, cmpge_pbv, simd_ge, >=, Ord, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -1126,7 +1136,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.cmpgt(&v), Vec4::new(false, true, false, true));
                 /// ```
-                , $c_or_simd, $Vec, cmpgt, simd_gt, >, Ord, ($($get)+)
+                , $c_or_simd, $Vec, cmpgt, cmpgt_pbv , simd_gt, >, Ord, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -1138,7 +1148,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.cmple(&v), Vec4::new(true, false, true, true));
                 /// ```
-                , $c_or_simd, $Vec, cmple, simd_le, <=, Ord, ($($get)+)
+                , $c_or_simd, $Vec, cmple, cmple_pbv, simd_le, <=, Ord, ($($get)+)
             }
 
             vec_impl_cmp!{
@@ -1150,7 +1160,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.cmplt(&v), Vec4::new(false, false, false, true));
                 /// ```
-                , $c_or_simd, $Vec, cmplt, simd_lt, <, Ord, ($($get)+)
+                , $c_or_simd, $Vec, cmplt, cmplt_pbv , simd_lt, <, Ord, ($($get)+)
             }
 
             /// Returns the linear interpolation of `from` to `to` with `factor` unconstrained.
@@ -1358,6 +1368,53 @@ macro_rules! vec_impl_vec {
                 reduce_binop!(!=, $(self.$get),+)
             }
         }
+
+        impl $Vec<u8> {
+            /// Returns the result of logical AND (`&&`) on all elements of this vector.
+            /// Each u8 != 0 evaluates to true
+            ///
+            /// ```
+            /// # use vek::vec::Vec4;
+            /// assert_eq!(true,  Vec4::new(1u8, 1u8, 1u8, 1u8).reduce_and());
+            /// assert_eq!(false, Vec4::new(255u8, 0u8, 42u8, 123u8).reduce_and());
+            /// assert_eq!(false, Vec4::new(255u8, 255u8, 255u8, 0u8).reduce_and());
+            /// ```
+            #[inline]
+            pub fn reduce_and(self) -> bool {
+                choose!{$c_or_simd {
+                    c => reduce_binop!(&&, $(self.$get != 0),+),
+                    simd_llvm => unsafe { simd_llvm::simd_reduce_all(self) },
+                }}
+            }
+            /// Returns the result of logical OR (`||`) on all elements of this vector.
+            /// Each u8 != 0 evaluates to true
+            ///
+            /// ```
+            /// # use vek::vec::Vec4;
+            /// assert_eq!(false, Vec4::new(0u8, 0u8, 0u8, 0u8).reduce_or());
+            /// assert_eq!(true,  Vec4::new(0u8, 0u8, 255u8, 0u8).reduce_or());
+            /// ```
+            #[inline]
+            pub fn reduce_or(self) -> bool {
+                choose!{$c_or_simd {
+                    c => reduce_binop!(||, $(self.$get != 0),+),
+                    simd_llvm => unsafe { simd_llvm::simd_reduce_any(self) },
+                }}
+            }
+            /// Reduces this vector using total inequality.
+            /// Each u8 != 0 evaluates to true
+            ///
+            /// ```
+            /// # use vek::vec::Vec4;
+            /// assert_eq!(false, Vec4::new(42u8, 255u8, 255u8, 255u8).reduce_ne());
+            /// assert_eq!(true,  Vec4::new(42u8, 0u8, 255u8, 255u8).reduce_ne());
+            /// ```
+            #[inline]
+            pub fn reduce_ne(self) -> bool {
+                reduce_binop!(!=, $((self.$get != 0)),+)
+            }
+        }
+
         vec_impl_trinop!{impl MulAdd for $Vec { mul_add } ($($namedget)+) ($($get)+)}
         vec_impl_unop!{ impl Neg for $Vec { neg } ($($get)+)}
         vec_impl_binop!{$c_or_simd, commutative impl Add for $Vec { add, simd_add } ($($get)+)}
