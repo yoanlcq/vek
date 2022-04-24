@@ -23,7 +23,7 @@
 #![no_std]
 #![doc(
     test(attr(deny(warnings))),
-    html_root_url = "https://docs.rs/vek/0.15.7",
+    html_root_url = "https://docs.rs/vek/0.15.8",
     //html_logo_url = "https://yoanlcq.github.io/vek/logo.png",
     //html_favicon_url = "https://yoanlcq.github.io/vek/favicon.ico",
 )]
@@ -93,3 +93,5 @@ pub mod bezier;
 pub use crate::bezier::*;
 pub mod geom;
 pub use crate::geom::*;
+pub mod simd_traits;
+pub use crate::simd_traits::*;

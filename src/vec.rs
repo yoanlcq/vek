@@ -13,9 +13,11 @@ use std::ptr;
 use std::cmp;
 use std::ops::*;
 use std::slice::{self, /*SliceIndex*/}; // NOTE: Will want to use SliceIndex once it's stabilized
+use std::num::Wrapping;
 use num_traits::{Zero, One, NumCast, AsPrimitive, Signed, real::Real};
 use approx::{AbsDiffEq, RelativeEq, UlpsEq};
 use crate::ops::*;
+use crate::simd_traits::{SimdElement, SimdMask};
 
 #[cfg(feature = "platform_intrinsics")]
 use crate::simd_llvm;
@@ -70,9 +72,8 @@ macro_rules! horizontal_binop {
     ($op:tt, $out:expr, $($vout:expr),+ => $a:expr, $b:expr, $($v:expr),+) => { horizontal_binop!($op, $out => $a, $b); horizontal_binop!($op, $($vout),+ => $($v),+); };
 }
 
-
 macro_rules! vec_impl_cmp {
-    ($(#[$attrs:meta])*, $c_or_simd:ident, $Vec:ident, $cmp:ident, $simd_cmp:ident, $op:tt, $Bounds:tt, ($($get:tt)+)) => {
+    ($(#[$attrs:meta])*, $c_or_simd:ident, $Vec:ident, $cmp:ident, $cmp_simd:ident, $simd_cmp:ident, $op:tt, $Bounds:tt, ($($get:tt)+)) => {
         // NOTE: Rhs is taken as reference: see how std::cmp::PartialEq is implemented.
         $(#[$attrs])*
         #[inline]
@@ -80,6 +81,16 @@ macro_rules! vec_impl_cmp {
             let rhs = rhs.as_ref();
             choose!{$c_or_simd {
                 c => $Vec::new($(self.$get $op rhs.$get),+),
+                // Doesn't compile, vectors must be passed by value
+                // simd_llvm => unsafe { simd_llvm::$simd_cmp(self, rhs) },
+                simd_llvm => $Vec::new($(self.$get $op rhs.$get),+),
+            }}
+        }
+        $(#[$attrs])*
+        #[inline]
+        pub fn $cmp_simd(self, rhs: Self) -> $Vec<T::SimdMaskType> where T: $Bounds + SimdElement {
+            choose!{$c_or_simd {
+                c => $Vec::new($(T::SimdMaskType::from_bool(self.$get $op rhs.$get)),+),
                 simd_llvm => unsafe { simd_llvm::$simd_cmp(self, rhs) },
             }}
         }
@@ -243,6 +254,49 @@ macro_rules! vec_impl_unop {
                 Self::new($(self.$get.$op()),+)
             }
         }
+    }
+}
+
+macro_rules! vec_impl_reduce_bool_ops_for_primitive {
+    ($c_or_simd:ident, $Vec:ident, $T:ty, ($($get:tt)+)) => {
+        impl $Vec<$T> {
+            /// Returns the result of logical AND (`&&`) on all elements of this vector.
+            ///
+            /// ```
+            /// # use vek::vec::Vec4;
+            /// assert_eq!(true,  Vec4::new(true, true, true, true).reduce_and());
+            /// assert_eq!(false, Vec4::new(true, false, true, true).reduce_and());
+            /// assert_eq!(false, Vec4::new(true, true, true, false).reduce_and());
+            /// ```
+            #[inline]
+            pub fn reduce_and(self) -> bool {
+                choose!{$c_or_simd {
+                    c => reduce_binop!(&&, $(!self.$get.is_zero()),+),
+                    simd_llvm => unsafe { simd_llvm::simd_reduce_all(self) },
+                }}
+            }
+            /// Returns the result of logical OR (`||`) on all elements of this vector.
+            ///
+            /// ```
+            /// # use vek::vec::Vec4;
+            /// assert_eq!(false, Vec4::new(false, false, false, false).reduce_or());
+            /// assert_eq!(true,  Vec4::new(false, false, true, false).reduce_or());
+            /// ```
+            #[inline]
+            pub fn reduce_or(self) -> bool {
+                choose!{$c_or_simd {
+                    c => reduce_binop!(||, $(!self.$get.is_zero()),+),
+                    simd_llvm => unsafe { simd_llvm::simd_reduce_any(self) },
+                }}
+            }
+        }
+    }
+}
+
+macro_rules! vec_impl_reduce_bool_ops_for_int {
+    ($c_or_simd:ident, $Vec:ident, $T:ty, ($($get:tt)+)) => {
+        vec_impl_reduce_bool_ops_for_primitive!{$c_or_simd, $Vec, $T, ($($get)+)}
+        vec_impl_reduce_bool_ops_for_primitive!{$c_or_simd, $Vec, Wrapping<$T>, ($($get)+)}
     }
 }
 
@@ -1013,6 +1067,9 @@ macro_rules! vec_impl_vec {
 
             vec_impl_cmp!{
                 /// Compares each element of two vectors with the partial equality test, returning a boolean vector.
+                /// 
+                /// The version ending with `_simd` is best utilized with the features "repr_simd" and "platform_intrinsics" enabled; otherwise, it falls back to regular scalar code.
+                /// Note that SIMD intrinsics do not actually distinguish partial ordering from total ordering.
                 ///
                 /// ```
                 /// # use vek::vec::Vec4;
@@ -1020,10 +1077,14 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.partial_cmpeq(&v), Vec4::new(true, false, true, false));
                 /// ```
-                , $c_or_simd, $Vec, partial_cmpeq, simd_eq, ==, PartialEq, ($($get)+)
+                , $c_or_simd, $Vec, partial_cmpeq, partial_cmpeq_simd, simd_eq, ==, PartialEq, ($($get)+)
             }
+
             vec_impl_cmp!{
                 /// Compares each element of two vectors with the partial not-equal test, returning a boolean vector.
+                /// 
+                /// The version ending with `_simd` is best utilized with the features "repr_simd" and "platform_intrinsics" enabled; otherwise, it falls back to regular scalar code.
+                /// Note that SIMD intrinsics do not actually distinguish partial ordering from total ordering.
                 ///
                 /// ```
                 /// # use vek::vec::Vec4;
@@ -1031,23 +1092,29 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.partial_cmpne(&v), Vec4::new(false, true, false, true));
                 /// ```
-                , $c_or_simd, $Vec, partial_cmpne, simd_ne, !=, PartialEq, ($($get)+)
+                , $c_or_simd, $Vec, partial_cmpne, partial_cmpne_simd, simd_ne, !=, PartialEq, ($($get)+)
             }
 
             vec_impl_cmp!{
                 /// Compares each element of two vectors with the partial greater-or-equal test, returning a boolean vector.
-                ///
+                /// 
+                /// The version ending with `_simd` is best utilized with the features "repr_simd" and "platform_intrinsics" enabled; otherwise, it falls back to regular scalar code.
+                /// Note that SIMD intrinsics do not actually distinguish partial ordering from total ordering.
+                /// 
                 /// ```
                 /// # use vek::vec::Vec4;
                 /// let u = Vec4::new(0,2,2,2);
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.partial_cmpge(&v), Vec4::new(true, true, true, false));
                 /// ```
-                , $c_or_simd, $Vec, partial_cmpge, simd_ge, >=, PartialOrd, ($($get)+)
+                , $c_or_simd, $Vec, partial_cmpge, partial_cmpge_simd, simd_ge, >=, PartialOrd, ($($get)+)
             }
 
             vec_impl_cmp!{
                 /// Compares each element of two vectors with the partial greater-than test, returning a boolean vector.
+                /// 
+                /// The version ending with `_simd` is best utilized with the features "repr_simd" and "platform_intrinsics" enabled; otherwise, it falls back to regular scalar code.
+                /// Note that SIMD intrinsics do not actually distinguish partial ordering from total ordering.
                 ///
                 /// ```
                 /// # use vek::vec::Vec4;
@@ -1055,11 +1122,14 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.partial_cmpgt(&v), Vec4::new(false, true, false, true));
                 /// ```
-                , $c_or_simd, $Vec, partial_cmpgt, simd_gt, >, PartialOrd, ($($get)+)
+                , $c_or_simd, $Vec, partial_cmpgt, partial_cmpgt_simd, simd_gt, >, PartialOrd, ($($get)+)
             }
 
             vec_impl_cmp!{
                 /// Compares each element of two vectors with the partial less-or-equal test, returning a boolean vector.
+                /// 
+                /// The version ending with `_simd` is best utilized with the features "repr_simd" and "platform_intrinsics" enabled; otherwise, it falls back to regular scalar code.
+                /// Note that SIMD intrinsics do not actually distinguish partial ordering from total ordering.
                 ///
                 /// ```
                 /// # use vek::vec::Vec4;
@@ -1067,11 +1137,14 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.partial_cmple(&v), Vec4::new(true, false, true, true));
                 /// ```
-                , $c_or_simd, $Vec, partial_cmple, simd_le, <=, PartialOrd, ($($get)+)
+                , $c_or_simd, $Vec, partial_cmple, partial_cmple_simd, simd_le, <=, PartialOrd, ($($get)+)
             }
 
             vec_impl_cmp!{
                 /// Compares each element of two vectors with the partial less-than test, returning a boolean vector.
+                /// 
+                /// The version ending with `_simd` is best utilized with the features "repr_simd" and "platform_intrinsics" enabled; otherwise, it falls back to regular scalar code.
+                /// Note that SIMD intrinsics do not actually distinguish partial ordering from total ordering.
                 ///
                 /// ```
                 /// # use vek::vec::Vec4;
@@ -1079,11 +1152,14 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.partial_cmplt(&v), Vec4::new(false, false, false, true));
                 /// ```
-                , $c_or_simd, $Vec, partial_cmplt, simd_lt, <, PartialOrd, ($($get)+)
+                , $c_or_simd, $Vec, partial_cmplt, partial_cmplt_simd, simd_lt, <, PartialOrd, ($($get)+)
             }
 
             vec_impl_cmp!{
                 /// Compares each element of two vectors with the partial equality test, returning a boolean vector.
+                /// 
+                /// The version ending with `_simd` is best utilized with the features "repr_simd" and "platform_intrinsics" enabled; otherwise, it falls back to regular scalar code.
+                /// Note that SIMD intrinsics do not actually distinguish partial ordering from total ordering.
                 ///
                 /// ```
                 /// # use vek::vec::Vec4;
@@ -1091,10 +1167,14 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.cmpeq(&v), Vec4::new(true, false, true, false));
                 /// ```
-                , $c_or_simd, $Vec, cmpeq, simd_eq, ==, Eq, ($($get)+)
+                , $c_or_simd, $Vec, cmpeq, cmpeq_simd, simd_eq, ==, Eq, ($($get)+)
             }
+
             vec_impl_cmp!{
                 /// Compares each element of two vectors with the total not-equal test, returning a boolean vector.
+                /// 
+                /// The version ending with `_simd` is best utilized with the features "repr_simd" and "platform_intrinsics" enabled; otherwise, it falls back to regular scalar code.
+                /// Note that SIMD intrinsics do not actually distinguish partial ordering from total ordering.
                 ///
                 /// ```
                 /// # use vek::vec::Vec4;
@@ -1102,11 +1182,14 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.cmpne(&v), Vec4::new(false, true, false, true));
                 /// ```
-                , $c_or_simd, $Vec, cmpne, simd_ne, !=, Eq, ($($get)+)
+                , $c_or_simd, $Vec, cmpne, cmpne_simd, simd_ne, !=, Eq, ($($get)+)
             }
 
             vec_impl_cmp!{
                 /// Compares each element of two vectors with the total greater-or-equal test, returning a boolean vector.
+                /// 
+                /// The version ending with `_simd` is best utilized with the features "repr_simd" and "platform_intrinsics" enabled; otherwise, it falls back to regular scalar code.
+                /// Note that SIMD intrinsics do not actually distinguish partial ordering from total ordering.
                 ///
                 /// ```
                 /// # use vek::vec::Vec4;
@@ -1114,11 +1197,14 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.cmpge(&v), Vec4::new(true, true, true, false));
                 /// ```
-                , $c_or_simd, $Vec, cmpge, simd_ge, >=, Ord, ($($get)+)
+                , $c_or_simd, $Vec, cmpge, cmpge_simd, simd_ge, >=, Ord, ($($get)+)
             }
 
             vec_impl_cmp!{
                 /// Compares each element of two vectors with the total greater-than test, returning a boolean vector.
+                /// 
+                /// The version ending with `_simd` is best utilized with the features "repr_simd" and "platform_intrinsics" enabled; otherwise, it falls back to regular scalar code.
+                /// Note that SIMD intrinsics do not actually distinguish partial ordering from total ordering.
                 ///
                 /// ```
                 /// # use vek::vec::Vec4;
@@ -1126,11 +1212,14 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.cmpgt(&v), Vec4::new(false, true, false, true));
                 /// ```
-                , $c_or_simd, $Vec, cmpgt, simd_gt, >, Ord, ($($get)+)
+                , $c_or_simd, $Vec, cmpgt, cmpgt_simd, simd_gt, >, Ord, ($($get)+)
             }
 
             vec_impl_cmp!{
                 /// Compares each element of two vectors with the total less-or-equal test, returning a boolean vector.
+                /// 
+                /// The version ending with `_simd` is best utilized with the features "repr_simd" and "platform_intrinsics" enabled; otherwise, it falls back to regular scalar code.
+                /// Note that SIMD intrinsics do not actually distinguish partial ordering from total ordering.
                 ///
                 /// ```
                 /// # use vek::vec::Vec4;
@@ -1138,11 +1227,14 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.cmple(&v), Vec4::new(true, false, true, true));
                 /// ```
-                , $c_or_simd, $Vec, cmple, simd_le, <=, Ord, ($($get)+)
+                , $c_or_simd, $Vec, cmple, cmple_simd, simd_le, <=, Ord, ($($get)+)
             }
 
             vec_impl_cmp!{
                 /// Compares each element of two vectors with the total less-than test, returning a boolean vector.
+                /// 
+                /// The version ending with `_simd` is best utilized with the features "repr_simd" and "platform_intrinsics" enabled; otherwise, it falls back to regular scalar code.
+                /// Note that SIMD intrinsics do not actually distinguish partial ordering from total ordering.
                 ///
                 /// ```
                 /// # use vek::vec::Vec4;
@@ -1150,7 +1242,7 @@ macro_rules! vec_impl_vec {
                 /// let v = Vec4::new(0,1,2,3);
                 /// assert_eq!(u.cmplt(&v), Vec4::new(false, false, false, true));
                 /// ```
-                , $c_or_simd, $Vec, cmplt, simd_lt, <, Ord, ($($get)+)
+                , $c_or_simd, $Vec, cmplt, cmplt_simd, simd_lt, <, Ord, ($($get)+)
             }
 
             /// Returns the linear interpolation of `from` to `to` with `factor` unconstrained.
@@ -1317,6 +1409,16 @@ macro_rules! vec_impl_vec {
         }
 
         impl $Vec<bool> {
+            // This method is not public because I don't want anyone to start relying on the concrete output type.
+            // If we do make it public at some point, then we must warn that it's only intended for SIMD intrinsics.
+            // The better route, though, is to simply avoid Vec<bool> in the first place.
+            //
+            // u32 is chosen because SIMD instructions commonly deal with 32-bit lanes.
+            #[inline]
+            #[allow(dead_code)] // Unreachable when simd_llvm is not used
+            fn into_native_simd_integer_vector(self) -> $Vec<u32> {
+                $Vec::new($(self.$get as _),+)
+            }
             /// Returns the result of logical AND (`&&`) on all elements of this vector.
             ///
             /// ```
@@ -1329,7 +1431,7 @@ macro_rules! vec_impl_vec {
             pub fn reduce_and(self) -> bool {
                 choose!{$c_or_simd {
                     c => reduce_binop!(&&, $(self.$get),+),
-                    simd_llvm => unsafe { simd_llvm::simd_reduce_all(self) },
+                    simd_llvm => unsafe { simd_llvm::simd_reduce_all(self.into_native_simd_integer_vector()) },
                 }}
             }
             /// Returns the result of logical OR (`||`) on all elements of this vector.
@@ -1343,10 +1445,11 @@ macro_rules! vec_impl_vec {
             pub fn reduce_or(self) -> bool {
                 choose!{$c_or_simd {
                     c => reduce_binop!(||, $(self.$get),+),
-                    simd_llvm => unsafe { simd_llvm::simd_reduce_any(self) },
+                    simd_llvm => unsafe { simd_llvm::simd_reduce_any(self.into_native_simd_integer_vector()) },
                 }}
             }
             /// Reduces this vector using total inequality.
+            /// Note that this operation doesn't actually make much sense and has no native SIMD support.
             ///
             /// ```
             /// # use vek::vec::Vec4;
@@ -1354,10 +1457,23 @@ macro_rules! vec_impl_vec {
             /// assert_eq!(true,  Vec4::new(true, false, true, true).reduce_ne());
             /// ```
             #[inline]
+            #[deprecated(since="0.15.8", note="This operation makes no sense and has no native SIMD support. As the compiler reports, comparison operators such as != cannot be chained. Chaining with booleans is allowed, but whacky.")]
             pub fn reduce_ne(self) -> bool {
                 reduce_binop!(!=, $(self.$get),+)
             }
         }
+
+        vec_impl_reduce_bool_ops_for_int!{$c_or_simd, $Vec, i8  , ($($get)+)}
+        vec_impl_reduce_bool_ops_for_int!{$c_or_simd, $Vec, i16 , ($($get)+)}
+        vec_impl_reduce_bool_ops_for_int!{$c_or_simd, $Vec, i32 , ($($get)+)}
+        vec_impl_reduce_bool_ops_for_int!{$c_or_simd, $Vec, i64 , ($($get)+)}
+        vec_impl_reduce_bool_ops_for_int!{$c_or_simd, $Vec, u8  , ($($get)+)}
+        vec_impl_reduce_bool_ops_for_int!{$c_or_simd, $Vec, u16 , ($($get)+)}
+        vec_impl_reduce_bool_ops_for_int!{$c_or_simd, $Vec, u32 , ($($get)+)}
+        vec_impl_reduce_bool_ops_for_int!{$c_or_simd, $Vec, u64 , ($($get)+)}
+        vec_impl_reduce_bool_ops_for_primitive!{$c_or_simd, $Vec, f32 , ($($get)+)}
+        vec_impl_reduce_bool_ops_for_primitive!{$c_or_simd, $Vec, f64 , ($($get)+)}
+
         vec_impl_trinop!{impl MulAdd for $Vec { mul_add } ($($namedget)+) ($($get)+)}
         vec_impl_unop!{ impl Neg for $Vec { neg } ($($get)+)}
         vec_impl_binop!{$c_or_simd, commutative impl Add for $Vec { add, simd_add } ($($get)+)}
