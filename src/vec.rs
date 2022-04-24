@@ -1450,12 +1450,6 @@ macro_rules! vec_impl_vec {
             }
             /// Reduces this vector using total inequality.
             /// Note that this operation doesn't actually make much sense and has no native SIMD support.
-            ///
-            /// ```
-            /// # use vek::vec::Vec4;
-            /// assert_eq!(false, Vec4::new(true, true, true, true).reduce_ne());
-            /// assert_eq!(true,  Vec4::new(true, false, true, true).reduce_ne());
-            /// ```
             #[inline]
             #[deprecated(since="0.15.8", note="This operation makes no sense and has no native SIMD support. As the compiler reports, comparison operators such as != cannot be chained. Chaining with booleans is allowed, but whacky.")]
             pub fn reduce_ne(self) -> bool {
