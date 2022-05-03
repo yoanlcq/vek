@@ -261,6 +261,7 @@ macro_rules! vec_impl_reduce_bool_ops_for_primitive {
     ($c_or_simd:ident, $Vec:ident, $T:ty, ($($get:tt)+)) => {
         impl $Vec<$T> {
             /// Returns the result of logical AND (`&&`) on all elements of this vector.
+            /// Each element is converted to `bool` as follows: zero is `false`, and any other value is `true`.
             ///
             /// ```
             /// # use vek::vec::Vec4;
@@ -276,6 +277,7 @@ macro_rules! vec_impl_reduce_bool_ops_for_primitive {
                 }}
             }
             /// Returns the result of logical OR (`||`) on all elements of this vector.
+            /// Each element is converted to `bool` as follows: zero is `false`, and any other value is `true`.
             ///
             /// ```
             /// # use vek::vec::Vec4;
