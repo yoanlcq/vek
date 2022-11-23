@@ -69,10 +69,6 @@ pub extern crate num_traits;
 #[macro_use]
 pub extern crate approx;
 
-#[allow(unused_imports)]
-#[macro_use]
-extern crate static_assertions;
-
 #[cfg(feature = "platform_intrinsics")]
 mod simd_llvm;
 // ^ Please do not make this module public; we don't want people to use it, because it could change as the SIMD infrastructure evolves.
