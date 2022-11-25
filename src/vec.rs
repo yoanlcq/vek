@@ -1367,13 +1367,186 @@ macro_rules! vec_impl_vec {
             fn zero() -> Self { Self::zero() }
             fn is_zero(&self) -> bool { self == &Self::zero() }
         }
+
         impl<T: One> One for $Vec<T> {
             fn one() -> Self { Self::one() }
         }
+
         // WISH: impl Real for Vec<Real> ?
         // NOPE: Vectors can't implement these items :
         // - fn classify(self) -> FpCategory;
         // - fn integer_decode(self) -> (u64, i16, i8);
+
+        // Internal module to restrict the scope of the `use` directive
+        mod impl_num_traits {
+            use super::$Vec;
+            use num_traits::ops::checked::{
+                CheckedAdd,
+                CheckedSub,
+                CheckedMul,
+                CheckedDiv,
+                CheckedRem,
+                CheckedNeg,
+            };
+
+            impl<T: CheckedAdd> CheckedAdd for $Vec<T> {
+                fn checked_add(&self, v: &Self) -> Option<Self> {
+                    Some($Vec::new($(self.$get.checked_add(&v.$get)?),+))
+                }
+            }
+            impl<T: CheckedSub> CheckedSub for $Vec<T> {
+                fn checked_sub(&self, v: &Self) -> Option<Self> {
+                    Some($Vec::new($(self.$get.checked_sub(&v.$get)?),+))
+                }
+            }
+            impl<T: CheckedMul> CheckedMul for $Vec<T> {
+                fn checked_mul(&self, v: &Self) -> Option<Self> {
+                    Some($Vec::new($(self.$get.checked_mul(&v.$get)?),+))
+                }
+            }
+            impl<T: CheckedDiv> CheckedDiv for $Vec<T> {
+                fn checked_div(&self, v: &Self) -> Option<Self> {
+                    Some($Vec::new($(self.$get.checked_div(&v.$get)?),+))
+                }
+            }
+            impl<T: CheckedRem> CheckedRem for $Vec<T> {
+                fn checked_rem(&self, v: &Self) -> Option<Self> {
+                    Some($Vec::new($(self.$get.checked_rem(&v.$get)?),+))
+                }
+            }
+            impl<T: CheckedNeg> CheckedNeg for $Vec<T> {
+                fn checked_neg(&self) -> Option<Self> {
+                    Some($Vec::new($(self.$get.checked_neg()?),+))
+                }
+            }
+
+            use num_traits::ops::wrapping::{
+                WrappingAdd,
+                WrappingSub,
+                WrappingMul,
+                WrappingNeg,
+            };
+
+            impl<T: WrappingAdd> WrappingAdd for $Vec<T> {
+                fn wrapping_add(&self, v: &Self) -> Self {
+                    $Vec::new($(self.$get.wrapping_add(&v.$get)),+)
+                }
+            }
+            impl<T: WrappingSub> WrappingSub for $Vec<T> {
+                fn wrapping_sub(&self, v: &Self) -> Self {
+                    $Vec::new($(self.$get.wrapping_sub(&v.$get)),+)
+                }
+            }
+            impl<T: WrappingMul> WrappingMul for $Vec<T> {
+                fn wrapping_mul(&self, v: &Self) -> Self {
+                    $Vec::new($(self.$get.wrapping_mul(&v.$get)),+)
+                }
+            }
+            impl<T: WrappingNeg> WrappingNeg for $Vec<T> {
+                fn wrapping_neg(&self) -> Self {
+                    $Vec::new($(self.$get.wrapping_neg()),+)
+                }
+            }
+
+            use num_traits::ops::saturating::{
+                SaturatingAdd,
+                SaturatingSub,
+                SaturatingMul,
+            };
+
+            impl<T: SaturatingAdd> SaturatingAdd for $Vec<T> {
+                fn saturating_add(&self, v: &Self) -> Self {
+                    $Vec::new($(self.$get.saturating_add(&v.$get)),+)
+                }
+            }
+            impl<T: SaturatingSub> SaturatingSub for $Vec<T> {
+                fn saturating_sub(&self, v: &Self) -> Self {
+                    $Vec::new($(self.$get.saturating_sub(&v.$get)),+)
+                }
+            }
+            impl<T: SaturatingMul> SaturatingMul for $Vec<T> {
+                fn saturating_mul(&self, v: &Self) -> Self {
+                    $Vec::new($(self.$get.saturating_mul(&v.$get)),+)
+                }
+            }
+
+            use num_traits::ops::overflowing::{
+                OverflowingAdd,
+                OverflowingSub,
+                OverflowingMul,
+            };
+
+            impl<T: OverflowingAdd> OverflowingAdd for $Vec<T> {
+                fn overflowing_add(&self, v: &Self) -> (Self, bool) {
+                    let mut any_would_overflow = false;
+                    $(
+                        let ($namedget, would_overflow) = self.$get.overflowing_add(&v.$get);
+                        any_would_overflow |= would_overflow;
+                    )+
+                    ($Vec::new($($namedget),+), any_would_overflow)
+                }
+            }
+            impl<T: OverflowingSub> OverflowingSub for $Vec<T> {
+                fn overflowing_sub(&self, v: &Self) -> (Self, bool) {
+                    let mut any_would_overflow = false;
+                    $(
+                        let ($namedget, would_overflow) = self.$get.overflowing_sub(&v.$get);
+                        any_would_overflow |= would_overflow;
+                    )+
+                    ($Vec::new($($namedget),+), any_would_overflow)
+                }
+            }
+            impl<T: OverflowingMul> OverflowingMul for $Vec<T> {
+                fn overflowing_mul(&self, v: &Self) -> (Self, bool) {
+                    let mut any_would_overflow = false;
+                    $(
+                        let ($namedget, would_overflow) = self.$get.overflowing_mul(&v.$get);
+                        any_would_overflow |= would_overflow;
+                    )+
+                    ($Vec::new($($namedget),+), any_would_overflow)
+                }
+            }
+
+            use num_traits::ops::inv::Inv;
+
+            impl<T: Inv<Output = T>> Inv for $Vec<T> {
+                type Output = Self;
+                fn inv(self) -> Self {
+                    $Vec::new($(self.$get.inv()),+)
+                }
+            }
+
+            use num_traits::ops::euclid::{Euclid, CheckedEuclid};
+
+            impl<T: Euclid> Euclid for $Vec<T> {
+                fn div_euclid(&self, v: &Self) -> Self {
+                    $Vec::new($(self.$get.div_euclid(&v.$get)),+)
+                }
+                fn rem_euclid(&self, v: &Self) -> Self {
+                    $Vec::new($(self.$get.rem_euclid(&v.$get)),+)
+                }
+            }
+
+            impl<T: CheckedEuclid> CheckedEuclid for $Vec<T> {
+                fn checked_div_euclid(&self, v: &Self) -> Option<Self> {
+                    Some($Vec::new($(self.$get.checked_div_euclid(&v.$get)?),+))
+                }
+                fn checked_rem_euclid(&self, v: &Self) -> Option<Self> {
+                    Some($Vec::new($(self.$get.checked_rem_euclid(&v.$get)?),+))
+                }
+            }
+
+            /*
+            use num_traits::ops::mul_add::{MulAddAssign};
+
+            impl<A, B, T: MulAddAssign<A, B>> MulAddAssign<$Vec<A>, $Vec<B>> for $Vec<T> {
+                fn mul_add(&mut self, b: &Self, c: &Self) -> Self {
+                    $Vec::new($(self.$get.mul_add_assign(&b.$get, c.$get)),+)
+                }
+            }
+            */
+        }
+
 
         impl<T: AbsDiffEq> AbsDiffEq for $Vec<T> where T::Epsilon: Copy {
             type Epsilon = T::Epsilon;
