@@ -23,7 +23,7 @@
 #![no_std]
 #![doc(
     test(attr(deny(warnings))),
-    html_root_url = "https://docs.rs/vek/0.15.8",
+    html_root_url = "https://docs.rs/vek/0.15.9",
     //html_logo_url = "https://yoanlcq.github.io/vek/logo.png",
     //html_favicon_url = "https://yoanlcq.github.io/vek/favicon.ico",
 )]
