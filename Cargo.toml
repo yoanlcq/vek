@@ -54,7 +54,7 @@ rustc_version = "0.4"
 
 [dependencies]
 approx = { version = "0.5.0", default-features = false }
-num-traits = { version = "0.2.14", default-features = false }
+num-traits = { version = "0.2.15", default-features = false }
 num-integer = { version = "0.1.44", default-features = false }
 image = { version = "0.23", optional = true, default-features = false }
 serde = { version = "1.0.105", optional = true, default-features = false, features = ["derive"] }
