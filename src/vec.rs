@@ -1917,6 +1917,43 @@ macro_rules! vec_impl_vec {
         unsafe impl<T> bytemuck::Pod for $Vec<T> where T: bytemuck::Pod {
             // Nothing here
         }
+
+        #[cfg(feature = "az")]
+        mod impl_az {
+            use super::$Vec;
+
+            impl<T, U> az::Cast<$Vec<U>> for $Vec<T> where T: az::Cast<U> {
+                fn cast(self) -> $Vec<U> {
+                    $Vec::new($( self.$get.cast() ),*)
+                }
+            }
+            impl<T, U> az::CheckedCast<$Vec<U>> for $Vec<T> where T: az::CheckedCast<U> {
+                fn checked_cast(self) -> Option<$Vec<U>> {
+                    Some($Vec::new($( self.$get.checked_cast()? ),*))
+                }
+            }
+            impl<T, U> az::SaturatingCast<$Vec<U>> for $Vec<T> where T: az::SaturatingCast<U> {
+                fn saturating_cast(self) -> $Vec<U> {
+                    $Vec::new($( self.$get.saturating_cast() ),*)
+                }
+            }
+            impl<T, U> az::WrappingCast<$Vec<U>> for $Vec<T> where T: az::WrappingCast<U> {
+                fn wrapping_cast(self) -> $Vec<U> {
+                    $Vec::new($( self.$get.wrapping_cast() ),*)
+                }
+            }
+            impl<T, U> az::OverflowingCast<$Vec<U>> for $Vec<T> where T: az::OverflowingCast<U> {
+                fn overflowing_cast(self) -> ($Vec<U>, bool) {
+                    $(let $get = self.$get.overflowing_cast();)*
+                    ($Vec::new($( $get.0 ),*), $($get.1)||*)
+                }
+            }
+            impl<T, U> az::UnwrappedCast<$Vec<U>> for $Vec<T> where T: az::UnwrappedCast<U> {
+                fn unwrapped_cast(self) -> $Vec<U> {
+                    $Vec::new($( self.$get.unwrapped_cast() ),*)
+                }
+            }
+        }
     };
 }
 

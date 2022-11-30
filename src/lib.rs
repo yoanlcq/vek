@@ -61,6 +61,9 @@ pub extern crate mint;
 #[cfg(feature = "bytemuck")]
 pub extern crate bytemuck;
 
+#[cfg(feature = "az")]
+pub extern crate az;
+
 pub extern crate num_integer;
 pub extern crate num_traits;
 
