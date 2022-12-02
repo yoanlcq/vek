@@ -3713,6 +3713,18 @@ pub use self::repr_c::*;
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "az")]
+    #[test]
+    fn test_az() {
+        let err = crate::Vec2::new(u16::MAX as u32 + 3, 21);
+        let ok = crate::Vec2::new(0, u16::MAX as u32);
+        assert!(err.checked_as::<u16>().is_none());
+        assert!(ok.checked_as::<u16>().is_some());
+        assert_eq!(err.wrapping_as::<u16>(), crate::Vec2::new(2, 21));
+        assert_eq!(err.saturating_as::<u16>(), crate::Vec2::new(u16::MAX, 21));
+        assert_eq!(err.overflowing_as::<u16>(), (err.wrapping_as(), true));
+        assert_eq!(ok.overflowing_as::<u16>(), (ok.unwrapped_as(), false));
+    }
     macro_rules! test_vec_t {
         (repr_c $Vec:ident<$T:ident>) => {
 
