@@ -1285,6 +1285,45 @@ macro_rules! vec_impl_vec {
             }
         }
 
+        // Implement az conversion methods
+        #[cfg(feature = "az")]
+        impl<T> $Vec<T> {
+                /// Casts the components similar to `as`.
+                ///
+                /// **Panics**
+                /// - In debug mode if the value does not fit in the target type
+                /// - If the value does not fit and can't be wrapped, for example `f32::INFINITY`
+                pub fn az<U>(self) -> $Vec<U> where T: az::Cast<U> {
+                    az::Cast::cast(self)
+                }
+                /// Casts the components, but returns `None` if the value does not fit in the target type.
+                pub fn checked_as<U>(self) -> Option<$Vec<U>> where T: az::CheckedCast<U> {
+                    az::CheckedCast::checked_cast(self)
+                }
+                /// Cast the components, uses `MIN` and `MAX` if the value does not fit in the target type.
+                pub fn saturating_as<U>(self) -> $Vec<U> where T: az::SaturatingCast<U> {
+                    az::SaturatingCast::saturating_cast(self)
+                }
+                /// Cast the components and wraps if the value does not fit in the target type.
+                ///
+                /// **Panics**
+                /// - If the value does not fit and can't be wrapped, for example `f32::INFINITY`
+                pub fn wrapping_as<U>(self) -> $Vec<U> where T: az::WrappingCast<U> {
+                    az::WrappingCast::wrapping_cast(self)
+                }
+                /// Cast the components and wraps if the value does not fit in the target type.
+                /// Returns an additional `bool` to indicate if a value has wrapped.
+                ///
+                /// **Panics**
+                /// - If the value does not fit and can't be wrapped, for example `f32::INFINITY`
+                pub fn overflowing_as<U>(self) -> ($Vec<U>, bool) where T: az::OverflowingCast<U> {
+                    az::OverflowingCast::overflowing_cast(self)
+                }
+                /// Cast the components and **panics** if the value does not fit in the target type.
+                pub fn unwrapped_as<U>(self) -> $Vec<U> where T: az::UnwrappedCast<U> {
+                    az::UnwrappedCast::unwrapped_cast(self)
+                }
+            }
 
         // OPS
 
