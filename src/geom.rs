@@ -77,10 +77,18 @@ macro_rules! geom_impl_rect_or_rect3 {
                 let Self { $($p,)+ .. } = self;
                 $Vec { $($p,)+ }
             }
+            /// Sets this rectangle's position.
+            pub fn set_position(&mut self, p: $Vec<P>) {
+                $(self.$p = p.$p;)*
+            }
             /// Gets this rectangle's extent (size).
             pub fn extent(self) -> $Extent<E> {
                 let Self { $($e,)+ .. } = self;
                 $Extent { $($e,)+ }
+            }
+            /// Sets this rectangle's extent (size).
+            pub fn set_extent(&mut self, e: $Extent<E>) {
+                $(self.$e = e.$e;)*
             }
             /// Gets this rectangle's position and extent (size).
             pub fn position_extent(self) -> ($Vec<P>, $Extent<E>) {
