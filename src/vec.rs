@@ -1285,6 +1285,45 @@ macro_rules! vec_impl_vec {
             }
         }
 
+        // Implement az conversion methods
+        #[cfg(feature = "az")]
+        impl<T> $Vec<T> {
+                /// Casts the components similar to `as`.
+                ///
+                /// **Panics**
+                /// - In debug mode if the value does not fit in the target type
+                /// - If the value does not fit and can't be wrapped, for example `f32::INFINITY`
+                pub fn az<U>(self) -> $Vec<U> where T: az::Cast<U> {
+                    az::Cast::cast(self)
+                }
+                /// Casts the components, but returns `None` if the value does not fit in the target type.
+                pub fn checked_as<U>(self) -> Option<$Vec<U>> where T: az::CheckedCast<U> {
+                    az::CheckedCast::checked_cast(self)
+                }
+                /// Cast the components, uses `MIN` and `MAX` if the value does not fit in the target type.
+                pub fn saturating_as<U>(self) -> $Vec<U> where T: az::SaturatingCast<U> {
+                    az::SaturatingCast::saturating_cast(self)
+                }
+                /// Cast the components and wraps if the value does not fit in the target type.
+                ///
+                /// **Panics**
+                /// - If the value does not fit and can't be wrapped, for example `f32::INFINITY`
+                pub fn wrapping_as<U>(self) -> $Vec<U> where T: az::WrappingCast<U> {
+                    az::WrappingCast::wrapping_cast(self)
+                }
+                /// Cast the components and wraps if the value does not fit in the target type.
+                /// Returns an additional `bool` to indicate if a value has wrapped.
+                ///
+                /// **Panics**
+                /// - If the value does not fit and can't be wrapped, for example `f32::INFINITY`
+                pub fn overflowing_as<U>(self) -> ($Vec<U>, bool) where T: az::OverflowingCast<U> {
+                    az::OverflowingCast::overflowing_cast(self)
+                }
+                /// Cast the components and **panics** if the value does not fit in the target type.
+                pub fn unwrapped_as<U>(self) -> $Vec<U> where T: az::UnwrappedCast<U> {
+                    az::UnwrappedCast::unwrapped_cast(self)
+                }
+            }
 
         // OPS
 
@@ -1916,6 +1955,43 @@ macro_rules! vec_impl_vec {
         #[cfg(feature = "bytemuck")]
         unsafe impl<T> bytemuck::Pod for $Vec<T> where T: bytemuck::Pod {
             // Nothing here
+        }
+
+        #[cfg(feature = "az")]
+        mod impl_az {
+            use super::$Vec;
+
+            impl<T, U> az::Cast<$Vec<U>> for $Vec<T> where T: az::Cast<U> {
+                fn cast(self) -> $Vec<U> {
+                    $Vec::new($( self.$get.cast() ),*)
+                }
+            }
+            impl<T, U> az::CheckedCast<$Vec<U>> for $Vec<T> where T: az::CheckedCast<U> {
+                fn checked_cast(self) -> Option<$Vec<U>> {
+                    Some($Vec::new($( self.$get.checked_cast()? ),*))
+                }
+            }
+            impl<T, U> az::SaturatingCast<$Vec<U>> for $Vec<T> where T: az::SaturatingCast<U> {
+                fn saturating_cast(self) -> $Vec<U> {
+                    $Vec::new($( self.$get.saturating_cast() ),*)
+                }
+            }
+            impl<T, U> az::WrappingCast<$Vec<U>> for $Vec<T> where T: az::WrappingCast<U> {
+                fn wrapping_cast(self) -> $Vec<U> {
+                    $Vec::new($( self.$get.wrapping_cast() ),*)
+                }
+            }
+            impl<T, U> az::OverflowingCast<$Vec<U>> for $Vec<T> where T: az::OverflowingCast<U> {
+                fn overflowing_cast(self) -> ($Vec<U>, bool) {
+                    $(let $get = self.$get.overflowing_cast();)*
+                    ($Vec::new($( $get.0 ),*), $($get.1)||*)
+                }
+            }
+            impl<T, U> az::UnwrappedCast<$Vec<U>> for $Vec<T> where T: az::UnwrappedCast<U> {
+                fn unwrapped_cast(self) -> $Vec<U> {
+                    $Vec::new($( self.$get.unwrapped_cast() ),*)
+                }
+            }
         }
     };
 }
@@ -3637,6 +3713,18 @@ pub use self::repr_c::*;
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "az")]
+    #[test]
+    fn test_az() {
+        let err = crate::Vec2::new(u16::MAX as u32 + 3, 21);
+        let ok = crate::Vec2::new(0, u16::MAX as u32);
+        assert!(err.checked_as::<u16>().is_none());
+        assert!(ok.checked_as::<u16>().is_some());
+        assert_eq!(err.wrapping_as::<u16>(), crate::Vec2::new(2, 21));
+        assert_eq!(err.saturating_as::<u16>(), crate::Vec2::new(u16::MAX, 21));
+        assert_eq!(err.overflowing_as::<u16>(), (err.wrapping_as(), true));
+        assert_eq!(ok.overflowing_as::<u16>(), (ok.unwrapped_as(), false));
+    }
     macro_rules! test_vec_t {
         (repr_c $Vec:ident<$T:ident>) => {
 

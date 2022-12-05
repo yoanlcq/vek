@@ -1,6 +1,6 @@
 [package]
 version = "0.15.9" # remember to update html_root_url in src/lib.rs
-authors = ["Yoan Lecoq <yoanlecoq.io@gmail.com>", "Joshua Barretto <joshua.s.barretto@gmail.com>", "Sunjay Varma <varma.sunjay@gmail.com>", "timokoesters <timo@koesters.xyz>", "Imbris <imbrisf@gmail.com>"]
+authors = ["Yoan Lecoq <yoanlecoq.io@gmail.com>", "Joshua Barretto <joshua.s.barretto@gmail.com>", "Sunjay Varma <varma.sunjay@gmail.com>", "timokoesters <timo@koesters.xyz>", "Imbris <imbrisf@gmail.com>", "Patiga <dev@patiga.eu>"]
 description = "Generic 2D-3D math swiss army knife for game engines, with SIMD support and focus on convenience."
 documentation = "https://docs.rs/vek"
 keywords = ["vector", "matrix", "simd", "quaternion", "bezier"]
@@ -61,3 +61,4 @@ serde = { version = "1.0.105", optional = true, default-features = false, featur
 mint = { version = "0.5.4", optional = true }
 bytemuck = { version = "1.7.2", optional = true }
 # clippy = { version = "0.0.166", optional = true }
+az = { version = "1.1", optional = true, default-features = false }

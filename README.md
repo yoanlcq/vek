@@ -39,3 +39,4 @@ If you plan to work a pull request, please file an issue first so that we can ag
 - Imbris (GitHub: [@imberflur](https://github.com/imberflur))
 - Lukas Wirth (GitHub: [@veykril](https://github.com/veykril))
 - Martin Taibr (GitHub: [@martin-t](https://github.com/martin-t))
+- Patiga (GitHub: [@Patiga](https://github.com/Patiga))
