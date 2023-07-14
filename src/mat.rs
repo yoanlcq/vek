@@ -3195,6 +3195,24 @@ macro_rules! mat_impl_mat4 {
                 }
             }
         } */
+
+        #[cfg(feature = "bytemuck")]
+        unsafe impl<T> bytemuck::Zeroable for Mat4<T> where T: bytemuck::Zeroable {
+            fn zeroed() -> Self {
+                // I know for a fact there's macro magic to make it work in a single line
+                Self::new(
+                    T::zeroed(), T::zeroed(), T::zeroed(), T::zeroed(),
+                    T::zeroed(), T::zeroed(), T::zeroed(), T::zeroed(),
+                    T::zeroed(), T::zeroed(), T::zeroed(), T::zeroed(),
+                    T::zeroed(), T::zeroed(), T::zeroed(), T::zeroed()
+                )
+            }
+        }
+
+        #[cfg(feature = "bytemuck")]
+        unsafe impl<T> bytemuck::Pod for Mat4<T> where T: bytemuck::Pod {
+            // Nothing here
+        }
     };
 }
 
