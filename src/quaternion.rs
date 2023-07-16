@@ -6,6 +6,9 @@ use crate::ops::*;
 use std::ops::Add;
 use std::ops::*;
 
+#[cfg(feature = "bytemuck")]
+use crate::bytemuck;
+
 macro_rules! impl_mul_by_vec {
     ($Vec3:ident $Vec4:ident) => {
         /// 3D vectors can be rotated by being premultiplied by a quaternion, **assuming the
@@ -733,6 +736,24 @@ macro_rules! quaternion_complete_mod {
                     && T::relative_eq(&self.z, &other.z, epsilon, max_relative)
             }
         }
+
+        #[cfg(feature = "bytemuck")]
+        unsafe impl<T> bytemuck::Zeroable for Quaternion<T> where T: bytemuck::Zeroable, Vec4<T>: bytemuck::Zeroable {
+            fn zeroed() -> Self {
+                Self {
+                    x: T::zeroed(),
+                    y: T::zeroed(),
+                    z: T::zeroed(),
+                    w: T::zeroed(),
+                }
+            }
+        }
+
+        #[cfg(feature = "bytemuck")]
+        unsafe impl<T> bytemuck::Pod for Mat4<T> where T: bytemuck::Pod {
+            // Nothing here
+        }
+
     };
 }
 

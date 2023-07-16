@@ -3807,6 +3807,14 @@ mod tests {
                 assert_eq!((2 as $T) + v, v + (2 as $T));
             }
         };
+        (repr_simd_padding $Vec:ident<$T:ident>) => {
+            #[test]
+            fn test_simd_padding() {
+                let count = $Vec::<$T>::ELEM_COUNT;
+                let elem_size = std::mem::size_of::<$T>();
+                assert_eq!(std::mem::size_of::<$Vec<$T>>(), count * elem_size);
+            }
+        };
     }
     macro_rules! for_each_type {
         ($vec:ident $Vec:ident $($T:ident)+) => {
@@ -3829,6 +3837,7 @@ mod tests {
                         use $crate::vec::repr_simd::$Vec;
                         test_vec_t!{repr_simd $Vec<$T>}
                         test_vec_t!{repr_simd_except_bool $Vec<$T>}
+                        test_vec_t!{repr_simd_padding $Vec<$T>}
                     })+
                     mod bool {
                         use $crate::vec::repr_simd::$Vec;

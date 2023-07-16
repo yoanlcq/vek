@@ -14,6 +14,9 @@ use crate::geom::{Rect, FrustumPlanes}; // NOTE: Rect is therefore always repr_c
 use crate::quaternion;
 use crate::transform;
 
+#[cfg(feature = "bytemuck")]
+use crate::bytemuck;
+
 // Needed because mem::transmute() isn't clever enough to figure out that e.g [T; 16] and [[T; 4]; 4]
 // always have the exact same size and layout, regardless of T. The opposite is impossible.
 // See https://github.com/rust-lang/rust/issues/47966
@@ -1431,6 +1434,22 @@ macro_rules! mat_impl_mat {
                 }
                 true
             }
+        }
+        
+        #[cfg(feature = "bytemuck")]
+        unsafe impl<T> bytemuck::Zeroable for $Mat<T> where T: bytemuck::Zeroable, $Vec: bytemuck::Zeroable {
+            fn zeroed() -> Self {
+                Self {
+                    $lines: $CVec {
+                        $($get: $Vec::zeroed(),)+
+                    }
+                }
+            }
+        }
+
+        #[cfg(feature = "bytemuck")]
+        unsafe impl<T> bytemuck::Pod for Mat4<T> where T: bytemuck::Pod {
+            // Nothing here
         }
 
     };
