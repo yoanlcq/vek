@@ -750,7 +750,7 @@ macro_rules! quaternion_complete_mod {
         }
 
         #[cfg(feature = "bytemuck")]
-        unsafe impl<T> bytemuck::Pod for Mat4<T> where T: bytemuck::Pod {
+        unsafe impl<T> bytemuck::Pod for Quaternion<T> where T: bytemuck::Pod {
             // Nothing here
         }
 
