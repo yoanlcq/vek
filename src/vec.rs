@@ -3808,6 +3808,8 @@ mod tests {
             }
         };
         (repr_simd_padding $Vec:ident<$T:ident>) => {
+            // This test aims to prove that types in the `repr_simd` modules have no padding/uninit bytes, which is a requirement for implementing bytemuck's Pod trait.
+            // In the past, `#[repr(simd)] Vec3<T>` had that issue as the compiler treated it as an aligned Vec4 in memory, but since some time, the compiler stopped supporting non-power-of-two SIMD types, so we were forced to write them as `#[repr(C)]`, which means that now they don't have any padding, but they're also not true SIMD types, which is fine : users should use Vec4 instead if they want SIMD.
             #[test]
             fn test_simd_padding() {
                 let count = $Vec::<$T>::ELEM_COUNT;
