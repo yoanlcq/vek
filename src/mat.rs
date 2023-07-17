@@ -1451,7 +1451,6 @@ macro_rules! mat_impl_mat {
         unsafe impl<T> bytemuck::Pod for $Mat<T> where T: bytemuck::Pod {
             // Nothing here
         }
-
     };
 }
 
