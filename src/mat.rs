@@ -1437,7 +1437,7 @@ macro_rules! mat_impl_mat {
         }
         
         #[cfg(feature = "bytemuck")]
-        unsafe impl<T> bytemuck::Zeroable for $Mat<T> where T: bytemuck::Zeroable, $Vec: bytemuck::Zeroable {
+        unsafe impl<T> bytemuck::Zeroable for $Mat<T> where T: bytemuck::Zeroable, $Vec<T>: bytemuck::Zeroable {
             fn zeroed() -> Self {
                 Self {
                     $lines: $CVec {
@@ -1448,7 +1448,7 @@ macro_rules! mat_impl_mat {
         }
 
         #[cfg(feature = "bytemuck")]
-        unsafe impl<T> bytemuck::Pod for Mat4<T> where T: bytemuck::Pod {
+        unsafe impl<T> bytemuck::Pod for $Mat<T> where T: bytemuck::Pod {
             // Nothing here
         }
 
