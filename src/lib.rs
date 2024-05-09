@@ -37,7 +37,7 @@
 #![cfg_attr(all(nightly, feature = "clippy"), plugin(clippy))]
 //#![cfg_attr(all(nightly, feature="repr_simd" ), feature(cfg_target_feature))]
 #![cfg_attr(all(nightly, feature = "repr_simd"), feature(repr_simd, simd_ffi))]
-#![cfg_attr(all(nightly, feature = "platform_intrinsics"), feature(platform_intrinsics))]
+#![cfg_attr(all(nightly, feature = "platform_intrinsics"), feature(portable_simd, core_intrinsics))]
 //#![cfg_attr(feature="repr_simd", allow(improper_ctypes)]
 //#![cfg_attr(feature="repr_simd", feature(link_llvm_intrinsics)]
 #![cfg_attr(all(nightly, test), feature(test))]
@@ -72,10 +72,6 @@ pub extern crate num_traits;
 #[macro_use]
 pub extern crate approx;
 
-#[cfg(feature = "platform_intrinsics")]
-mod simd_llvm;
-// ^ Please do not make this module public; we don't want people to use it, because it could change as the SIMD infrastructure evolves.
-
 pub mod ops;
 pub use crate::ops::*;
 pub mod vec;
@@ -92,5 +88,3 @@ pub mod bezier;
 pub use crate::bezier::*;
 pub mod geom;
 pub use crate::geom::*;
-pub mod simd_traits;
-pub use crate::simd_traits::*;

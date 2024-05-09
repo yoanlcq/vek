@@ -14,13 +14,11 @@ use std::cmp;
 use std::ops::*;
 use std::slice::{self, /*SliceIndex*/}; // NOTE: Will want to use SliceIndex once it's stabilized
 use std::num::Wrapping;
+#[cfg(feature = "platform_intrinsics")]
+use std::simd::SimdElement;
 use num_traits::{Zero, One, NumCast, AsPrimitive, Signed, real::Real};
 use approx::{AbsDiffEq, RelativeEq, UlpsEq};
 use crate::ops::*;
-use crate::simd_traits::{SimdElement, SimdMask};
-
-#[cfg(feature = "platform_intrinsics")]
-use crate::simd_llvm;
 
 #[cfg(feature = "bytemuck")]
 use crate::bytemuck;
@@ -87,12 +85,23 @@ macro_rules! vec_impl_cmp {
             }}
         }
         $(#[$attrs])*
+        #[cfg(feature = "platform_intrinsics")]
         #[inline]
-        pub fn $cmp_simd(self, rhs: Self) -> $Vec<T::SimdMaskType> where T: $Bounds + SimdElement {
+        pub fn $cmp_simd(self, rhs: Self) -> $Vec<T::Mask>
+            where
+                T: $Bounds + SimdElement,
+                <T as SimdElement>::Mask: num_traits::cast::FromPrimitive {
             choose!{$c_or_simd {
-                c => $Vec::new($(T::SimdMaskType::from_bool(self.$get $op rhs.$get)),+),
-                simd_llvm => unsafe { simd_llvm::$simd_cmp(self, rhs) },
+                c => $Vec::new($(<T::Mask as num_traits::cast::FromPrimitive>::from_u8((self.$get $op rhs.$get) as _).unwrap()),+),
+                simd_llvm => unsafe { std::intrinsics::simd::$simd_cmp(self, rhs) },
             }}
+        }
+
+        $(#[$attrs])*
+        #[cfg(not(feature = "platform_intrinsics"))]
+        #[inline]
+        pub fn $cmp_simd(self, rhs: Self) -> $Vec<bool> where T: $Bounds {
+            self.$cmp(&rhs)
         }
     }
 }
@@ -167,7 +176,7 @@ macro_rules! vec_impl_binop {
                 let rhs = rhs.into();
                 choose!{$c_or_simd {
                     c => $Vec::new($(self.$get.$op(rhs.$get)),+),
-                    simd_llvm => unsafe { simd_llvm::$simd_op(self, rhs) },
+                    simd_llvm => unsafe { std::intrinsics::simd::$simd_op(self, rhs) },
                 }}
             }
         }
@@ -273,7 +282,7 @@ macro_rules! vec_impl_reduce_bool_ops_for_primitive {
             pub fn reduce_and(self) -> bool {
                 choose!{$c_or_simd {
                     c => reduce_binop!(&&, $(!self.$get.is_zero()),+),
-                    simd_llvm => unsafe { simd_llvm::simd_reduce_all(self) },
+                    simd_llvm => unsafe { std::intrinsics::simd::simd_reduce_all(self) },
                 }}
             }
             /// Returns the result of logical OR (`||`) on all elements of this vector.
@@ -288,7 +297,7 @@ macro_rules! vec_impl_reduce_bool_ops_for_primitive {
             pub fn reduce_or(self) -> bool {
                 choose!{$c_or_simd {
                     c => reduce_binop!(||, $(!self.$get.is_zero()),+),
-                    simd_llvm => unsafe { simd_llvm::simd_reduce_any(self) },
+                    simd_llvm => unsafe { std::intrinsics::simd::simd_reduce_any(self) },
                 }}
             }
         }
@@ -668,7 +677,7 @@ macro_rules! vec_impl_vec {
             pub fn as_<D>(self) -> $Vec<D> where T: AsPrimitive<D>, D: 'static + Copy {
                 choose!{$c_or_simd {
                     c => $Vec::new($(self.$get.as_()),+),
-                    simd_llvm => unsafe { simd_llvm::simd_cast(self) },
+                    simd_llvm => unsafe { std::intrinsics::simd::simd_cast(self) },
                 }}
             }
             /// Returns a memberwise-converted copy of this vector, using `NumCast`.
@@ -712,7 +721,7 @@ macro_rules! vec_impl_vec {
                 let add = add.into();
                 choose!{$c_or_simd {
                     c => $Vec::new($(self.$get.mul_add(mul.$get, add.$get)),+),
-                    simd_llvm => unsafe { simd_llvm::simd_fma(self, mul, add) },
+                    simd_llvm => unsafe { std::intrinsics::simd::simd_fma(self, mul, add) },
                 }}
             }
 
@@ -803,7 +812,7 @@ macro_rules! vec_impl_vec {
             pub fn reduce_min(self) -> T where T: Ord {
                 choose!{$c_or_simd {
                     c => reduce_fn!(cmp::min, $(self.$get),+),
-                    simd_llvm => unsafe { simd_llvm::simd_reduce_min(self) },
+                    simd_llvm => unsafe { std::intrinsics::simd::simd_reduce_min(self) },
                 }}
             }
             /// Returns the element which has the highest value in this vector, using total
@@ -817,7 +826,7 @@ macro_rules! vec_impl_vec {
             pub fn reduce_max(self) -> T where T: Ord {
                 choose!{$c_or_simd {
                     c => reduce_fn!(cmp::max, $(self.$get),+),
-                    simd_llvm => unsafe { simd_llvm::simd_reduce_max(self) },
+                    simd_llvm => unsafe { std::intrinsics::simd::simd_reduce_max(self) },
                 }}
             }
 
@@ -832,7 +841,7 @@ macro_rules! vec_impl_vec {
             pub fn reduce_partial_min(self) -> T where T: PartialOrd {
                 choose!{$c_or_simd {
                     c => reduce_fn!(partial_min, $(self.$get),+),
-                    simd_llvm => unsafe { simd_llvm::simd_reduce_min(self) },
+                    simd_llvm => unsafe { std::intrinsics::simd::simd_reduce_min(self) },
                 }}
             }
             /// Returns the element which has the highest value in this vector, using partial
@@ -846,7 +855,7 @@ macro_rules! vec_impl_vec {
             pub fn reduce_partial_max(self) -> T where T: PartialOrd {
                 choose!{$c_or_simd {
                     c => reduce_fn!(partial_max, $(self.$get),+),
-                    simd_llvm => unsafe { simd_llvm::simd_reduce_max(self) },
+                    simd_llvm => unsafe { std::intrinsics::simd::simd_reduce_max(self) },
                 }}
             }
 
@@ -862,7 +871,7 @@ macro_rules! vec_impl_vec {
             pub fn reduce_bitand(self) -> T where T: BitAnd<T, Output=T> {
                 choose!{$c_or_simd {
                     c => reduce_binop!(&, $(self.$get),+),
-                    simd_llvm => unsafe { simd_llvm::simd_reduce_and(self) },
+                    simd_llvm => unsafe { std::intrinsics::simd::simd_reduce_and(self) },
                 }}
             }
 
@@ -877,7 +886,7 @@ macro_rules! vec_impl_vec {
             pub fn reduce_bitor(self) -> T where T: BitOr<T, Output=T> {
                 choose!{$c_or_simd {
                     c => reduce_binop!(|, $(self.$get),+),
-                    simd_llvm => unsafe { simd_llvm::simd_reduce_or(self) },
+                    simd_llvm => unsafe { std::intrinsics::simd::simd_reduce_or(self) },
                 }}
             }
 
@@ -892,7 +901,7 @@ macro_rules! vec_impl_vec {
             pub fn reduce_bitxor(self) -> T where T: BitXor<T, Output=T> {
                 choose!{$c_or_simd {
                     c => reduce_binop!(^, $(self.$get),+),
-                    simd_llvm => unsafe { simd_llvm::simd_reduce_xor(self) },
+                    simd_llvm => unsafe { std::intrinsics::simd::simd_reduce_xor(self) },
                 }}
             }
 
@@ -912,7 +921,7 @@ macro_rules! vec_impl_vec {
             pub fn product(self) -> T where T: Mul<Output=T> {
                 choose!{$c_or_simd {
                     c => reduce_binop!(*, $(self.$get),+),
-                    simd_llvm => unsafe { simd_llvm::simd_reduce_mul_unordered(self) },
+                    simd_llvm => unsafe { std::intrinsics::simd::simd_reduce_mul_unordered(self) },
                 }}
             }
             /// Returns the sum of each of this vector's elements.
@@ -925,7 +934,7 @@ macro_rules! vec_impl_vec {
             pub fn sum(self) -> T where T: Add<T, Output=T> {
                 choose!{$c_or_simd {
                     c => reduce_binop!(+, $(self.$get),+),
-                    simd_llvm => unsafe { simd_llvm::simd_reduce_add_unordered(self) },
+                    simd_llvm => unsafe { std::intrinsics::simd::simd_reduce_add_unordered(self) },
                 }}
             }
             /// Returns the average of this vector's elements.
@@ -980,7 +989,7 @@ macro_rules! vec_impl_vec {
             pub fn sqrt(self) -> Self where T: Real {
                 choose!{$c_or_simd {
                     c => Self::new($(self.$get.sqrt()),+),
-                    simd_llvm => unsafe { simd_llvm::simd_fsqrt(self) },
+                    simd_llvm => unsafe { std::intrinsics::simd::simd_fsqrt(self) },
                 }}
             }
 
@@ -1022,7 +1031,7 @@ macro_rules! vec_impl_vec {
             pub fn ceil(self) -> Self where T: Real {
                 choose!{$c_or_simd {
                     c => Self::new($(self.$get.ceil()),+),
-                    simd_llvm => unsafe { simd_llvm::simd_ceil(self) },
+                    simd_llvm => unsafe { std::intrinsics::simd::simd_ceil(self) },
                 }}
             }
             /// Returns a new vector which elements are rounded down to the nearest lower integer.
@@ -1036,7 +1045,7 @@ macro_rules! vec_impl_vec {
             pub fn floor(self) -> Self where T: Real {
                 choose!{$c_or_simd {
                     c => Self::new($(self.$get.floor()),+),
-                    simd_llvm => unsafe { simd_llvm::simd_floor(self) },
+                    simd_llvm => unsafe { std::intrinsics::simd::simd_floor(self) },
                 }}
             }
             /// Returns a new vector which elements are rounded to the nearest integer.
@@ -1645,7 +1654,7 @@ macro_rules! vec_impl_vec {
             pub fn reduce_and(self) -> bool {
                 choose!{$c_or_simd {
                     c => reduce_binop!(&&, $(self.$get),+),
-                    simd_llvm => unsafe { simd_llvm::simd_reduce_all(self.into_native_simd_integer_vector()) },
+                    simd_llvm => unsafe { std::intrinsics::simd::simd_reduce_all(self.into_native_simd_integer_vector()) },
                 }}
             }
             /// Returns the result of logical OR (`||`) on all elements of this vector.
@@ -1659,7 +1668,7 @@ macro_rules! vec_impl_vec {
             pub fn reduce_or(self) -> bool {
                 choose!{$c_or_simd {
                     c => reduce_binop!(||, $(self.$get),+),
-                    simd_llvm => unsafe { simd_llvm::simd_reduce_any(self.into_native_simd_integer_vector()) },
+                    simd_llvm => unsafe { std::intrinsics::simd::simd_reduce_any(self.into_native_simd_integer_vector()) },
                 }}
             }
             /// Reduces this vector using total inequality.
