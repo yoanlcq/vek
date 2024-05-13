@@ -4177,15 +4177,15 @@ pub mod repr_simd {
 
     use super::*;
     #[allow(unused_imports)]
-    use super::vec::repr_simd::{Vec2};
+    use super::vec::repr_simd::Vec2;
     #[allow(unused_imports)]
-    use super::vec::repr_c::{Vec2 as CVec2};
+    use super::vec::repr_c::Vec2 as CVec2;
     #[allow(unused_imports)]
-    use super::vec::repr_simd::{Vec3};
+    use super::vec::repr_simd::Vec3;
     #[allow(unused_imports)]
-    use super::vec::repr_c::{Vec3 as CVec3};
-    use super::vec::repr_simd::{Vec4};
-    use super::vec::repr_c::{Vec4 as CVec4};
+    use super::vec::repr_c::Vec3 as CVec3;
+    use super::vec::repr_simd::Vec4;
+    use super::vec::repr_c::Vec4 as CVec4;
 
     use super::quaternion::repr_simd::Quaternion;
     use super::transform::repr_simd::Transform;
