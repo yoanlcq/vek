@@ -35,6 +35,7 @@
 //#![deny(incoherent_fundamental_impls)]
 //#![cfg_attr(all(nightly, feature="repr_simd" ), feature(cfg_target_feature))]
 #![cfg_attr(all(nightly, feature = "repr_simd"), feature(repr_simd, simd_ffi))]
+#![cfg_attr(all(nightly, feature = "platform_intrinsics"), allow(internal_features))] // We're not scared of core_intrinsics aye... They keep moving around but have actually been there since the dawn of time and not changed much.
 #![cfg_attr(all(nightly, feature = "platform_intrinsics"), feature(portable_simd, core_intrinsics))]
 //#![cfg_attr(feature="repr_simd", allow(improper_ctypes)]
 //#![cfg_attr(feature="repr_simd", feature(link_llvm_intrinsics)]
@@ -85,4 +86,4 @@ pub use crate::transform::*;
 pub mod bezier;
 pub use crate::bezier::repr_c::*;
 pub mod geom;
-pub use crate::geom::repr_c::*;
+pub use crate::geom::{repr_c::*, FrustumPlanes};
