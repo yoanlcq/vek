@@ -318,7 +318,6 @@ macro_rules! vec_impl_vec {
 
         impl<T> $Vec<T> {
             /// Creates a vector from elements.
-            #[cfg_attr(feature = "clippy", allow(too_many_arguments))]
             pub const fn new($($namedget:T),+) -> Self {
                 $Vec($($namedget),+)
             }
@@ -332,7 +331,6 @@ macro_rules! vec_impl_vec {
 
         impl<T> $Vec<T> {
             /// Creates a vector from elements.
-            #[cfg_attr(feature = "clippy", allow(too_many_arguments))]
             pub const fn new($($namedget:T),+) -> Self {
                 Self { $($namedget),+ }
             }
@@ -504,12 +502,10 @@ macro_rules! vec_impl_vec {
             pub const ELEM_COUNT: usize = $dim;
 
             /// Converts this into a tuple with the same number of elements by consuming.
-            #[cfg_attr(feature = "clippy", allow(type_complexity))]
             pub fn into_tuple(self) -> $Tuple {
                 ($(self.$get),+)
             }
             /// Converts this vector into a fixed-size array.
-            #[cfg_attr(feature = "clippy", allow(type_complexity))]
             pub fn into_array(self) -> [T; $dim] {
                 [$(self.$get, )+]
             }
@@ -1887,13 +1883,11 @@ macro_rules! vec_impl_vec {
 
         // CONVERSIONS
 
-        #[cfg_attr(feature = "clippy", allow(type_complexity))]
         impl<T> From<$Tuple> for $Vec<T> {
             fn from(tuple: $Tuple) -> Self {
                 Self::new($(tuple.$tupleget),+)
             }
         }
-        #[cfg_attr(feature = "clippy", allow(type_complexity))]
         impl<T> From<[T; $dim]> for $Vec<T> {
             fn from(array: [T; $dim]) -> Self {
                 let array = mem::ManuallyDrop::new(array);

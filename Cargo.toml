@@ -60,5 +60,4 @@ image = { version = "0.23", optional = true, default-features = false }
 serde = { version = "1.0.171", optional = true, default-features = false, features = ["derive"] }
 mint = { version = "0.5.4", optional = true }
 bytemuck = { version = "1.7.2", optional = true }
-# clippy = { version = "0.0.166", optional = true }
 az = { version = "1.1", optional = true, default-features = false }
