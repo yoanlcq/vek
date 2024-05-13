@@ -847,10 +847,10 @@ macro_rules! impl_all_beziers {
             bezier_impl_3d_into_2d!{CubicBezier3 CubicBezier2}
         }
 
-        pub use quadratic_bezier2::*;
-        pub use quadratic_bezier3::*;
-        pub use cubic_bezier2::*;
-        pub use cubic_bezier3::*;
+        pub use quadratic_bezier2::QuadraticBezier2;
+        pub use quadratic_bezier3::QuadraticBezier3;
+        pub use cubic_bezier2::CubicBezier2;
+        pub use cubic_bezier3::CubicBezier3;
     };
 }
 
