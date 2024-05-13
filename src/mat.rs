@@ -4142,12 +4142,6 @@ macro_rules! mat_declare_modules {
             use super::*;
             mat_impl_all_mats!{rows}
         }
-        /// Column-major layout is the default.
-        ///
-        /// Rationale:
-        /// - (Matrix * Vector) multiplications are more efficient;
-        /// - This is the layout expected by OpenGL;
-        pub use self::column_major::*;
     }
 }
 
@@ -4168,6 +4162,13 @@ pub mod repr_c {
     use super::transform::repr_c::Transform;
 
     mat_declare_modules!{}
+
+    /// Column-major layout is the default.
+    ///
+    /// Rationale:
+    /// - (Matrix * Vector) multiplications are more efficient;
+    /// - This is the layout expected by OpenGL;
+    pub use self::column_major::*;
 }
 
 #[cfg(all(nightly, feature="repr_simd"))]
@@ -4190,6 +4191,14 @@ pub mod repr_simd {
     use super::transform::repr_simd::Transform;
 
     mat_declare_modules!{}
+
+    /// Column-major layout is the default.
+    ///
+    /// Rationale:
+    /// - (Matrix * Vector) multiplications are more efficient;
+    /// - This is the layout expected by OpenGL;
+    #[allow(unused_imports)] // Not sure why I need the allow(unused_imports), it seems recent, and pretty sure removing it is a breaking change.
+    pub use self::column_major::*;
 }
 
 pub use self::repr_c::*;
