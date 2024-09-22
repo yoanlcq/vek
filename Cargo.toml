@@ -1,5 +1,5 @@
 [package]
-version = "0.17.0" # remember to update html_root_url in src/lib.rs
+version = "0.17.1" # remember to update html_root_url in src/lib.rs
 authors = ["Yoan Lecoq <yoanlecoq.io@gmail.com>", "Joshua Barretto <joshua.s.barretto@gmail.com>", "Sunjay Varma <varma.sunjay@gmail.com>", "timokoesters <timo@koesters.xyz>", "Imbris <imbrisf@gmail.com>", "Patiga <dev@patiga.eu>"]
 description = "Generic 2D-3D math swiss army knife for game engines, with SIMD support and focus on convenience."
 documentation = "https://docs.rs/vek"
@@ -23,7 +23,7 @@ appveyor  = { repository = "yoanlcq/vek" }
 maintenance = { status = "experimental" }
 
 [features]
-default = ["repr_simd", "rgba", "rgb", "std"]
+default = ["rgba", "rgb", "std"]
 # NOTE: The below ones (commented out) are enforced, because doc tests assume their availability.
 # vec2 = []
 # vec3 = []
