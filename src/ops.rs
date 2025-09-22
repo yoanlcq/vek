@@ -5,7 +5,7 @@ use std::ops::*;
 use std::cmp;
 use num_traits::{Zero, One, FloatConst};
 
-pub use num_traits::ops::mul_add::MulAdd;
+pub use num_traits::ops::mul_add::{MulAdd, MulAddAssign};
 
 // On no_std targets, we have to import the Real trait, but on std targets it will use the built-in primitive methods instead and warn that Real is unused.
 #[allow(unused_imports)]

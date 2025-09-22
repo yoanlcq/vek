@@ -40,7 +40,7 @@ impl<Progress> ProgressMapper<Progress> for IdentityProgressMapper {
 }
 
 /// A function pointer container that can map a progress value to a LERP factor.
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash)]
 // #[cfg_attr(feature="serde", derive(Serialize, Deserialize))] NOTE: Fails with cargo test.
 pub struct ProgressMapperFn<T>(pub fn(T) -> T);
 
