@@ -8,7 +8,7 @@ macro_rules! transform_complete_mod {
         // look_at
         // rotate_around
 
-        use std::ops::Add;
+        use std::ops::{Add, Mul};
         use $crate::num_traits::{Zero, One, real::Real};
         use $crate::ops::*;
         use crate::vec::$mod::*;
@@ -26,7 +26,7 @@ macro_rules! transform_complete_mod {
         /// let (p, rz, s) = (Vec3::unit_x(), 3.0_f32, 5.0_f32);
         /// let a = Mat4::scaling_3d(s).rotated_z(rz).translated_3d(p);
         /// let b = Mat4::from(Transform {
-        ///     position: p, 
+        ///     position: p,
         ///     orientation: Quaternion::rotation_z(rz),
         ///     scale: Vec3::broadcast(s),
         /// });
@@ -68,9 +68,24 @@ macro_rules! transform_complete_mod {
             }
         }
 
-        /// LERP on a `Transform` is defined as LERP-ing between the positions and scales, 
+        impl<T> Mul for Transform<T,T,T>
+            where T: Real + MulAdd<T,T,Output=T>
+        {
+            type Output = Self;
+            fn mul(self, rhs: Self) -> Self {
+                let shift = self.orientation.mul_direction(rhs.position) * self.scale;
+
+                Self {
+                    position: self.position + shift,
+                    orientation: self.orientation * rhs.orientation,
+                    scale: self.scale * rhs.scale,
+                }
+            }
+        }
+
+        /// LERP on a `Transform` is defined as LERP-ing between the positions and scales,
         /// and performing SLERP between the orientations.
-        impl<P,O,S,Factor> Lerp<Factor> for Transform<P,O,S> 
+        impl<P,O,S,Factor> Lerp<Factor> for Transform<P,O,S>
             where Factor: Copy + Into<O>,
                   P: Lerp<Factor,Output=P>,
                   S: Lerp<Factor,Output=S>,
@@ -93,9 +108,9 @@ macro_rules! transform_complete_mod {
             }
         }
 
-        /// LERP on a `Transform` is defined as LERP-ing between the positions and scales, 
+        /// LERP on a `Transform` is defined as LERP-ing between the positions and scales,
         /// and performing SLERP between the orientations.
-        impl<'a,P,O,S,Factor> Lerp<Factor> for &'a Transform<P,O,S> 
+        impl<'a,P,O,S,Factor> Lerp<Factor> for &'a Transform<P,O,S>
             where Factor: Copy + Into<O>,
                   &'a P: Lerp<Factor,Output=P>,
                   &'a S: Lerp<Factor,Output=S>,
@@ -117,8 +132,8 @@ macro_rules! transform_complete_mod {
                 }
             }
         }
-    }     
-}         
+    }
+}
 
 #[cfg(all(nightly, feature="repr_simd"))]
 pub mod repr_simd {
